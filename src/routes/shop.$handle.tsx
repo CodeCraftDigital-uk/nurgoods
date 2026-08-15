@@ -1,9 +1,11 @@
+import { useMemo, useState } from "react";
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { PublicShell } from "@/components/public/PublicShell";
 import { Breadcrumbs } from "@/components/public/Breadcrumbs";
 import { JsonLd } from "@/components/public/JsonLd";
 import { Markdown } from "@/components/public/Markdown";
 import { ProductCard, formatPrice } from "@/components/public/ProductCard";
+import { MissingProductImage } from "@/components/public/MissingProductImage";
 import { ReviewPlacementSlot } from "@/components/public/ReviewPlacementSlot";
 import { BRAND } from "@/lib/brand";
 import { getStorefrontProductFn } from "@/lib/services/storefront.functions";
@@ -77,6 +79,16 @@ function ProductNotFound() {
 
 function ProductDetail() {
   const { product } = Route.useLoaderData();
+  const [activeIndex, setActiveIndex] = useState(0);
+  const gallery = useMemo(() => {
+    const items = [...product.media];
+    if (items.length === 0 && product.image_url) {
+      items.push({ url: product.image_url, alt: product.title, width: null, height: null });
+    }
+    return items;
+  }, [product]);
+  const activeImage = gallery[Math.min(activeIndex, Math.max(gallery.length - 1, 0))] ?? null;
+  const storeHref = product.store_url ?? BRAND.storeUrl;
   const price = formatPrice(product.price_min, product.price_max, product.currency);
   const url = `${BRAND.siteUrl}/shop/${product.handle}`;
 
@@ -96,7 +108,7 @@ function ProductDetail() {
               "@type": "Offer",
               price: product.price_min,
               priceCurrency: product.currency ?? "GBP",
-              url: BRAND.storeUrl,
+              url,
             },
           }
         : {}),
@@ -124,24 +136,50 @@ function ProductDetail() {
         />
 
         <div className="mt-6 grid gap-10 lg:grid-cols-2 lg:gap-14">
-          <div className="overflow-hidden rounded-2xl border border-border/70 bg-muted/40">
-            {product.image_url ? (
-              <img
-                src={product.image_url}
-                alt={product.title}
-                width={1200}
-                height={1200}
-                decoding="async"
-                className="aspect-square w-full object-cover"
-              />
-            ) : (
-              <div
-                aria-hidden="true"
-                className="flex aspect-square w-full items-center justify-center font-display text-6xl text-muted-foreground/40"
-              >
-                N
-              </div>
-            )}
+          <div>
+            <div className="overflow-hidden rounded-2xl border border-border/70 bg-muted/40">
+              {activeImage ? (
+                <img
+                  src={activeImage.url}
+                  alt={activeImage.alt ?? product.title}
+                  width={activeImage.width ?? 1200}
+                  height={activeImage.height ?? 1200}
+                  decoding="async"
+                  className="aspect-square w-full object-cover"
+                />
+              ) : (
+                <div className="aspect-square w-full">
+                  <MissingProductImage />
+                </div>
+              )}
+            </div>
+            {gallery.length > 1 ? (
+              <ul className="mt-3 grid grid-cols-5 gap-2 sm:gap-3">
+                {gallery.slice(0, 10).map((item, index) => (
+                  <li key={item.url}>
+                    <button
+                      type="button"
+                      onClick={() => setActiveIndex(index)}
+                      aria-label={`Show image ${index + 1}`}
+                      aria-current={index === activeIndex}
+                      className={`block w-full overflow-hidden rounded-lg border transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${
+                        index === activeIndex ? "border-gold" : "border-border/70 hover:border-gold/60"
+                      }`}
+                    >
+                      <img
+                        src={item.url}
+                        alt=""
+                        width={160}
+                        height={160}
+                        loading="lazy"
+                        decoding="async"
+                        className="aspect-square w-full object-cover"
+                      />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
           </div>
 
           <div>
@@ -153,15 +191,59 @@ function ProductDetail() {
             <h1 className="mt-2 font-display text-3xl leading-tight text-foreground sm:text-4xl">
               {product.title}
             </h1>
-            {price ? <p className="mt-4 text-xl text-foreground">{price}</p> : null}
+            {price ? (
+              <p className="mt-4 flex items-baseline gap-3 text-xl text-foreground">
+                <span>{price}</span>
+                {product.compare_at_price_min != null &&
+                product.price_min != null &&
+                product.compare_at_price_min > product.price_min ? (
+                  <span className="text-sm text-muted-foreground line-through">
+                    {formatPrice(product.compare_at_price_min, null, product.currency)}
+                  </span>
+                ) : null}
+              </p>
+            ) : null}
             {product.summary ? (
               <p className="mt-5 text-base leading-relaxed text-muted-foreground">
                 {product.summary}
               </p>
             ) : null}
 
+            {product.variants.length > 1 ? (
+              <div className="mt-7">
+                <h2 className="text-[0.68rem] uppercase tracking-[0.22em] text-muted-foreground">
+                  Options
+                </h2>
+                <ul className="mt-3 flex flex-wrap gap-2">
+                  {product.variants.map((variant) => (
+                    <li key={variant.id}>
+                      <span
+                        className={`inline-flex min-h-10 items-center rounded-lg border px-3.5 text-sm ${
+                          variant.available_for_sale === false
+                            ? "border-border/60 text-muted-foreground line-through"
+                            : "border-border text-foreground"
+                        }`}
+                      >
+                        {variant.selected_options.length > 0
+                          ? variant.selected_options.map((option) => option.value).join(" / ")
+                          : variant.title}
+                        {variant.price != null ? (
+                          <span className="ml-2 text-xs text-muted-foreground">
+                            {formatPrice(variant.price, null, variant.currency)}
+                          </span>
+                        ) : null}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Choose your option at checkout on the store.
+                </p>
+              </div>
+            ) : null}
+
             <a
-              href={BRAND.storeUrl}
+              href={storeHref}
               className="mt-7 inline-flex min-h-12 w-full items-center justify-center rounded-lg bg-primary px-6 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 sm:w-auto"
             >
               View on the {BRAND.name} store
@@ -193,6 +275,16 @@ function ProductDetail() {
             ) : null}
           </div>
         </div>
+
+        {product.description_html ? (
+          <section className="mt-16 max-w-3xl">
+            <h2 className="font-display text-2xl text-foreground">Description</h2>
+            <div
+              className="prose prose-sm mt-4 max-w-none text-muted-foreground prose-headings:font-display prose-headings:text-foreground prose-strong:text-foreground prose-a:text-foreground"
+              dangerouslySetInnerHTML={{ __html: product.description_html }}
+            />
+          </section>
+        ) : null}
 
         {product.long_description ? (
           <section className="mt-16 max-w-3xl">
@@ -323,7 +415,7 @@ function ProductDetail() {
 
       <div className="sticky bottom-0 z-30 mt-16 border-t border-border/70 bg-background/95 px-5 py-3 backdrop-blur sm:hidden">
         <a
-          href={BRAND.storeUrl}
+          href={storeHref}
           className="flex min-h-12 items-center justify-center rounded-lg bg-primary px-5 text-sm font-medium text-primary-foreground"
         >
           View on the store
