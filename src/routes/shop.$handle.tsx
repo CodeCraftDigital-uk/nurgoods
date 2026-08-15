@@ -403,7 +403,7 @@ function ProductDetail() {
           </section>
         ) : null}
 
-        <ReviewPlacementSlot surface="product" className="mt-16" />
+        <ReviewPlacementSlot surface="product_page" className="mt-16" />
 
         {product.related.length > 0 ? (
           <section className="mt-16">

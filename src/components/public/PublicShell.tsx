@@ -3,6 +3,7 @@ import { useState, type ReactNode } from "react";
 import { Menu } from "lucide-react";
 import { BrandLogo, BrandWordmark } from "@/components/admin/BrandLogo";
 import { BRAND } from "@/lib/brand";
+import { ReviewPlacementSlot } from "@/components/public/ReviewPlacementSlot";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 
 const PRIMARY_NAV = [
@@ -155,11 +156,14 @@ export function PublicShell({ children }: { children: ReactNode }) {
           </div>
         </div>
         <div className="border-t border-border/70">
-          <div className="mx-auto flex w-full max-w-5xl items-center gap-3 px-5 py-5 sm:px-8">
-            <BrandLogo size={24} />
-            <p className="text-xs text-muted-foreground">
-              {new Date().getFullYear()} {BRAND.name}. All rights reserved.
-            </p>
+          <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-8">
+            <div className="flex items-center gap-3">
+              <BrandLogo size={24} />
+              <p className="text-xs text-muted-foreground">
+                {new Date().getFullYear()} {BRAND.name}. All rights reserved.
+              </p>
+            </div>
+            <ReviewPlacementSlot surface="footer" bare className="max-w-full overflow-x-auto" />
           </div>
         </div>
       </footer>
