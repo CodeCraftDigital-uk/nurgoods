@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Check, ExternalLink, Trash2 } from "lucide-react";
+import { Check, ExternalLink, Sparkles, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { SectionCard } from "@/components/admin/SectionCard";
 import { StatusPill, statusTone, humanise } from "@/components/admin/StatusPill";
@@ -22,6 +23,7 @@ import {
   addArticleSource,
   addInternalLink,
   getArticle,
+  listArticleRuns,
   listArticleSources,
   listInternalLinks,
   removeArticleSource,
@@ -29,7 +31,10 @@ import {
   setSourceVerified,
   updateArticle,
 } from "@/lib/services/journal";
-import { WORKFLOW_PIPELINE } from "@/lib/ai/workflow";
+import { RUNNABLE_STAGES, WORKFLOW_PIPELINE } from "@/lib/ai/workflow";
+import { AI_SECRET_NAMES } from "@/lib/ai/provider";
+import { getAiProviderStatus } from "@/lib/ai/ai-config.functions";
+import { runArticleStage } from "@/lib/ai/generation.functions";
 import {
   parseFaqs,
   WORKFLOW_STAGE_LABEL,
