@@ -21,6 +21,8 @@ export default defineMcp({
   version: "1.0.0",
   instructions:
     "Read only access to public NUR GOODS knowledge: active store products, categories, published Journal articles, approved answers and published store policies. Checkout, orders, accounts and stock changes are not available here, so send shoppers to the canonical store links returned by these tools. Never state a policy, price or availability that these tools have not returned.",
+  // The SDK's tool type does not model exactOptionalPropertyTypes, so the list is
+  // asserted to the definition's own tools type.
   tools: [
     searchProducts,
     getProduct,
@@ -30,5 +32,5 @@ export default defineMcp({
     getStoreInformation,
     getPolicy,
     getAnswers,
-  ],
+  ] as Parameters<typeof defineMcp>[0]["tools"],
 });
