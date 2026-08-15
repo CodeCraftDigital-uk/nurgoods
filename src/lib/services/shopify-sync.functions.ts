@@ -27,10 +27,11 @@ export const getShopifyStatus = createServerFn({ method: "GET" })
 const credentialsSchema = z.object({
   shopDomain: z.string().min(3).max(255),
   apiVersion: z.string().max(20).optional(),
-  adminToken: z.string().min(10).max(500).optional(),
+  clientId: z.string().min(6).max(255).optional(),
+  clientSecret: z.string().min(6).max(500).optional(),
 });
 
-/** Validates against the store, then stores the token in the encrypted vault. */
+/** Validates against the store, then stores the client secret in the vault. */
 export const connectShopify = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => credentialsSchema.parse(data))
   .middleware([requireSupabaseAuth])
@@ -49,19 +50,25 @@ export const connectShopify = createServerFn({ method: "POST" })
     const shopDomain = normaliseShopDomain(data.shopDomain);
     const apiVersion = normaliseApiVersion(data.apiVersion ?? null);
 
-    let adminToken = data.adminToken?.trim() || null;
-    if (!adminToken) {
-      const existing = await resolveShopifyCredentials();
-      adminToken = existing.adminToken;
+    const existing = await resolveShopifyCredentials();
+    const clientId = data.clientId?.trim() || existing.clientId;
+    const clientSecret = data.clientSecret?.trim() || existing.clientSecret;
+    if (!clientId || !clientSecret) {
+      throw new Error("A Client ID and Client secret are required");
     }
-    if (!adminToken) throw new Error("An Admin API access token is required");
 
     try {
-      const result = await testShopifyConnection({ shopDomain, adminToken, apiVersion });
+      const result = await testShopifyConnection({
+        shopDomain,
+        apiVersion,
+        clientId,
+        clientSecret,
+      });
       await saveShopifyCredentials({
         shopDomain,
         apiVersion,
-        adminToken: data.adminToken?.trim() || null,
+        clientId,
+        clientSecret: data.clientSecret?.trim() || null,
         shopName: result.shopName,
       });
       await markConnectionState({
@@ -106,14 +113,16 @@ export const testShopifyConnectionFn = createServerFn({ method: "POST" })
     } = await import("./shopify.server");
 
     const resolved = await resolveShopifyCredentials();
-    if (!resolved.shopDomain || !resolved.adminToken) {
+    if (!resolved.shopDomain || resolved.missing.length > 0) {
       throw new Error(`Store credentials missing: ${resolved.missing.join(", ")}`);
     }
     try {
       const result = await testShopifyConnection({
         shopDomain: resolved.shopDomain,
-        adminToken: resolved.adminToken,
         apiVersion: resolved.apiVersion,
+        clientId: resolved.clientId,
+        clientSecret: resolved.clientSecret,
+        adminToken: resolved.adminToken,
       });
       await markConnectionState({
         state: "connected",
@@ -141,6 +150,7 @@ export const testShopifyConnectionFn = createServerFn({ method: "POST" })
       throw new Error(message);
     }
   });
+
 
 /** Removes the stored token and configuration. Mirrored catalogue data stays. */
 export const disconnectShopifyFn = createServerFn({ method: "POST" })
