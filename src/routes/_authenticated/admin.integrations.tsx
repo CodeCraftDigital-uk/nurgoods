@@ -108,12 +108,20 @@ function IntegrationsPage() {
                 </div>
               ) : null}
               {integration.provider === "ai" ? (
-                <p className="mt-4 text-xs text-muted-foreground">
-                  {aiStatus.data?.configured
-                    ? `Server credentials detected for ${aiStatus.data.providerId}.`
-                    : `Missing server secrets: ${(aiStatus.data?.missing ?? Object.values(AI_SECRET_NAMES)).join(", ")}`}
-                </p>
+                <div className="mt-4 space-y-1">
+                  <p className="text-xs text-muted-foreground">
+                    {aiStatus.data?.configured
+                      ? `Server credentials detected for ${aiStatus.data.providerId}.`
+                      : `Missing server secrets: ${(aiStatus.data?.missing ?? Object.values(AI_SECRET_NAMES)).join(", ")}`}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {aiStatus.data?.researchConfigured
+                      ? `Live research enabled through ${aiStatus.data.researchProviderId ?? "tavily"}.`
+                      : "Live research is blocked. Add RESEARCH_PROVIDER_API_KEY, and RESEARCH_PROVIDER_ID if you are not using the default provider."}
+                  </p>
+                </div>
               ) : null}
+
             </SectionCard>
           );
         })}

@@ -19,6 +19,7 @@ export const getAiProviderStatus = createServerFn({ method: "GET" })
     const apiKey = process.env["AI_PROVIDER_API_KEY"]?.trim() || null;
     const model = process.env["AI_PROVIDER_MODEL"]?.trim() || null;
     const researchKey = process.env["RESEARCH_PROVIDER_API_KEY"]?.trim() || null;
+    const researchProviderId = process.env["RESEARCH_PROVIDER_ID"]?.trim() || null;
 
     const missing: string[] = [];
     if (!providerId) missing.push("AI_PROVIDER_ID");
@@ -30,6 +31,8 @@ export const getAiProviderStatus = createServerFn({ method: "GET" })
       providerId,
       model,
       researchConfigured: Boolean(researchKey),
+      researchProviderId,
+      researchMissing: researchKey ? [] : ["RESEARCH_PROVIDER_API_KEY"],
       missing,
     };
   });
