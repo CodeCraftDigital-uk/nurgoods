@@ -9,6 +9,7 @@ import type {
   McpResource,
   PromptVersion,
   ReviewPlacement,
+  ShopifyLegalSource,
 } from "@/lib/types/platform";
 
 /* ----------------------------- integrations ----------------------------- */
@@ -194,6 +195,17 @@ export async function listMcpResources(): Promise<McpResource[]> {
     .from("mcp_resources")
     .select("*")
     .order("sort_order", { ascending: true });
+  if (error) throw error;
+  return data;
+}
+
+/* ------------------- store sourced legal and policy content ------------------- */
+
+export async function listShopifyLegalSources(): Promise<ShopifyLegalSource[]> {
+  const { data, error } = await supabase
+    .from("shopify_legal_sources")
+    .select("*")
+    .order("title", { ascending: true });
   if (error) throw error;
   return data;
 }

@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { listLegalDocuments, updateLegalDocument } from "@/lib/services/operations";
+import { LegalSourcesPanel } from "@/components/admin/LegalSourcesPanel";
 
 export const Route = createFileRoute("/_authenticated/admin/legal")({
   component: LegalPage,
@@ -61,8 +62,10 @@ function LegalPage() {
       <PageHeader
         eyebrow="Legal and Trust"
         title="Policy documents"
-        description="Records for Privacy, Cookies, Terms, Returns and Refunds, Shipping and Delivery, Contact, About and Accessibility. All documents are empty placeholders until you supply the exact wording. No registrations, certifications or legal facts have been written for you."
+        description="Legal wording is imported from the store and the store stays authoritative. Locally authored records below cover anything the store does not hold. Nothing is written for you, and no registrations or legal facts are invented."
       />
+
+      <LegalSourcesPanel />
 
       <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
         <SectionCard title="Documents">

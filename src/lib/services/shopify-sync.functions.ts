@@ -201,3 +201,46 @@ export const runShopifyCatalogueSync = createServerFn({ method: "POST" })
       throw new Error(message);
     }
   });
+
+/**
+ * Mirrors the store's native policies and published pages. The store remains
+ * authoritative for this wording. Nothing is written back to the store.
+ */
+export const runShopifyLegalSync = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context);
+    const { recordSyncEvent } = await import("./shopify.server");
+    const { syncLegalContent, LEGAL_SCOPE_ACTION } = await import("./shopify-legal.server");
+
+    try {
+      const result = await syncLegalContent(context.supabase);
+      if (result.imported === 0 && result.scopeAction) {
+        await recordSyncEvent(context.supabase, {
+          eventType: "legal_sync",
+          status: "failed",
+          message: LEGAL_SCOPE_ACTION,
+        });
+        return result;
+      }
+      await recordSyncEvent(context.supabase, {
+        eventType: "legal_sync",
+        status: "success",
+        message: `Imported ${result.imported} legal documents. ${result.publicVisible} are ready to publish and ${result.needsReview} need owner review.`,
+        payload: {
+          policies: result.policies,
+          pages: result.pages,
+          needs_review: result.needsReview,
+        },
+      });
+      return result;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Legal sync failed";
+      await recordSyncEvent(context.supabase, {
+        eventType: "legal_sync",
+        status: "failed",
+        message,
+      });
+      throw new Error(message);
+    }
+  });

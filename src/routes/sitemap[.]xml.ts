@@ -6,7 +6,7 @@ export const Route = createFileRoute("/sitemap.xml")({
   server: {
     handlers: {
       GET: async () => {
-        const { listPublicArticles, listPublicLegalDocuments } = await import(
+        const { listPublicArticles, listPublicLegalDocuments, listPublicLegalSources } = await import(
           "@/lib/services/public-content.functions"
         );
 
@@ -23,9 +23,10 @@ export const Route = createFileRoute("/sitemap.xml")({
           const { listStorefrontCollections, listStorefrontProducts } = await import(
             "@/lib/public-api/storefront.server"
           );
-          const [articles, documents, products, collections] = await Promise.all([
+          const [articles, documents, importedPolicies, products, collections] = await Promise.all([
             listPublicArticles({}),
             listPublicLegalDocuments({}),
+            listPublicLegalSources({}),
             listStorefrontProducts({ limit: 100 }),
             listStorefrontCollections(),
           ]);
@@ -50,7 +51,16 @@ export const Route = createFileRoute("/sitemap.xml")({
               priority: "0.7",
             });
           }
-          for (const doc of documents) {
+          for (const policy of importedPolicies) {
+            entries.push({
+              loc: `${BRAND.siteUrl}/legal/${policy.slug}`,
+              lastmod: policy.shopify_updated_at ?? policy.last_synced_at,
+              priority: "0.3",
+            });
+          }
+          for (const doc of documents.filter(
+            (item) => !importedPolicies.some((policy) => policy.slug === item.slug),
+          )) {
             entries.push({
               loc: `${BRAND.siteUrl}/legal/${doc.slug}`,
               lastmod: doc.updated_at,

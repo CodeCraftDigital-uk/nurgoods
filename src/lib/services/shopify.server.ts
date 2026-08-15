@@ -360,9 +360,9 @@ export async function getShopifyCredentialStatus(): Promise<ShopifyCredentialSta
 /* ---------------------------- GraphQL client ---------------------------- */
 
 const SCOPE_ADVICE =
-  "Confirm the app version includes read_products and read_inventory, release the version, then reinstall it on this store.";
+  "Confirm the app version includes read_products, read_inventory, read_legal_policies, read_content and read_online_store_pages, release the version, then reinstall it on this store.";
 
-async function graphql<T>(
+export async function shopifyGraphql<T>(
   credentials: { shopDomain: string; adminToken: string; apiVersion: string },
   query: string,
   variables: Record<string, unknown> = {},
@@ -464,7 +464,7 @@ export async function testShopifyConnection(input: {
       : input.adminToken;
   if (!adminToken) throw new Error("A Client ID and Client secret are required");
 
-  const data = await graphql<{
+  const data = await shopifyGraphql<{
     shop: {
       name: string;
       myshopifyDomain: string;
@@ -792,7 +792,7 @@ export async function syncCatalogue(
   const products: GraphQlProduct[] = [];
   let cursor: string | null = null;
   for (let page = 0; page < 40; page += 1) {
-    const data: any = await graphql(credentials, CATALOGUE_QUERY, { productCursor: cursor });
+    const data: any = await shopifyGraphql(credentials, CATALOGUE_QUERY, { productCursor: cursor });
     products.push(...(data.products.nodes as GraphQlProduct[]));
     if (!data.products.pageInfo.hasNextPage) break;
     cursor = data.products.pageInfo.endCursor;
@@ -801,7 +801,7 @@ export async function syncCatalogue(
   const collections: GraphQlCollection[] = [];
   cursor = null;
   for (let page = 0; page < 20; page += 1) {
-    const data: any = await graphql(credentials, COLLECTIONS_QUERY, { cursor });
+    const data: any = await shopifyGraphql(credentials, COLLECTIONS_QUERY, { cursor });
     collections.push(...(data.collections.nodes as GraphQlCollection[]));
     if (!data.collections.pageInfo.hasNextPage) break;
     cursor = data.collections.pageInfo.endCursor;

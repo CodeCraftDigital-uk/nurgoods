@@ -1026,6 +1026,93 @@ export type Database = {
         }
         Relationships: []
       }
+      shopify_legal_sources: {
+        Row: {
+          body_html: string
+          body_summary: string | null
+          created_at: string
+          exclude_reason: string | null
+          handle: string | null
+          has_liquid: boolean
+          has_placeholders: boolean
+          id: string
+          is_published: boolean
+          last_synced_at: string
+          liquid_tokens: string[]
+          placeholder_tokens: string[]
+          policy_type: string | null
+          public_visible: boolean
+          review_status: string
+          shopify_created_at: string | null
+          shopify_id: string
+          shopify_published_at: string | null
+          shopify_updated_at: string | null
+          slug: string
+          source_type: string
+          source_url: string | null
+          sync_error: string | null
+          sync_status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          body_html?: string
+          body_summary?: string | null
+          created_at?: string
+          exclude_reason?: string | null
+          handle?: string | null
+          has_liquid?: boolean
+          has_placeholders?: boolean
+          id?: string
+          is_published?: boolean
+          last_synced_at?: string
+          liquid_tokens?: string[]
+          placeholder_tokens?: string[]
+          policy_type?: string | null
+          public_visible?: boolean
+          review_status?: string
+          shopify_created_at?: string | null
+          shopify_id: string
+          shopify_published_at?: string | null
+          shopify_updated_at?: string | null
+          slug: string
+          source_type: string
+          source_url?: string | null
+          sync_error?: string | null
+          sync_status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          body_html?: string
+          body_summary?: string | null
+          created_at?: string
+          exclude_reason?: string | null
+          handle?: string | null
+          has_liquid?: boolean
+          has_placeholders?: boolean
+          id?: string
+          is_published?: boolean
+          last_synced_at?: string
+          liquid_tokens?: string[]
+          placeholder_tokens?: string[]
+          policy_type?: string | null
+          public_visible?: boolean
+          review_status?: string
+          shopify_created_at?: string | null
+          shopify_id?: string
+          shopify_published_at?: string | null
+          shopify_updated_at?: string | null
+          slug?: string
+          source_type?: string
+          source_url?: string | null
+          sync_error?: string | null
+          sync_status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       shopify_product_collections: {
         Row: {
           collection_id: string

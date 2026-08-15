@@ -112,3 +112,5 @@ export function slugify(input: string): string {
     .replace(/^-+|-+$/g, "")
     .slice(0, 80);
 }
+
+export type ShopifyLegalSource = Tables<"shopify_legal_sources">;

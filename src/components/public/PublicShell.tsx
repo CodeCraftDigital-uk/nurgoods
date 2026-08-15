@@ -1,5 +1,8 @@
 import { Link } from "@tanstack/react-router";
 import { useState, type ReactNode } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { listPublicLegalSources } from "@/lib/services/public-content.functions";
 import { Menu } from "lucide-react";
 import { BrandLogo, BrandWordmark } from "@/components/admin/BrandLogo";
 import { BRAND } from "@/lib/brand";
@@ -21,6 +24,16 @@ const PRIMARY_NAV = [
  */
 export function PublicShell({ children }: { children: ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const fetchLegal = useServerFn(listPublicLegalSources);
+  // The footer legal list mirrors the documents synced from the store, so it can
+  // never drift from the wording that actually applies to an order.
+  const legal = useQuery({
+    queryKey: ["public-legal-sources"],
+    queryFn: () => fetchLegal({}),
+    retry: false,
+    staleTime: 5 * 60 * 1000,
+  });
+  const legalLinks = (legal.data ?? []).slice(0, 6);
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -100,7 +113,7 @@ export function PublicShell({ children }: { children: ReactNode }) {
       </main>
 
       <footer className="mt-20 border-t border-border/70">
-        <div className="mx-auto grid w-full max-w-5xl gap-10 px-5 py-14 sm:grid-cols-3 sm:px-8">
+        <div className="mx-auto grid w-full max-w-5xl gap-10 px-5 py-14 sm:grid-cols-2 lg:grid-cols-4 sm:px-8">
           <div>
             <BrandWordmark height={40} />
             <p className="mt-4 font-display text-lg text-foreground">{BRAND.tagline}</p>
@@ -127,6 +140,32 @@ export function PublicShell({ children }: { children: ReactNode }) {
                 >
                   Store
                 </a>
+              </li>
+            </ul>
+          </nav>
+          <nav aria-label="Legal" className="text-sm">
+            <h2 className="text-[0.7rem] font-medium uppercase tracking-[0.2em] text-muted-foreground">
+              Legal
+            </h2>
+            <ul className="mt-3 space-y-2.5">
+              {legalLinks.map((doc) => (
+                <li key={doc.slug}>
+                  <Link
+                    to="/legal/$slug"
+                    params={{ slug: doc.slug }}
+                    className="inline-flex min-h-8 items-center text-muted-foreground hover:text-foreground"
+                  >
+                    {doc.title}
+                  </Link>
+                </li>
+              ))}
+              <li>
+                <Link
+                  to="/legal"
+                  className="inline-flex min-h-8 items-center text-muted-foreground hover:text-foreground"
+                >
+                  All policies
+                </Link>
               </li>
             </ul>
           </nav>

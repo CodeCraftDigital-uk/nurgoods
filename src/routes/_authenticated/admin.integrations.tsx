@@ -22,7 +22,7 @@ const REQUIREMENTS: Record<string, string[]> = {
     "Client ID from the app created in your Shopify developer organisation",
     "Client secret, stored encrypted after it is submitted",
     "Admin API version, defaults to 2026-07",
-    "App scopes read_products and read_inventory, released and installed on the store",
+    "App scopes read_products, read_inventory, read_legal_policies, read_content and read_online_store_pages, released and installed on the store",
   ],
   zendrop: ["Confirmation of the Zendrop to Shopify link", "Any supplier feed reference"],
   ai: [
