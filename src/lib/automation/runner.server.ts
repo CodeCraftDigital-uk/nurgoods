@@ -116,10 +116,34 @@ async function runCatalogueSync(ctx: RunContext): Promise<JobRunResult> {
     payload: { products: result.products, collections: result.collections },
   });
 
+  // Legal and policy wording changes rarely, so it rides along with the
+  // catalogue run rather than adding a second schedule of API calls.
+  let legalNote = "";
+  try {
+    const { syncLegalContent } = await import("@/lib/services/shopify-legal.server");
+    const legal = await syncLegalContent(ctx.supabase);
+    legalNote = legal.scopeAction
+      ? ` Legal sync needs new app scopes: ${legal.scopeAction}`
+      : ` Imported ${legal.imported} legal documents, ${legal.needsReview} need owner review.`;
+    await recordSyncEvent(ctx.supabase, {
+      eventType: "legal_sync",
+      status: legal.scopeAction ? "failed" : "success",
+      message: legalNote.trim(),
+      payload: { imported: legal.imported, needs_review: legal.needsReview },
+    });
+  } catch (error) {
+    legalNote = ` Legal sync did not run: ${error instanceof Error ? error.message : "unknown error"}`;
+    await recordSyncEvent(ctx.supabase, {
+      eventType: "legal_sync",
+      status: "failed",
+      message: legalNote.trim(),
+    });
+  }
+
   return {
     jobKey: "shopify_catalogue_sync",
     status: "succeeded",
-    message: `Mirrored ${result.products} products and ${result.collections} collections. The store remains the source of truth.`,
+    message: `Mirrored ${result.products} products and ${result.collections} collections. The store remains the source of truth.${legalNote}`,
     details: { products: result.products, collections: result.collections },
   };
 }
