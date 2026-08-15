@@ -83,13 +83,6 @@ export function resolveAdapter(): AiProviderAdapter {
   };
 }
 
-export const RUNNABLE_STAGES: WorkflowStage[] = [
-  "draft",
-  "optimisation",
-  "internal_links",
-  "metadata_schema",
-];
-
 const BRAND_RULES = [
   "You write for NUR GOODS, a premium and calm retail brand. Tagline: Good things, brought to light.",
   "Never use em dashes.",
