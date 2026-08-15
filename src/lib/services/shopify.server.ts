@@ -360,7 +360,7 @@ export async function getShopifyCredentialStatus(): Promise<ShopifyCredentialSta
 /* ---------------------------- GraphQL client ---------------------------- */
 
 const SCOPE_ADVICE =
-  "Confirm the app version includes read_products and read_inventory, release the version, then reinstall it on this store.";
+  "Confirm the app version includes read_products, read_inventory, read_legal_policies, read_content and read_online_store_pages, release the version, then reinstall it on this store.";
 
 export async function shopifyGraphql<T>(
   credentials: { shopDomain: string; adminToken: string; apiVersion: string },
