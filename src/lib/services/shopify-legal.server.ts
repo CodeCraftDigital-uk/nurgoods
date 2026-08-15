@@ -251,7 +251,7 @@ export async function syncLegalContent(
             body,
             summary: node.bodySummary ?? null,
             sourceUrl: `https://${resolved.shopDomain}/pages/${node.handle}`,
-            isPublished: node.isPublished !== false,
+            isPublished: node.isPublished ?? true,
             createdAt: node.createdAt ?? null,
             updatedAt: node.updatedAt ?? null,
             publishedAt: node.publishedAt ?? null,
