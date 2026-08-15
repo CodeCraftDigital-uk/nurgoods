@@ -15,6 +15,9 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
 import { Route as AuthenticatedAdminCatalogueRouteImport } from './routes/_authenticated/admin.catalogue'
+import { Route as AuthenticatedAdminJournalRouteImport } from './routes/_authenticated/admin.journal'
+import { Route as AuthenticatedAdminJournalIndexRouteImport } from './routes/_authenticated/admin.journal.index'
+import { Route as AuthenticatedAdminJournalNewRouteImport } from './routes/_authenticated/admin.journal.new'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -46,19 +49,42 @@ const AuthenticatedAdminCatalogueRoute =
     path: '/catalogue',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const AuthenticatedAdminJournalRoute =
+  AuthenticatedAdminJournalRouteImport.update({
+    id: '/journal',
+    path: '/journal',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminJournalIndexRoute =
+  AuthenticatedAdminJournalIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedAdminJournalRoute,
+  } as any)
+const AuthenticatedAdminJournalNewRoute =
+  AuthenticatedAdminJournalNewRouteImport.update({
+    id: '/new',
+    path: '/new',
+    getParentRoute: () => AuthenticatedAdminJournalRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/admin': typeof AuthenticatedAdminRouteWithChildren
   '/admin/catalogue': typeof AuthenticatedAdminCatalogueRoute
+  '/admin/journal': typeof AuthenticatedAdminJournalRouteWithChildren
   '/admin/': typeof AuthenticatedAdminIndexRoute
+  '/admin/journal/new': typeof AuthenticatedAdminJournalNewRoute
+  '/admin/journal/': typeof AuthenticatedAdminJournalIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/admin/catalogue': typeof AuthenticatedAdminCatalogueRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
+  '/admin/journal/new': typeof AuthenticatedAdminJournalNewRoute
+  '/admin/journal': typeof AuthenticatedAdminJournalIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -67,13 +93,30 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
   '/_authenticated/admin/catalogue': typeof AuthenticatedAdminCatalogueRoute
+  '/_authenticated/admin/journal': typeof AuthenticatedAdminJournalRouteWithChildren
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
+  '/_authenticated/admin/journal/new': typeof AuthenticatedAdminJournalNewRoute
+  '/_authenticated/admin/journal/': typeof AuthenticatedAdminJournalIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/admin' | '/admin/catalogue' | '/admin/'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/admin'
+    | '/admin/catalogue'
+    | '/admin/journal'
+    | '/admin/'
+    | '/admin/journal/new'
+    | '/admin/journal/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/admin/catalogue' | '/admin'
+  to:
+    | '/'
+    | '/auth'
+    | '/admin/catalogue'
+    | '/admin'
+    | '/admin/journal/new'
+    | '/admin/journal'
   id:
     | '__root__'
     | '/'
@@ -81,7 +124,10 @@ export interface FileRouteTypes {
     | '/auth'
     | '/_authenticated/admin'
     | '/_authenticated/admin/catalogue'
+    | '/_authenticated/admin/journal'
     | '/_authenticated/admin/'
+    | '/_authenticated/admin/journal/new'
+    | '/_authenticated/admin/journal/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -134,16 +180,55 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminCatalogueRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/journal': {
+      id: '/_authenticated/admin/journal'
+      path: '/journal'
+      fullPath: '/admin/journal'
+      preLoaderRoute: typeof AuthenticatedAdminJournalRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/journal/': {
+      id: '/_authenticated/admin/journal/'
+      path: '/'
+      fullPath: '/admin/journal/'
+      preLoaderRoute: typeof AuthenticatedAdminJournalIndexRouteImport
+      parentRoute: typeof AuthenticatedAdminJournalRoute
+    }
+    '/_authenticated/admin/journal/new': {
+      id: '/_authenticated/admin/journal/new'
+      path: '/new'
+      fullPath: '/admin/journal/new'
+      preLoaderRoute: typeof AuthenticatedAdminJournalNewRouteImport
+      parentRoute: typeof AuthenticatedAdminJournalRoute
+    }
   }
 }
 
+interface AuthenticatedAdminJournalRouteChildren {
+  AuthenticatedAdminJournalNewRoute: typeof AuthenticatedAdminJournalNewRoute
+  AuthenticatedAdminJournalIndexRoute: typeof AuthenticatedAdminJournalIndexRoute
+}
+
+const AuthenticatedAdminJournalRouteChildren: AuthenticatedAdminJournalRouteChildren =
+  {
+    AuthenticatedAdminJournalNewRoute: AuthenticatedAdminJournalNewRoute,
+    AuthenticatedAdminJournalIndexRoute: AuthenticatedAdminJournalIndexRoute,
+  }
+
+const AuthenticatedAdminJournalRouteWithChildren =
+  AuthenticatedAdminJournalRoute._addFileChildren(
+    AuthenticatedAdminJournalRouteChildren,
+  )
+
 interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminCatalogueRoute: typeof AuthenticatedAdminCatalogueRoute
+  AuthenticatedAdminJournalRoute: typeof AuthenticatedAdminJournalRouteWithChildren
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
 }
 
 const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminCatalogueRoute: AuthenticatedAdminCatalogueRoute,
+  AuthenticatedAdminJournalRoute: AuthenticatedAdminJournalRouteWithChildren,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
 }
 
