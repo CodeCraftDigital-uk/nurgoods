@@ -67,7 +67,9 @@ function IntegrationsPage() {
       />
 
       <ShopifyConnectionPanel />
+      <StorefrontApiPanel />
       <CheckoutDomainPanel />
+
 
       <div className="grid gap-4 lg:grid-cols-2">
         {(integrations.data ?? []).map((integration) => {
