@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-import { BrandLogo } from "@/components/admin/BrandLogo";
+import { BrandLogo, BrandWordmark } from "@/components/admin/BrandLogo";
 import { BRAND } from "@/lib/brand";
 
 const PRIMARY_NAV = [
@@ -20,11 +20,8 @@ export function PublicShell({ children }: { children: ReactNode }) {
     <div className="flex min-h-screen flex-col bg-background">
       <header className="sticky top-0 z-40 border-b border-border/70 bg-background/90 backdrop-blur">
         <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-2 px-4 py-3 sm:gap-4 sm:px-8">
-          <Link to="/" className="flex items-center gap-2.5" aria-label={`${BRAND.name} home`}>
-            <BrandLogo size={34} />
-            <span className="hidden text-[0.7rem] font-semibold uppercase tracking-[0.24em] text-foreground sm:inline">
-              {BRAND.name}
-            </span>
+          <Link to="/" className="flex items-center" aria-label={`${BRAND.name} home`}>
+            <BrandWordmark height={30} className="sm:h-9" />
           </Link>
           <div className="flex items-center gap-1 sm:gap-2">
             <nav aria-label="Primary" className="hidden items-center gap-1 md:flex">
@@ -69,12 +66,7 @@ export function PublicShell({ children }: { children: ReactNode }) {
       <footer className="mt-20 border-t border-border/70">
         <div className="mx-auto grid w-full max-w-5xl gap-8 px-5 py-12 sm:grid-cols-3 sm:px-8">
           <div>
-            <div className="flex items-center gap-2.5">
-              <BrandLogo size={32} />
-              <span className="text-[0.7rem] font-semibold uppercase tracking-[0.24em] text-foreground">
-                {BRAND.name}
-              </span>
-            </div>
+            <BrandLogo size={72} />
             <p className="mt-3 font-display text-lg text-foreground">{BRAND.tagline}</p>
           </div>
           <nav aria-label="Footer" className="text-sm">

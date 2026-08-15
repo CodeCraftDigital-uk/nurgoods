@@ -49,7 +49,7 @@ function NavList({ pathname, onNavigate }: { pathname: string; onNavigate?: () =
 function BrandMark() {
   return (
     <Link to="/" className="flex items-center gap-2.5">
-      <BrandLogo size={32} className="shrink-0 ring-1 ring-sidebar-border/40" />
+      <BrandLogo size={32} surface="dark" className="shrink-0" />
       <span className="leading-tight">
         <span className="block text-sm font-semibold tracking-[0.16em] text-sidebar-foreground">
           NUR GOODS
