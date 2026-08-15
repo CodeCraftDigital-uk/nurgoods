@@ -278,6 +278,8 @@ export interface StorefrontMedia {
 
 export interface StorefrontVariant {
   id: string;
+  /** Numeric store variant identifier used to build a cart link. */
+  variant_id: string | null;
   title: string;
   price: number | null;
   compare_at_price: number | null;
@@ -293,6 +295,8 @@ export interface StorefrontProductDetail extends StorefrontProductCard {
   seo_title: string | null;
   seo_description: string | null;
   store_url: string | null;
+  /** Host that owns the basket and payment pages, when the store is paired. */
+  checkout_domain: string | null;
   options: { name: string; values: string[] }[];
   media: StorefrontMedia[];
   variants: StorefrontVariant[];
@@ -307,6 +311,49 @@ export interface StorefrontProductDetail extends StorefrontProductCard {
   collections: { handle: string; title: string }[];
   related: StorefrontProductCard[];
 }
+
+/** Pulls the numeric identifier out of a store global id. */
+function numericId(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const match = value.match(/(\d+)\s*$/);
+  return match ? match[1]! : null;
+}
+
+let checkoutDomainCache: { value: string | null; expires: number } | null = null;
+
+/**
+ * Resolves the host that serves the basket and payment pages. The owner can
+ * set a dedicated checkout host when the store's own primary domain is used
+ * elsewhere, otherwise the paired store host is used.
+ */
+export async function getCheckoutDomain(): Promise<string | null> {
+  if (checkoutDomainCache && checkoutDomainCache.expires > Date.now()) {
+    return checkoutDomainCache.value;
+  }
+  let value: string | null = null;
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: integration } = await supabaseAdmin
+      .from("integrations")
+      .select("id")
+      .eq("provider", "shopify")
+      .maybeSingle();
+    if ((integration as any)?.id) {
+      const { data: rows } = await supabaseAdmin
+        .from("integration_settings")
+        .select("key, value")
+        .eq("integration_id", (integration as any).id)
+        .in("key", ["checkout_domain", "shop_domain"]);
+      const map = new Map(((rows ?? []) as any[]).map((row) => [row.key, row.value as string | null]));
+      value = (map.get("checkout_domain") || map.get("shop_domain") || null) as string | null;
+    }
+  } catch {
+    value = null;
+  }
+  checkoutDomainCache = { value, expires: Date.now() + 60_000 };
+  return value;
+}
+
 
 /** Store supplied HTML is trimmed to a safe subset before it reaches a page. */
 function sanitiseHtml(input: unknown): string | null {
@@ -375,7 +422,7 @@ export async function getStorefrontProduct(handle: string): Promise<StorefrontPr
     supabase
       .from("shopify_product_variants")
       .select(
-        "id, title, price, compare_at_price, currency, image_url, selected_options, available_for_sale, position",
+        "id, shopify_variant_id, title, price, compare_at_price, currency, image_url, selected_options, available_for_sale, position",
       )
       .eq("product_id", row.id)
       .order("position", { ascending: true }),
@@ -446,6 +493,7 @@ export async function getStorefrontProduct(handle: string): Promise<StorefrontPr
 
   const variants: StorefrontVariant[] = ((variantRows ?? []) as any[]).map((v) => ({
     id: v.id,
+    variant_id: numericId(v.shopify_variant_id),
     title: v.title,
     price: v.price ?? null,
     compare_at_price: v.compare_at_price ?? null,
@@ -474,6 +522,7 @@ export async function getStorefrontProduct(handle: string): Promise<StorefrontPr
     seo_title: row.seo_title ?? null,
     seo_description: row.seo_description ?? null,
     store_url: row.online_store_url ?? null,
+    checkout_domain: await getCheckoutDomain(),
     options,
     media,
     variants,
