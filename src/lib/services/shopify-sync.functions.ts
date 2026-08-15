@@ -244,3 +244,24 @@ export const runShopifyLegalSync = createServerFn({ method: "POST" })
       throw new Error(message);
     }
   });
+
+/** Reads the configured checkout host used for basket links. */
+export const getCheckoutDomainFn = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<{ checkoutDomain: string | null; shopDomain: string | null }> => {
+    await assertAdmin(context);
+    const { getCheckoutDomainSetting } = await import("./shopify.server");
+    return getCheckoutDomainSetting();
+  });
+
+/** Sets or clears the checkout host used for basket links. */
+export const setCheckoutDomainFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => z.object({ checkoutDomain: z.string().max(255) }).parse(data))
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context, data }): Promise<{ checkoutDomain: string | null }> => {
+    await assertAdmin(context);
+    const { setCheckoutDomainSetting, getCheckoutDomainSetting } = await import("./shopify.server");
+    await setCheckoutDomainSetting(data.checkoutDomain.trim() || null);
+    const current = await getCheckoutDomainSetting();
+    return { checkoutDomain: current.checkoutDomain };
+  });
