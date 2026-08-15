@@ -299,6 +299,9 @@ export interface StorefrontProductDetail extends StorefrontProductCard {
   checkout_domain: string | null;
   /** True when that host genuinely answers as the store basket. */
   checkout_ready: boolean;
+  /** True when headless Storefront checkout is configured and verified. */
+  storefront_checkout: boolean;
+
   options: { name: string; values: string[] }[];
   media: StorefrontMedia[];
   variants: StorefrontVariant[];
