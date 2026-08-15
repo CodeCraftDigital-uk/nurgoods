@@ -96,11 +96,8 @@ function CataloguePage() {
           </p>
         ) : (
           <p className="text-sm text-muted-foreground">
-            Sync is blocked until these server secrets are added:{" "}
-            {(shopify.data?.missing ?? ["SHOPIFY_SHOP_DOMAIN", "SHOPIFY_ADMIN_API_TOKEN"]).join(
-              ", ",
-            )}
-            . Optionally set SHOPIFY_API_VERSION to pin the Admin API version.
+            Sync is blocked until the store connection is completed in Integrations. Missing:{" "}
+            {(shopify.data?.missing ?? ["Store domain", "Client ID", "Client secret"]).join(", ")}.
           </p>
         )}
       </SectionCard>

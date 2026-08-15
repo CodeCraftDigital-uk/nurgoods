@@ -1,10 +1,11 @@
 /**
  * Store connection service.
  *
- * Credentials come from the admin panel first (shop domain and API version in
- * integration_settings, Admin API token in the encrypted vault) and fall back
- * to server environment variables for backwards compatibility. The token is
- * never returned to the browser and never written to an event payload.
+ * Pairing uses the current Shopify client credentials grant. The admin panel
+ * stores the shop domain, client ID and API version as ordinary settings and
+ * keeps the client secret in the encrypted vault. A short lived Admin API
+ * access token is acquired server side on demand and cached in memory only.
+ * No secret is ever returned to the browser or written to an event payload.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -12,8 +13,11 @@ export interface ShopifyCredentialStatus {
   configured: boolean;
   shopDomain: string | null;
   apiVersion: string;
+  clientId: string | null;
   missing: string[];
   source: "database" | "environment" | "none";
+  hasStoredSecret: boolean;
+  /** Legacy field name kept so existing admin views do not break. */
   hasStoredToken: boolean;
   connectionState: "not_connected" | "connected" | "error";
   lastTestedAt: string | null;
@@ -26,10 +30,14 @@ export const SHOPIFY_SECRET_NAMES = {
   shopDomain: "SHOPIFY_SHOP_DOMAIN",
   adminToken: "SHOPIFY_ADMIN_API_TOKEN",
   apiVersion: "SHOPIFY_API_VERSION",
+  clientId: "SHOPIFY_CLIENT_ID",
+  clientSecret: "SHOPIFY_CLIENT_SECRET",
 } as const;
 
-/** Vault secret name for the Admin API access token. */
+/** Vault secret name for the legacy Admin API access token. */
 export const SHOPIFY_VAULT_SECRET = "shopify_admin_api_token";
+/** Vault secret name for the app client secret. */
+export const SHOPIFY_CLIENT_SECRET_VAULT = "shopify_client_secret";
 
 export const DEFAULT_API_VERSION = "2026-07";
 
@@ -37,12 +45,15 @@ const SETTING_KEYS = {
   shopDomain: "shop_domain",
   apiVersion: "api_version",
   adminToken: "admin_api_token",
+  clientId: "client_id",
+  clientSecret: "client_secret",
   connectionState: "connection_state",
   lastTestedAt: "last_tested_at",
   lastSyncedAt: "last_synced_at",
   lastError: "last_error",
   shopName: "shop_name",
 } as const;
+
 
 /** Accepts a domain, a URL or a pasted admin link and returns the bare host. */
 export function normaliseShopDomain(input: string): string {
@@ -67,22 +78,26 @@ export function normaliseApiVersion(input: string | null | undefined): string {
   return value;
 }
 
-/** Legacy synchronous environment read. Kept for backwards compatibility. */
+/** Environment read. Kept as a backwards compatible fallback. */
 export function readShopifyCredentials(): {
   shopDomain: string | null;
   adminToken: string | null;
+  clientId: string | null;
+  clientSecret: string | null;
   apiVersion: string;
   missing: string[];
 } {
   const shopDomain = process.env[SHOPIFY_SECRET_NAMES.shopDomain]?.trim() || null;
   const adminToken = process.env[SHOPIFY_SECRET_NAMES.adminToken]?.trim() || null;
+  const clientId = process.env[SHOPIFY_SECRET_NAMES.clientId]?.trim() || null;
+  const clientSecret = process.env[SHOPIFY_SECRET_NAMES.clientSecret]?.trim() || null;
   const apiVersion = process.env[SHOPIFY_SECRET_NAMES.apiVersion]?.trim() || DEFAULT_API_VERSION;
 
   const missing: string[] = [];
   if (!shopDomain) missing.push(SHOPIFY_SECRET_NAMES.shopDomain);
-  if (!adminToken) missing.push(SHOPIFY_SECRET_NAMES.adminToken);
+  if (!adminToken && !(clientId && clientSecret)) missing.push(SHOPIFY_SECRET_NAMES.clientId);
 
-  return { shopDomain, adminToken, apiVersion, missing };
+  return { shopDomain, adminToken, clientId, clientSecret, apiVersion, missing };
 }
 
 type AdminClient = SupabaseClient<any, "public", any>;
@@ -147,10 +162,14 @@ async function writeSetting(
 
 export interface ResolvedCredentials {
   shopDomain: string | null;
-  adminToken: string | null;
   apiVersion: string;
+  clientId: string | null;
+  clientSecret: string | null;
+  /** Legacy access token, environment or vault, used only when no client pair exists. */
+  adminToken: string | null;
   missing: string[];
   source: "database" | "environment" | "none";
+  hasStoredSecret: boolean;
   hasStoredToken: boolean;
 }
 
@@ -159,6 +178,8 @@ export async function resolveShopifyCredentials(): Promise<ResolvedCredentials> 
   const env = readShopifyCredentials();
   let dbDomain: string | null = null;
   let dbVersion: string | null = null;
+  let dbClientId: string | null = null;
+  let dbClientSecret: string | null = null;
   let dbToken: string | null = null;
 
   try {
@@ -166,33 +187,142 @@ export async function resolveShopifyCredentials(): Promise<ResolvedCredentials> 
     const settings = await readSettings(supabase);
     dbDomain = settings.get(SETTING_KEYS.shopDomain) ?? null;
     dbVersion = settings.get(SETTING_KEYS.apiVersion) ?? null;
-    const { data } = await supabase.rpc("get_integration_secret", {
+    dbClientId = settings.get(SETTING_KEYS.clientId) ?? null;
+    const secret = await supabase.rpc("get_integration_secret", {
+      _name: SHOPIFY_CLIENT_SECRET_VAULT,
+    });
+    dbClientSecret =
+      typeof secret.data === "string" && secret.data.trim() ? secret.data.trim() : null;
+    const legacy = await supabase.rpc("get_integration_secret", {
       _name: SHOPIFY_VAULT_SECRET,
     });
-    dbToken = typeof data === "string" && data.trim() ? data.trim() : null;
+    dbToken = typeof legacy.data === "string" && legacy.data.trim() ? legacy.data.trim() : null;
   } catch {
     // Vault or settings unavailable. Environment fallback still applies.
   }
 
   const shopDomain = dbDomain || env.shopDomain;
+  const clientId = dbClientId || env.clientId;
+  const clientSecret = dbClientSecret || env.clientSecret;
   const adminToken = dbToken || env.adminToken;
   const apiVersion = dbVersion || env.apiVersion || DEFAULT_API_VERSION;
 
+  const hasClientPair = Boolean(clientId && clientSecret);
+
   const missing: string[] = [];
-  if (!shopDomain) missing.push("Shop domain");
-  if (!adminToken) missing.push("Admin API access token");
+  if (!shopDomain) missing.push("Store domain");
+  if (!hasClientPair && !adminToken) {
+    if (!clientId) missing.push("Client ID");
+    if (!clientSecret) missing.push("Client secret");
+  }
 
   const source: ResolvedCredentials["source"] =
-    dbDomain && dbToken ? "database" : shopDomain && adminToken ? "environment" : "none";
+    dbDomain && (dbClientSecret || dbToken)
+      ? "database"
+      : shopDomain && (hasClientPair || adminToken)
+        ? "environment"
+        : "none";
 
   return {
     shopDomain,
-    adminToken,
     apiVersion,
+    clientId,
+    clientSecret,
+    adminToken,
     missing,
     source,
+    hasStoredSecret: Boolean(dbClientSecret),
     hasStoredToken: Boolean(dbToken),
   };
+}
+
+/* ----------------------- access token acquisition ----------------------- */
+
+interface CachedToken {
+  token: string;
+  expiresAt: number;
+}
+
+const tokenCache = new Map<string, CachedToken>();
+
+/**
+ * Exchanges the client ID and client secret for a short lived Admin API access
+ * token using the Shopify client credentials grant. Tokens are cached in memory
+ * until shortly before expiry so the owner never has to intervene.
+ */
+export async function acquireAccessToken(input: {
+  shopDomain: string;
+  clientId: string;
+  clientSecret: string;
+  force?: boolean;
+}): Promise<string> {
+  const key = `${input.shopDomain}:${input.clientId}`;
+  const cached = tokenCache.get(key);
+  if (!input.force && cached && cached.expiresAt > Date.now() + 60_000) return cached.token;
+
+  let response: Response;
+  try {
+    response = await fetch(`https://${input.shopDomain}/admin/oauth/access_token`, {
+      method: "POST",
+      headers: { "content-type": "application/json", accept: "application/json" },
+      body: JSON.stringify({
+        client_id: input.clientId,
+        client_secret: input.clientSecret,
+        grant_type: "client_credentials",
+      }),
+    });
+  } catch {
+    throw new Error(
+      `The store at ${input.shopDomain} could not be reached. Check the .myshopify.com domain.`,
+    );
+  }
+
+  if (response.status === 404) {
+    throw new Error(
+      `No Shopify store was found at ${input.shopDomain}. Use the exact .myshopify.com domain.`,
+    );
+  }
+  if (response.status === 400 || response.status === 401) {
+    throw new Error(
+      `Shopify rejected the client credentials for ${input.shopDomain}. Confirm the Client ID and Client secret are from the app built for this organisation, that the app has a released version, and that it is installed on this store.`,
+    );
+  }
+  if (!response.ok) {
+    throw new Error(`Shopify returned ${response.status} while issuing an access token.`);
+  }
+
+  const payload = (await response.json().catch(() => null)) as
+    | { access_token?: string; expires_in?: number; error?: string }
+    | null;
+  if (!payload?.access_token) {
+    throw new Error(
+      payload?.error
+        ? `Shopify declined the token request: ${payload.error}`
+        : "Shopify did not return an access token for these client credentials.",
+    );
+  }
+
+  const ttl = typeof payload.expires_in === "number" ? payload.expires_in : 86_400;
+  tokenCache.set(key, { token: payload.access_token, expiresAt: Date.now() + ttl * 1000 });
+  return payload.access_token;
+}
+
+/** Returns a usable Admin API token, acquiring a fresh one when needed. */
+export async function getAdminAccessToken(
+  resolved: ResolvedCredentials,
+  force = false,
+): Promise<string> {
+  if (!resolved.shopDomain) throw new Error("A store domain is required");
+  if (resolved.clientId && resolved.clientSecret) {
+    return acquireAccessToken({
+      shopDomain: resolved.shopDomain,
+      clientId: resolved.clientId,
+      clientSecret: resolved.clientSecret,
+      force,
+    });
+  }
+  if (resolved.adminToken) return resolved.adminToken;
+  throw new Error("Store credentials are not configured");
 }
 
 export async function getShopifyCredentialStatus(): Promise<ShopifyCredentialStatus> {
@@ -208,8 +338,10 @@ export async function getShopifyCredentialStatus(): Promise<ShopifyCredentialSta
     configured: resolved.missing.length === 0,
     shopDomain: resolved.shopDomain,
     apiVersion: resolved.apiVersion,
+    clientId: resolved.clientId,
     missing: resolved.missing,
     source: resolved.source,
+    hasStoredSecret: resolved.hasStoredSecret,
     hasStoredToken: resolved.hasStoredToken,
     connectionState:
       state === "connected" || state === "error"
@@ -224,38 +356,17 @@ export async function getShopifyCredentialStatus(): Promise<ShopifyCredentialSta
   };
 }
 
+
 /* ---------------------------- GraphQL client ---------------------------- */
 
-/**
- * Describes what a token looks like without ever revealing it. Only the public
- * Shopify prefix convention is used, never the secret body of the value.
- */
-function describeTokenShape(token: string): string | null {
-  const value = (token ?? "").trim();
-  if (!value) return "No token was supplied.";
-  if (value.startsWith("shpss_")) {
-    return "That value is the custom app API secret key, not the Admin API access token. Copy the token that begins with shpat_.";
-  }
-  if (value.startsWith("shpca_")) {
-    return "That value is the custom app client ID, not the Admin API access token. Copy the token that begins with shpat_.";
-  }
-  if (/^[0-9a-f]{32}$/i.test(value)) {
-    return "That value looks like a Storefront API token or API key, not an Admin API access token. Copy the token that begins with shpat_.";
-  }
-  if (!value.startsWith("shpat_") && !value.startsWith("shpua_")) {
-    return "That value does not look like a Shopify Admin API access token. It should begin with shpat_.";
-  }
-  return null;
-}
+const SCOPE_ADVICE =
+  "Confirm the app version includes read_products and read_inventory, release the version, then reinstall it on this store.";
 
 async function graphql<T>(
   credentials: { shopDomain: string; adminToken: string; apiVersion: string },
   query: string,
   variables: Record<string, unknown> = {},
 ): Promise<T> {
-  const shapeIssue = describeTokenShape(credentials.adminToken);
-  if (shapeIssue) throw new Error(shapeIssue);
-
   const response = await fetch(
     `https://${credentials.shopDomain}/admin/api/${credentials.apiVersion}/graphql.json`,
     {
@@ -270,13 +381,11 @@ async function graphql<T>(
 
   if (response.status === 401) {
     throw new Error(
-      `The store at ${credentials.shopDomain} rejected the Admin API access token (401). The token is invalid, revoked, or belongs to a different store. Reinstall the custom app on this store and paste the freshly revealed Admin API access token beginning with shpat_.`,
+      `The store at ${credentials.shopDomain} rejected the access token (401). The app may no longer be installed on this store, or the client credentials belong to a different store.`,
     );
   }
   if (response.status === 403) {
-    throw new Error(
-      "The token was accepted but the custom app is missing Admin API scopes (403). Enable read_products, read_inventory and read_locations, save, then reinstall the app and use the new token.",
-    );
+    throw new Error(`The access token is missing Admin API scopes (403). ${SCOPE_ADVICE}`);
   }
   if (response.status === 404) {
     throw new Error(
@@ -284,7 +393,7 @@ async function graphql<T>(
     );
   }
   if (response.status === 402) {
-    throw new Error("The store is frozen or unavailable for API access (402). Check the store status in Shopify admin.");
+    throw new Error("The store is frozen or unavailable for API access (402). Check the store status in Shopify.");
   }
   if (response.status === 423) {
     throw new Error("The store is locked (423) and cannot serve Admin API requests.");
@@ -293,13 +402,15 @@ async function graphql<T>(
     throw new Error(`The store responded with ${response.status}`);
   }
 
-
   const payload = (await response.json()) as { data?: T; errors?: Array<{ message: string }> };
   if (payload.errors?.length) {
     const message = payload.errors.map((e) => e.message).join("; ");
     if (/access denied|not approved|scope/i.test(message)) {
+      throw new Error(`The app is missing an Admin API scope. Shopify said: ${message}. ${SCOPE_ADVICE}`);
+    }
+    if (/unsupported.*version|version.*not.*supported|invalid api version/i.test(message)) {
       throw new Error(
-        `The custom app is missing an Admin API scope. Shopify said: ${message}. Enable read_products, read_inventory and read_locations, save, then reinstall the app and use the new token.`,
+        `Shopify does not support Admin API version ${credentials.apiVersion}. Use a supported stable version such as ${DEFAULT_API_VERSION}.`,
       );
     }
     throw new Error(message);
@@ -331,11 +442,28 @@ export interface ConnectionTestResult {
   apiVersion: string;
 }
 
+/**
+ * Acquires an access token from the client credentials when they are supplied,
+ * then runs a minimal shop query. Only safe store metadata is returned.
+ */
 export async function testShopifyConnection(input: {
   shopDomain: string;
-  adminToken: string;
   apiVersion: string;
+  clientId?: string | null;
+  clientSecret?: string | null;
+  adminToken?: string | null;
 }): Promise<ConnectionTestResult> {
+  const adminToken =
+    input.clientId && input.clientSecret
+      ? await acquireAccessToken({
+          shopDomain: input.shopDomain,
+          clientId: input.clientId,
+          clientSecret: input.clientSecret,
+          force: true,
+        })
+      : input.adminToken;
+  if (!adminToken) throw new Error("A Client ID and Client secret are required");
+
   const data = await graphql<{
     shop: {
       name: string;
@@ -343,7 +471,7 @@ export async function testShopifyConnection(input: {
       primaryDomain: { host: string } | null;
       currencyCode: string | null;
     };
-  }>(input, SHOP_QUERY);
+  }>({ shopDomain: input.shopDomain, apiVersion: input.apiVersion, adminToken }, SHOP_QUERY);
 
   return {
     ok: true,
@@ -360,28 +488,33 @@ export async function testShopifyConnection(input: {
 export async function saveShopifyCredentials(input: {
   shopDomain: string;
   apiVersion: string;
-  adminToken?: string | null;
+  clientId?: string | null;
+  clientSecret?: string | null;
   shopName?: string | null;
 }): Promise<void> {
   const supabase = await adminClient();
-  if (input.adminToken) {
+  if (input.clientSecret) {
     const { error } = await supabase.rpc("set_integration_secret", {
-      _name: SHOPIFY_VAULT_SECRET,
-      _secret: input.adminToken,
+      _name: SHOPIFY_CLIENT_SECRET_VAULT,
+      _secret: input.clientSecret,
     });
-    if (error) throw new Error("The access token could not be stored securely");
+    if (error) throw new Error("The client secret could not be stored securely");
   }
-  await writeSetting(supabase, SETTING_KEYS.shopDomain, "Shop domain", input.shopDomain);
+  await writeSetting(supabase, SETTING_KEYS.shopDomain, "Store domain", input.shopDomain);
   await writeSetting(supabase, SETTING_KEYS.apiVersion, "Admin API version", input.apiVersion);
-  await writeSetting(supabase, SETTING_KEYS.adminToken, "Admin API access token", null, {
+  if (input.clientId) {
+    await writeSetting(supabase, SETTING_KEYS.clientId, "Client ID", input.clientId);
+  }
+  await writeSetting(supabase, SETTING_KEYS.clientSecret, "Client secret", null, {
     isSecretReference: true,
-    secretName: SHOPIFY_VAULT_SECRET,
+    secretName: SHOPIFY_CLIENT_SECRET_VAULT,
     helpText: "Stored in the encrypted vault. It is never sent back to the browser.",
   });
   if (input.shopName) {
     await writeSetting(supabase, SETTING_KEYS.shopName, "Store name", input.shopName);
   }
 }
+
 
 export async function markConnectionState(input: {
   state: "connected" | "error" | "not_connected";
@@ -410,6 +543,8 @@ export async function markConnectionState(input: {
 export async function disconnectShopify(): Promise<void> {
   const supabase = await adminClient();
   await supabase.rpc("delete_integration_secret", { _name: SHOPIFY_VAULT_SECRET });
+  await supabase.rpc("delete_integration_secret", { _name: SHOPIFY_CLIENT_SECRET_VAULT });
+  tokenCache.clear();
   const id = await integrationId(supabase);
   if (id) {
     await supabase
@@ -420,6 +555,8 @@ export async function disconnectShopify(): Promise<void> {
         SETTING_KEYS.shopDomain,
         SETTING_KEYS.apiVersion,
         SETTING_KEYS.adminToken,
+        SETTING_KEYS.clientId,
+        SETTING_KEYS.clientSecret,
         SETTING_KEYS.shopName,
         SETTING_KEYS.lastTestedAt,
         SETTING_KEYS.lastSyncedAt,
@@ -428,6 +565,7 @@ export async function disconnectShopify(): Promise<void> {
   }
   await markConnectionState({ state: "not_connected", error: null });
 }
+
 
 /* ------------------------------ catalogue ------------------------------ */
 
@@ -638,14 +776,16 @@ export async function syncCatalogue(
   supabase: SupabaseClient<any, "public", any>,
 ): Promise<SyncResult> {
   const resolved = await resolveShopifyCredentials();
-  if (!resolved.shopDomain || !resolved.adminToken) {
+  if (!resolved.shopDomain || resolved.missing.length > 0) {
     throw new Error(`Store credentials missing: ${resolved.missing.join(", ")}`);
   }
+  const adminToken = await getAdminAccessToken(resolved);
   const credentials = {
     shopDomain: resolved.shopDomain,
-    adminToken: resolved.adminToken,
+    adminToken,
     apiVersion: resolved.apiVersion,
   };
+
 
   const syncedAt = new Date().toISOString();
 

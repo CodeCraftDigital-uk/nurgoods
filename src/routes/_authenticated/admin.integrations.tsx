@@ -18,10 +18,11 @@ export const Route = createFileRoute("/_authenticated/admin/integrations")({
 
 const REQUIREMENTS: Record<string, string[]> = {
   shopify: [
-    "Shop domain, entered in the store connection panel above",
-    "Admin API access token, stored encrypted after it is submitted",
+    "Store domain, entered in the store connection panel above",
+    "Client ID from the app created in your Shopify developer organisation",
+    "Client secret, stored encrypted after it is submitted",
     "Admin API version, defaults to 2026-07",
-    "Read scopes for products, collections and inventory",
+    "App scopes read_products and read_inventory, released and installed on the store",
   ],
   zendrop: ["Confirmation of the Zendrop to Shopify link", "Any supplier feed reference"],
   ai: [

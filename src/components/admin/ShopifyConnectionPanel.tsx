@@ -54,12 +54,14 @@ export function ShopifyConnectionPanel() {
 
   const [shopDomain, setShopDomain] = useState("");
   const [apiVersion, setApiVersion] = useState(DEFAULT_API_VERSION);
-  const [token, setToken] = useState("");
+  const [clientId, setClientId] = useState("");
+  const [clientSecret, setClientSecret] = useState("");
   const [replacing, setReplacing] = useState(false);
 
   useEffect(() => {
     if (!status.data) return;
     setShopDomain((current) => current || (status.data.shopDomain ?? ""));
+    setClientId((current) => current || (status.data.clientId ?? ""));
     setApiVersion((current) =>
       current === DEFAULT_API_VERSION ? (status.data.apiVersion ?? DEFAULT_API_VERSION) : current,
     );
@@ -78,17 +80,19 @@ export function ShopifyConnectionPanel() {
         data: {
           shopDomain,
           apiVersion,
-          ...(token.trim() ? { adminToken: token.trim() } : {}),
+          ...(clientId.trim() ? { clientId: clientId.trim() } : {}),
+          ...(clientSecret.trim() ? { clientSecret: clientSecret.trim() } : {}),
         },
       }),
     onSuccess: (result) => {
-      setToken("");
+      setClientSecret("");
       setReplacing(false);
       toast.success(`Connected to ${result.shopName}`);
       refresh();
     },
     onError: (error: Error) => toast.error(error.message),
   });
+
 
   const test = useMutation({
     mutationFn: () => testFn({}),
@@ -114,7 +118,7 @@ export function ShopifyConnectionPanel() {
   const remove = useMutation({
     mutationFn: () => removeFn({}),
     onSuccess: () => {
-      setToken("");
+      setClientSecret("");
       setReplacing(false);
       toast.success("Store credentials removed");
       refresh();
@@ -124,7 +128,7 @@ export function ShopifyConnectionPanel() {
 
   const busy = connect.isPending || test.isPending || sync.isPending || remove.isPending;
   const data = status.data;
-  const hasToken = Boolean(data?.hasStoredToken);
+  const hasSecret = Boolean(data?.hasStoredSecret);
   const state = test.isPending || connect.isPending ? "testing" : (data?.connectionState ?? "not_connected");
 
   const tone: "positive" | "danger" | "pending" | "neutral" =
@@ -147,9 +151,15 @@ export function ShopifyConnectionPanel() {
   return (
     <SectionCard
       title="Store connection"
-      description="Pair the platform with your store using an Admin API access token. The token is encrypted at rest and never displayed again."
+      description="Pair the platform with your store using the app Client ID and Client secret. The secret is encrypted at rest and never displayed again."
       actions={<StatusPill tone={tone}>{label}</StatusPill>}
     >
+      <p className="mb-4 rounded-lg border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
+        Before pairing, the app created in your Shopify developer organisation needs a released
+        version that requests read_products and read_inventory, and it must be installed on the NUR
+        GOODS store. Access tokens are then issued automatically and refreshed without any action
+        from you.
+      </p>
       <form
         className="grid gap-4 sm:grid-cols-2"
         onSubmit={(event) => {
@@ -158,7 +168,7 @@ export function ShopifyConnectionPanel() {
         }}
       >
         <div className="sm:col-span-2">
-          <Label htmlFor="shop-domain">Shop domain</Label>
+          <Label htmlFor="shop-domain">Store domain</Label>
           <Input
             id="shop-domain"
             value={shopDomain}
@@ -170,8 +180,21 @@ export function ShopifyConnectionPanel() {
             required
           />
           <p className="mt-1.5 text-xs text-muted-foreground">
-            Use the .myshopify.com domain where possible.
+            Use the .myshopify.com domain.
           </p>
+        </div>
+
+        <div>
+          <Label htmlFor="client-id">Client ID</Label>
+          <Input
+            id="client-id"
+            value={clientId}
+            onChange={(event) => setClientId(event.target.value)}
+            autoComplete="off"
+            spellCheck={false}
+            className="mt-1.5 min-h-11"
+            required
+          />
         </div>
 
         <div>
@@ -185,33 +208,33 @@ export function ShopifyConnectionPanel() {
           />
         </div>
 
-        <div>
-          <Label htmlFor="admin-token">Admin API access token</Label>
-          {hasToken && !replacing ? (
+        <div className="sm:col-span-2">
+          <Label htmlFor="client-secret">Client secret</Label>
+          {hasSecret && !replacing ? (
             <div className="mt-1.5 flex flex-wrap items-center gap-3">
-              <p className="text-sm text-muted-foreground">A secure token is stored.</p>
+              <p className="text-sm text-muted-foreground">A secure client secret is stored.</p>
               <Button type="button" variant="outline" size="sm" onClick={() => setReplacing(true)}>
-                Replace token
+                Replace secret
               </Button>
             </div>
           ) : (
             <Input
-              id="admin-token"
+              id="client-secret"
               type="password"
-              value={token}
-              onChange={(event) => setToken(event.target.value)}
-              placeholder="shpat_..."
+              value={clientSecret}
+              onChange={(event) => setClientSecret(event.target.value)}
               autoComplete="new-password"
               className="mt-1.5 min-h-11"
-              required={!hasToken}
+              required={!hasSecret}
             />
           )}
         </div>
 
         <div className="flex flex-wrap gap-3 sm:col-span-2">
           <Button type="submit" disabled={busy} className="min-h-11">
-            {connect.isPending ? "Testing" : hasToken ? "Save and verify" : "Connect store"}
+            {connect.isPending ? "Testing" : hasSecret ? "Save and verify" : "Connect store"}
           </Button>
+
           <Button
             type="button"
             variant="outline"
@@ -230,7 +253,7 @@ export function ShopifyConnectionPanel() {
           >
             {sync.isPending ? "Syncing" : "Sync catalogue"}
           </Button>
-          {hasToken ? (
+          {hasSecret ? (
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button type="button" variant="ghost" className="min-h-11" disabled={busy}>
@@ -241,7 +264,7 @@ export function ShopifyConnectionPanel() {
                 <AlertDialogHeader>
                   <AlertDialogTitle>Disconnect the store?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    The stored access token and connection settings are deleted. Catalogue data
+                    The stored client secret and connection settings are deleted. Catalogue data
                     already mirrored stays until the next sync. You can reconnect at any time.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
