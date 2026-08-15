@@ -161,8 +161,12 @@ function toRow(input: {
  * duplicate a document.
  */
 export async function syncLegalContent(
-  supabase: SupabaseClient<any, "public", any>,
+  _supabase?: SupabaseClient<any, "public", any>,
 ): Promise<LegalSyncResult> {
+  // Imported legal records are written with the privileged server client: the
+  // signed in role has read only access to this mirror by design.
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const supabase = supabaseAdmin as unknown as SupabaseClient<any, "public", any>;
   const {
     resolveShopifyCredentials,
     getAdminAccessToken,
