@@ -103,19 +103,16 @@ function AuthPage() {
               />
             </div>
             <Button type="submit" className="w-full" disabled={busy}>
-              {mode === "signin" ? "Sign in" : "Sign up"}
+              Sign in
             </Button>
           </form>
           <Button variant="outline" className="w-full" onClick={handleGoogle}>
             Continue with Google
           </Button>
-          <button
-            type="button"
-            className="w-full text-sm text-muted-foreground underline-offset-4 hover:underline"
-            onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
-          >
-            {mode === "signin" ? "Need an account? Sign up" : "Already have an account? Sign in"}
-          </button>
+          <p className="text-center text-xs text-muted-foreground">
+            Access is limited to approved NUR GOODS team accounts. Contact support@nurgoods.com if
+            you need access.
+          </p>
         </CardContent>
       </Card>
     </main>
