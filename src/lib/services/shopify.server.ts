@@ -98,8 +98,17 @@ async function integrationId(supabase: AdminClient): Promise<string | null> {
     .select("id")
     .eq("provider", "shopify")
     .maybeSingle();
-  return (data as any)?.id ?? null;
+  if ((data as any)?.id) return (data as any).id as string;
+
+  // First pairing on a fresh environment: create the integration record.
+  const { data: created } = await supabase
+    .from("integrations")
+    .upsert({ provider: "shopify", label: "Shopify", status: "not_connected" }, { onConflict: "provider" })
+    .select("id")
+    .maybeSingle();
+  return (created as any)?.id ?? null;
 }
+
 
 async function readSettings(supabase: AdminClient): Promise<Map<string, string | null>> {
   const id = await integrationId(supabase);
