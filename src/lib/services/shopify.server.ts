@@ -543,6 +543,8 @@ export async function markConnectionState(input: {
 export async function disconnectShopify(): Promise<void> {
   const supabase = await adminClient();
   await supabase.rpc("delete_integration_secret", { _name: SHOPIFY_VAULT_SECRET });
+  await supabase.rpc("delete_integration_secret", { _name: SHOPIFY_CLIENT_SECRET_VAULT });
+  tokenCache.clear();
   const id = await integrationId(supabase);
   if (id) {
     await supabase
@@ -553,6 +555,8 @@ export async function disconnectShopify(): Promise<void> {
         SETTING_KEYS.shopDomain,
         SETTING_KEYS.apiVersion,
         SETTING_KEYS.adminToken,
+        SETTING_KEYS.clientId,
+        SETTING_KEYS.clientSecret,
         SETTING_KEYS.shopName,
         SETTING_KEYS.lastTestedAt,
         SETTING_KEYS.lastSyncedAt,
@@ -561,6 +565,7 @@ export async function disconnectShopify(): Promise<void> {
   }
   await markConnectionState({ state: "not_connected", error: null });
 }
+
 
 /* ------------------------------ catalogue ------------------------------ */
 
