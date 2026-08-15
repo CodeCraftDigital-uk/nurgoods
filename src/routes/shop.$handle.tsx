@@ -567,12 +567,23 @@ function ProductDetail() {
 
       <div className="sticky bottom-0 z-30 mt-16 border-t border-border/70 bg-background/95 px-5 py-3 backdrop-blur sm:hidden">
         {canBuy ? (
-          <a
-            href={buyHref!}
-            className="flex min-h-12 items-center justify-center rounded-lg bg-primary px-5 text-sm font-medium text-primary-foreground"
-          >
-            Buy now
-          </a>
+          headlessReady ? (
+            <button
+              type="button"
+              onClick={() => void beginCheckout()}
+              disabled={starting}
+              className="flex w-full min-h-12 items-center justify-center rounded-lg bg-primary px-5 text-sm font-medium text-primary-foreground disabled:opacity-70"
+            >
+              {starting ? "Opening checkout" : "Buy now"}
+            </button>
+          ) : (
+            <a
+              href={buyHref!}
+              className="flex min-h-12 items-center justify-center rounded-lg bg-primary px-5 text-sm font-medium text-primary-foreground"
+            >
+              Buy now
+            </a>
+          )
         ) : (
           <button
             type="button"
