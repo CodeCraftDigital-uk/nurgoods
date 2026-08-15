@@ -15,6 +15,7 @@ const PRIMARY_NAV = [
   { label: "Journal", to: "/journal" },
   { label: "Reviews", to: "/reviews" },
   { label: "Policies", to: "/legal" },
+  { label: "Contact", to: "/contact" },
 ] as const;
 
 /**
