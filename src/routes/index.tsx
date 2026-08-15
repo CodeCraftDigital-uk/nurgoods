@@ -31,19 +31,19 @@ const PILLARS = [
   {
     title: "Chosen with care",
     body: "Every product in the range is picked for how it performs in daily use, not for how loud it looks on a shelf.",
-    to: BRAND.storeUrl,
+    href: BRAND.storeUrl,
     label: "Browse the range",
   },
   {
     title: "Guidance you can check",
     body: "The Journal answers the questions people actually ask, and lists the sources behind every claim so you can verify them yourself.",
-    to: "/journal",
+    to: "/journal" as const,
     label: "Read the Journal",
   },
   {
     title: "Reviews from real orders",
     body: "Customer feedback is collected from completed orders and published as written. Nothing is edited and nothing is invented.",
-    to: "/reviews",
+    to: "/reviews" as const,
     label: "See reviews",
   },
 ] as const;
@@ -113,9 +113,9 @@ function Index() {
             <div key={pillar.title} className="border-t-2 border-gold pt-5">
               <h2 className="font-display text-xl text-foreground">{pillar.title}</h2>
               <p className="mt-2.5 text-sm leading-relaxed text-muted-foreground">{pillar.body}</p>
-              {pillar.to.startsWith("http") ? (
+              {"href" in pillar ? (
                 <a
-                  href={pillar.to}
+                  href={pillar.href}
                   className="mt-4 inline-block text-sm font-medium text-foreground underline decoration-gold underline-offset-4"
                 >
                   {pillar.label}
