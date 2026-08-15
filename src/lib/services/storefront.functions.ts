@@ -16,12 +16,12 @@ import type {
 const SORTS: StorefrontSort[] = ["featured", "price_asc", "price_desc", "newest", "title_desc"];
 
 export interface StorefrontListInput {
-  query?: string;
-  productType?: string;
-  collectionHandle?: string;
-  sort?: string;
-  limit?: number;
-  offset?: number;
+  query?: string | undefined;
+  productType?: string | undefined;
+  collectionHandle?: string | undefined;
+  sort?: string | undefined;
+  limit?: number | undefined;
+  offset?: number | undefined;
 }
 
 export const listStorefrontProductsFn = createServerFn({ method: "GET" })

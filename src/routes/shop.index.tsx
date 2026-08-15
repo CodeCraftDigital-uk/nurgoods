@@ -12,9 +12,9 @@ import {
 } from "@/lib/services/storefront.functions";
 
 interface ShopSearch {
-  q?: string;
-  type?: string;
-  sort?: string;
+  q?: string | undefined;
+  type?: string | undefined;
+  sort?: string | undefined;
 }
 
 const SORT_OPTIONS = [
@@ -27,9 +27,12 @@ const SORT_OPTIONS = [
 
 export const Route = createFileRoute("/shop/")({
   validateSearch: (search: Record<string, unknown>): ShopSearch => ({
-    q: typeof search.q === "string" && search.q ? search.q.slice(0, 120) : undefined,
-    type: typeof search.type === "string" && search.type ? search.type.slice(0, 120) : undefined,
-    sort: typeof search.sort === "string" && search.sort ? search.sort : undefined,
+    q: typeof search["q"] === "string" && search["q"] ? search["q"].slice(0, 120) : undefined,
+    type:
+      typeof search["type"] === "string" && search["type"]
+        ? search["type"].slice(0, 120)
+        : undefined,
+    sort: typeof search["sort"] === "string" && search["sort"] ? search["sort"] : undefined,
   }),
   head: () => ({
     meta: [
@@ -55,7 +58,7 @@ export const Route = createFileRoute("/shop/")({
 
 function ShopIndex() {
   const search = Route.useSearch();
-  const navigate = useNavigate({ from: "/shop" });
+  const navigate = useNavigate({ from: "/shop/" });
   const [term, setTerm] = useState(search.q ?? "");
 
   useEffect(() => {
@@ -88,14 +91,14 @@ function ShopIndex() {
 
   const setSearch = (next: Partial<ShopSearch>) => {
     void navigate({
-      search: (prev: ShopSearch) => {
+      search: ((prev: ShopSearch) => {
         const merged = { ...prev, ...next };
         return {
           q: merged.q || undefined,
           type: merged.type || undefined,
           sort: merged.sort && merged.sort !== "featured" ? merged.sort : undefined,
         };
-      },
+      }) as never,
       replace: true,
     });
   };
@@ -271,7 +274,7 @@ function ShopIndex() {
             in than searching.
           </p>
           <Link
-            to="/collections"
+            to="/collections/"
             className="mt-5 inline-flex min-h-11 items-center rounded-lg border border-input px-5 text-sm font-medium text-foreground transition-colors hover:bg-accent"
           >
             See collections

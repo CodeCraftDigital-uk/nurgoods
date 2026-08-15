@@ -198,7 +198,7 @@ function ProductDetail() {
           <section className="mt-16 max-w-3xl">
             <h2 className="font-display text-2xl text-foreground">About this product</h2>
             <div className="mt-4">
-              <Markdown content={product.long_description} />
+              <Markdown source={product.long_description} />
             </div>
           </section>
         ) : null}
