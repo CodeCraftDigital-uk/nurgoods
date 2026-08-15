@@ -87,7 +87,7 @@ export interface PublicProduct {
   summary?: string | null;
 }
 
-function mapProduct(row: Record<string, any>, summary?: string | null): PublicProduct {
+function mapProduct(row: any, summary?: string | null): PublicProduct {
   return {
     id: String(row.shopify_product_id ?? row.id),
     handle: row.handle,
@@ -135,7 +135,7 @@ export async function searchProducts(input: {
 
   const { data, error } = await builder;
   if (error) throw new Error(error.message);
-  const items = (data ?? []).map((row) => mapProduct(row as Record<string, any>));
+  const items = (data ?? []).map((row) => mapProduct(row as any));
   return { items, page: pageMeta(items, limit, offset) };
 }
 
@@ -184,7 +184,7 @@ export async function getProduct(handle: string): Promise<PublicProductDetail | 
   if (error) throw new Error(error.message);
   if (!data) return null;
 
-  const row = data as Record<string, any>;
+  const row = data as any;
   const { data: enrichment } = await supabase
     .from("product_enrichment")
     .select(
@@ -193,7 +193,7 @@ export async function getProduct(handle: string): Promise<PublicProductDetail | 
     .eq("product_id", row.id)
     .maybeSingle();
 
-  const content = (enrichment ?? {}) as Record<string, any>;
+  const content = (enrichment ?? {}) as any;
   return {
     ...mapProduct(row, content.summary ?? null),
     long_description: content.long_description ?? null,
@@ -241,7 +241,7 @@ export async function searchCollections(input: {
   const { data, error } = await builder;
   if (error) throw new Error(error.message);
   const items = (data ?? []).map((raw) => {
-    const row = raw as Record<string, any>;
+    const row = raw as any;
     return {
       id: String(row.shopify_collection_id ?? row.id),
       handle: row.handle,
@@ -275,7 +275,7 @@ export interface PublicArticleCard {
 const ARTICLE_CARD_COLUMNS =
   "slug, title, excerpt, meta_description, tags, author_name, reading_minutes, published_at";
 
-function mapArticle(raw: Record<string, any>): PublicArticleCard {
+function mapArticle(raw: any): PublicArticleCard {
   return {
     slug: raw.slug,
     title: raw.title,
@@ -311,7 +311,7 @@ export async function searchArticles(input: {
 
   const { data, error } = await builder;
   if (error) throw new Error(error.message);
-  const items = (data ?? []).map((row) => mapArticle(row as Record<string, any>));
+  const items = (data ?? []).map((row) => mapArticle(row as any));
   return { items, page: pageMeta(items, limit, offset) };
 }
 
@@ -333,7 +333,7 @@ export async function getArticle(slug: string): Promise<PublicArticleFull | null
     .maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) return null;
-  const row = data as Record<string, any>;
+  const row = data as any;
 
   const { data: sources } = await supabase
     .from("article_sources")
@@ -346,7 +346,7 @@ export async function getArticle(slug: string): Promise<PublicArticleFull | null
     body_markdown: row.body_markdown ?? null,
     faqs: faqList(row.faqs),
     updated_at: row.updated_at,
-    sources: ((sources ?? []) as Record<string, any>[]).map((s) => ({
+    sources: ((sources ?? []) as any[]).map((s) => ({
       url: s.url,
       title: s.title ?? null,
       publisher: s.publisher ?? null,
@@ -376,7 +376,7 @@ export async function listPolicies(): Promise<PublicPolicySummary[]> {
     .eq("is_placeholder", false)
     .order("doc_key", { ascending: true });
   if (error) throw new Error(error.message);
-  return ((data ?? []) as Record<string, any>[]).map((row) => ({
+  return ((data ?? []) as any[]).map((row) => ({
     key: row.doc_key,
     slug: row.slug,
     title: row.title,
@@ -403,7 +403,7 @@ export async function getPolicy(slug: string): Promise<PublicPolicyDocument | nu
     .maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) return null;
-  const row = data as Record<string, any>;
+  const row = data as any;
   return {
     key: row.doc_key,
     slug: row.slug,
@@ -447,7 +447,7 @@ export async function listAnswers(input: {
 
   const { data, error } = await builder;
   if (error) throw new Error(error.message);
-  const rows = (data ?? []) as Record<string, any>[];
+  const rows = (data ?? []) as any[];
   const recordIds = [...new Set(rows.map((r) => r.seo_record_id))];
   const records = recordIds.length
     ? ((
@@ -458,7 +458,7 @@ export async function listAnswers(input: {
       ).data ?? [])
     : [];
   const byId = new Map(
-    (records as Record<string, any>[]).map((r) => [r.id as string, r]),
+    (records as any[]).map((r) => [r.id as string, r]),
   );
 
   const items = rows.map((row) => {
@@ -524,6 +524,6 @@ export async function connectorDataCounts(): Promise<ConnectorDataCounts> {
     policies: policies.count ?? 0,
     answers: answers.count ?? 0,
     lastStoreSyncAt:
-      ((latest.data ?? [])[0] as Record<string, any> | undefined)?.last_synced_at ?? null,
+      ((latest.data ?? [])[0] as any)?.last_synced_at ?? null,
   };
 }
