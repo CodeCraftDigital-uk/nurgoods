@@ -137,9 +137,16 @@ function ProductDetail() {
     (selectedVariant?.image_url
       ? { url: selectedVariant.image_url, alt: product.title, width: null, height: null }
       : null);
-  const storeHref = product.store_url ?? BRAND.storeUrl;
-  const buyHref = cartHref(product.checkout_domain, selectedVariant?.variant_id ?? null, quantity);
   const soldOut = selectedVariant ? selectedVariant.available_for_sale === false : false;
+  const buyHref = product.checkout_ready
+    ? cartHref(product.checkout_domain, selectedVariant?.variant_id ?? null, quantity)
+    : null;
+  const canBuy = Boolean(buyHref) && !soldOut;
+  const unavailableReason = soldOut
+    ? "Currently unavailable"
+    : !product.checkout_ready
+      ? "Checkout is being set up"
+      : "Currently unavailable";
 
   const price = formatPrice(product.price_min, product.price_max, product.currency);
   const url = `${BRAND.siteUrl}/shop/${product.handle}`;
@@ -336,20 +343,22 @@ function ProductDetail() {
                 ))}
               </select>
 
-              {buyHref && !soldOut ? (
+              {canBuy ? (
                 <a
-                  href={buyHref}
+                  href={buyHref!}
                   className="inline-flex min-h-12 flex-1 items-center justify-center rounded-lg bg-primary px-6 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 sm:flex-none"
                 >
                   Buy now
                 </a>
               ) : (
-                <a
-                  href={storeHref}
-                  className="inline-flex min-h-12 flex-1 items-center justify-center rounded-lg border border-input px-6 text-sm font-medium text-foreground hover:bg-accent sm:flex-none"
+                <button
+                  type="button"
+                  disabled
+                  aria-disabled="true"
+                  className="inline-flex min-h-12 flex-1 cursor-not-allowed items-center justify-center rounded-lg border border-input px-6 text-sm font-medium text-muted-foreground sm:flex-none"
                 >
-                  {soldOut ? "Currently unavailable" : `View on the ${BRAND.name} store`}
-                </a>
+                  {unavailableReason}
+                </button>
               )}
             </div>
             {selectedVariant && optionNames.length > 0 ? (
@@ -529,16 +538,23 @@ function ProductDetail() {
       </article>
 
       <div className="sticky bottom-0 z-30 mt-16 border-t border-border/70 bg-background/95 px-5 py-3 backdrop-blur sm:hidden">
-        <a
-          href={buyHref && !soldOut ? buyHref : storeHref}
-          className={`flex min-h-12 items-center justify-center rounded-lg px-5 text-sm font-medium ${
-            buyHref && !soldOut
-              ? "bg-primary text-primary-foreground"
-              : "border border-input text-foreground"
-          }`}
-        >
-          {buyHref && !soldOut ? "Buy now" : soldOut ? "Currently unavailable" : "View on the store"}
-        </a>
+        {canBuy ? (
+          <a
+            href={buyHref!}
+            className="flex min-h-12 items-center justify-center rounded-lg bg-primary px-5 text-sm font-medium text-primary-foreground"
+          >
+            Buy now
+          </a>
+        ) : (
+          <button
+            type="button"
+            disabled
+            aria-disabled="true"
+            className="flex w-full min-h-12 cursor-not-allowed items-center justify-center rounded-lg border border-input px-5 text-sm font-medium text-muted-foreground"
+          >
+            {unavailableReason}
+          </button>
+        )}
       </div>
     </PublicShell>
   );

@@ -52,14 +52,23 @@ export function resolveAdapter(): AiProviderAdapter {
       if (usage?.outputTokens != null) result.tokenOutput = usage.outputTokens;
 
       if (request.responseSchema) {
-        const cleaned = text
+        // Some responses wrap JSON in fences or a short preamble, so the
+        // object is isolated before parsing rather than failing the stage.
+        let cleaned = text
           .replace(/^```(?:json)?/i, "")
-          .replace(/```$/, "")
+          .replace(/```\s*$/, "")
           .trim();
+        const first = cleaned.indexOf("{");
+        const last = cleaned.lastIndexOf("}");
+        if (first > 0 || (last >= 0 && last < cleaned.length - 1)) {
+          if (first >= 0 && last > first) cleaned = cleaned.slice(first, last + 1);
+        }
         try {
           result.parsed = JSON.parse(cleaned);
         } catch {
-          throw new Error("The editorial model did not return valid JSON for this stage");
+          throw new Error(
+            `The editorial model did not return valid JSON for this stage. Response began: ${cleaned.slice(0, 160)}`,
+          );
         }
       }
       return result;
