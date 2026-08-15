@@ -4,7 +4,33 @@ import { JsonLd } from "@/components/public/JsonLd";
 import { Markdown } from "@/components/public/Markdown";
 import { ReviewPlacementSlot } from "@/components/public/ReviewPlacementSlot";
 import { BRAND } from "@/lib/brand";
-import { getPublicArticle } from "@/lib/services/public-content.functions";
+import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import {
+  getPublicArticle,
+  listPublicArticles,
+  type PublicArticleSummary,
+} from "@/lib/services/public-content.functions";
+
+/** Related published articles, preferring shared tags. Real content only. */
+function useRelatedArticles(slug: string, tags: string[] | null): PublicArticleSummary[] {
+  const fetchArticles = useServerFn(listPublicArticles);
+  const query = useQuery({
+    queryKey: ["public-articles"],
+    queryFn: () => fetchArticles({}),
+    retry: false,
+    staleTime: 5 * 60 * 1000,
+  });
+  const others = (query.data ?? []).filter((item) => item.slug !== slug);
+  const tagSet = new Set(tags ?? []);
+  const scored = others
+    .map((item) => ({
+      item,
+      score: (item.tags ?? []).filter((tag) => tagSet.has(tag)).length,
+    }))
+    .sort((a, b) => b.score - a.score);
+  return scored.slice(0, 3).map((entry) => entry.item);
+}
 
 export const Route = createFileRoute("/journal/$slug")({
   loader: async ({ params }) => {
