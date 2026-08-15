@@ -8,8 +8,8 @@ import { listShopifyLegalSources } from "@/lib/services/operations";
 import { runShopifyLegalSync } from "@/lib/services/shopify-sync.functions";
 import { reviewStatusLabel } from "@/lib/legal/source-content";
 
-function tone(status: string): "success" | "warning" | "danger" | "neutral" {
-  if (status === "current") return "success";
+function tone(status: string): "positive" | "warning" | "danger" | "neutral" {
+  if (status === "current") return "positive";
   if (status === "needs_review") return "warning";
   if (status === "sync_error") return "danger";
   return "neutral";
