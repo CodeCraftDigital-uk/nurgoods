@@ -25,12 +25,23 @@ export function resolveAdapter(): AiProviderAdapter {
     id: "managed",
     label: "Managed AI",
     async complete(request: AiCompletionRequest): Promise<AiCompletionResult> {
+      // The model runtime expects system guidance as a dedicated field rather
+      // than a message role, so brand rules are lifted out of the message list.
+      const systemText = request.messages
+        .filter((message) => message.role === "system")
+        .map((message) => message.content)
+        .join("\n\n")
+        .trim();
+      const conversation = request.messages.filter((message) => message.role !== "system");
+
       const stream = streamText({
         model: provider(model),
-        messages: request.messages,
+        ...(systemText ? { system: systemText } : {}),
+        messages: conversation,
         temperature: request.temperature ?? 0.4,
         maxOutputTokens: request.maxOutputTokens ?? 4000,
       });
+
 
       const text = (await stream.text)?.trim() ?? "";
       if (!text) throw new Error("The editorial model returned an empty response");
