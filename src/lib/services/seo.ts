@@ -100,3 +100,22 @@ export async function addSeoQuestion(input: {
   if (error) throw error;
   return data;
 }
+
+export async function updateSeoQuestion(
+  id: string,
+  patch: Partial<SeoQuestion>,
+): Promise<SeoQuestion> {
+  const { data, error } = await supabase
+    .from("seo_questions")
+    .update(patch)
+    .eq("id", id)
+    .select("*")
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteSeoQuestion(id: string): Promise<void> {
+  const { error } = await supabase.from("seo_questions").delete().eq("id", id);
+  if (error) throw error;
+}
