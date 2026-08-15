@@ -19,6 +19,7 @@ import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
+import { Route as CollectionsIndexRouteImport } from './routes/collections.index'
 import { Route as JournalIndexRouteImport } from './routes/journal.index'
 import { Route as JournalSlugRouteImport } from './routes/journal.$slug'
 import { Route as LegalIndexRouteImport } from './routes/legal.index'
@@ -98,6 +99,11 @@ const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
   id: '/admin',
   path: '/admin',
   getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const CollectionsIndexRoute = CollectionsIndexRouteImport.update({
+  id: '/collections/',
+  path: '/collections/',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const JournalIndexRoute = JournalIndexRouteImport.update({
   id: '/journal/',
@@ -263,6 +269,7 @@ export interface FileRoutesByFullPath {
   '/journal/$slug': typeof JournalSlugRoute
   '/legal/$slug': typeof LegalSlugRoute
   '/shop/$handle': typeof ShopHandleRoute
+  '/collections/': typeof CollectionsIndexRoute
   '/journal/': typeof JournalIndexRoute
   '/legal/': typeof LegalIndexRoute
   '/shop/': typeof ShopIndexRoute
@@ -301,6 +308,7 @@ export interface FileRoutesByTo {
   '/journal/$slug': typeof JournalSlugRoute
   '/legal/$slug': typeof LegalSlugRoute
   '/shop/$handle': typeof ShopHandleRoute
+  '/collections': typeof CollectionsIndexRoute
   '/journal': typeof JournalIndexRoute
   '/legal': typeof LegalIndexRoute
   '/shop': typeof ShopIndexRoute
@@ -341,6 +349,7 @@ export interface FileRoutesById {
   '/journal/$slug': typeof JournalSlugRoute
   '/legal/$slug': typeof LegalSlugRoute
   '/shop/$handle': typeof ShopHandleRoute
+  '/collections/': typeof CollectionsIndexRoute
   '/journal/': typeof JournalIndexRoute
   '/legal/': typeof LegalIndexRoute
   '/shop/': typeof ShopIndexRoute
@@ -382,6 +391,7 @@ export interface FileRouteTypes {
     | '/journal/$slug'
     | '/legal/$slug'
     | '/shop/$handle'
+    | '/collections/'
     | '/journal/'
     | '/legal/'
     | '/shop/'
@@ -420,6 +430,7 @@ export interface FileRouteTypes {
     | '/journal/$slug'
     | '/legal/$slug'
     | '/shop/$handle'
+    | '/collections'
     | '/journal'
     | '/legal'
     | '/shop'
@@ -459,6 +470,7 @@ export interface FileRouteTypes {
     | '/journal/$slug'
     | '/legal/$slug'
     | '/shop/$handle'
+    | '/collections/'
     | '/journal/'
     | '/legal/'
     | '/shop/'
@@ -499,6 +511,7 @@ export interface RootRouteChildren {
   JournalSlugRoute: typeof JournalSlugRoute
   LegalSlugRoute: typeof LegalSlugRoute
   ShopHandleRoute: typeof ShopHandleRoute
+  CollectionsIndexRoute: typeof CollectionsIndexRoute
   JournalIndexRoute: typeof JournalIndexRoute
   LegalIndexRoute: typeof LegalIndexRoute
   ShopIndexRoute: typeof ShopIndexRoute
@@ -583,6 +596,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin'
       preLoaderRoute: typeof AuthenticatedAdminRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/collections/': {
+      id: '/collections/'
+      path: '/collections'
+      fullPath: '/collections/'
+      preLoaderRoute: typeof CollectionsIndexRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/journal/': {
       id: '/journal/'
@@ -876,6 +896,7 @@ const rootRouteChildren: RootRouteChildren = {
   JournalSlugRoute: JournalSlugRoute,
   LegalSlugRoute: LegalSlugRoute,
   ShopHandleRoute: ShopHandleRoute,
+  CollectionsIndexRoute: CollectionsIndexRoute,
   JournalIndexRoute: JournalIndexRoute,
   LegalIndexRoute: LegalIndexRoute,
   ShopIndexRoute: ShopIndexRoute,
