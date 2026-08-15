@@ -295,7 +295,15 @@ async function graphql<T>(
 
 
   const payload = (await response.json()) as { data?: T; errors?: Array<{ message: string }> };
-  if (payload.errors?.length) throw new Error(payload.errors.map((e) => e.message).join("; "));
+  if (payload.errors?.length) {
+    const message = payload.errors.map((e) => e.message).join("; ");
+    if (/access denied|not approved|scope/i.test(message)) {
+      throw new Error(
+        `The custom app is missing an Admin API scope. Shopify said: ${message}. Enable read_products, read_inventory and read_locations, save, then reinstall the app and use the new token.`,
+      );
+    }
+    throw new Error(message);
+  }
   if (!payload.data) throw new Error("The store returned no data");
   return payload.data;
 }
