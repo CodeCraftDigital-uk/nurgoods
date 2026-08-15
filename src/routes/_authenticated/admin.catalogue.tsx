@@ -1,11 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { Boxes, Layers } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { Boxes, Layers, RefreshCw } from "lucide-react";
+import { toast } from "sonner";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { SectionCard } from "@/components/admin/SectionCard";
 import { EmptyState } from "@/components/admin/EmptyState";
 import { StatusPill, statusTone, humanise } from "@/components/admin/StatusPill";
+import { Button } from "@/components/ui/button";
 import { listCollections, listEnrichment, listProducts } from "@/lib/services/catalogue";
+import {
+  getShopifyStatus,
+  runShopifyCatalogueSync,
+} from "@/lib/services/shopify-sync.functions";
 import {
   Table,
   TableBody,
@@ -20,13 +27,43 @@ export const Route = createFileRoute("/_authenticated/admin/catalogue")({
 });
 
 function CataloguePage() {
+  const queryClient = useQueryClient();
   const products = useQuery({ queryKey: ["products"], queryFn: listProducts });
   const collections = useQuery({ queryKey: ["collections"], queryFn: listCollections });
   const enrichment = useQuery({ queryKey: ["enrichment"], queryFn: listEnrichment });
 
+  const statusFn = useServerFn(getShopifyStatus);
+  const shopify = useQuery({
+    queryKey: ["shopify-status"],
+    queryFn: () => statusFn({}),
+    retry: false,
+  });
+
+  const syncFn = useServerFn(runShopifyCatalogueSync);
+  const sync = useMutation({
+    mutationFn: () => syncFn({}),
+    onSuccess: (result) => {
+      toast.success(
+        `Synced ${result.products} products and ${result.collections} collections from Shopify.`,
+      );
+      void queryClient.invalidateQueries({ queryKey: ["products"] });
+      void queryClient.invalidateQueries({ queryKey: ["collections"] });
+      void queryClient.invalidateQueries({ queryKey: ["integration-events"] });
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Catalogue sync failed");
+    },
+  });
+
   const enrichmentByProduct = new Map(
     (enrichment.data ?? []).map((row) => [row.product_id, row]),
   );
+
+  const lastSynced = (products.data ?? [])
+    .map((p) => p.last_synced_at)
+    .filter((value): value is string => Boolean(value))
+    .sort()
+    .at(-1);
 
   return (
     <div className="space-y-8">
@@ -35,6 +72,39 @@ function CataloguePage() {
         title="Synced Shopify catalogue"
         description="A read only mirror of Shopify products and collections used for enrichment, SEO and future MCP resources. Shopify stays authoritative for pricing, inventory and orders, and Zendrop continues to fulfil."
       />
+
+      <SectionCard
+        title="Shopify Admin API sync"
+        description="Pulls products and collections into the mirror. Nothing is ever written back to Shopify."
+        actions={
+          <Button
+            size="sm"
+            disabled={!shopify.data?.configured || sync.isPending}
+            onClick={() => sync.mutate()}
+          >
+            <RefreshCw className="h-4 w-4" aria-hidden="true" />
+            {sync.isPending ? "Syncing" : "Run sync"}
+          </Button>
+        }
+      >
+        {shopify.data?.configured ? (
+          <p className="text-sm text-muted-foreground">
+            Connected to {shopify.data.shopDomain} on Admin API {shopify.data.apiVersion}.{" "}
+            {lastSynced
+              ? `Last sync ${new Date(lastSynced).toLocaleString()}.`
+              : "No sync has run yet."}
+          </p>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            Sync is blocked until these server secrets are added:{" "}
+            {(shopify.data?.missing ?? ["SHOPIFY_SHOP_DOMAIN", "SHOPIFY_ADMIN_API_TOKEN"]).join(
+              ", ",
+            )}
+            . Optionally set SHOPIFY_API_VERSION to pin the Admin API version.
+          </p>
+        )}
+      </SectionCard>
+
 
       <SectionCard
         title="Products"
