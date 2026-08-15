@@ -1,81 +1,54 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { streamText } from "ai";
 import type { AiCompletionRequest, AiCompletionResult, AiProviderAdapter } from "./provider";
 import type { WorkflowStage } from "@/lib/types/platform";
+import { EDITORIAL_MODEL, createManagedAiProvider, readManagedAiKey } from "./gateway.server";
 
 /**
- * Server side runtime for the editorial workflow. Credentials are read from
- * server environment secrets only and never leave this module.
+ * Server side runtime for the editorial workflow.
+ *
+ * Generation runs on the platform managed AI service. The owner does not
+ * supply model credentials and nothing model related is ever sent to the
+ * browser.
  */
 
-function baseUrlFor(providerId: string): string {
-  const override = process.env["AI_PROVIDER_BASE_URL"]?.trim();
-  if (override) return override.replace(/\/$/, "");
-  switch (providerId) {
-    case "openai":
-      return "https://api.openai.com/v1";
-    case "groq":
-      return "https://api.groq.com/openai/v1";
-    case "mistral":
-      return "https://api.mistral.ai/v1";
-    default:
-      throw new Error(
-        `Unknown provider "${providerId}". Set AI_PROVIDER_BASE_URL to an OpenAI compatible endpoint.`,
-      );
-  }
-}
-
-/** Adapter for any OpenAI compatible chat completions endpoint. */
+/** Adapter over the managed AI service. */
 export function resolveAdapter(): AiProviderAdapter {
-  const providerId = process.env["AI_PROVIDER_ID"]?.trim();
-  const apiKey = process.env["AI_PROVIDER_API_KEY"]?.trim();
-  const model = process.env["AI_PROVIDER_MODEL"]?.trim();
-  if (!providerId || !apiKey || !model) {
-    throw new Error(
-      "AI provider is not configured. Add AI_PROVIDER_ID, AI_PROVIDER_API_KEY and AI_PROVIDER_MODEL as server secrets.",
-    );
+  const apiKey = readManagedAiKey();
+  if (!apiKey) {
+    throw new Error("Managed AI is unavailable for this workspace right now. Try again shortly.");
   }
-  const baseUrl = baseUrlFor(providerId);
+  const provider = createManagedAiProvider(apiKey);
+  const model = EDITORIAL_MODEL;
 
   return {
-    id: providerId,
-    label: providerId,
+    id: "managed",
+    label: "Managed AI",
     async complete(request: AiCompletionRequest): Promise<AiCompletionResult> {
-      const response = await fetch(`${baseUrl}/chat/completions`, {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model,
-          messages: request.messages,
-          temperature: request.temperature ?? 0.4,
-          max_tokens: request.maxOutputTokens ?? 2000,
-          ...(request.responseSchema ? { response_format: { type: "json_object" } } : {}),
-        }),
+      const stream = streamText({
+        model: provider(model),
+        messages: request.messages,
+        temperature: request.temperature ?? 0.4,
+        maxOutputTokens: request.maxOutputTokens ?? 4000,
       });
 
-      if (!response.ok) {
-        throw new Error(`AI provider responded with ${response.status}`);
-      }
+      const text = (await stream.text)?.trim() ?? "";
+      if (!text) throw new Error("The editorial model returned an empty response");
 
-      const payload = (await response.json()) as {
-        choices?: Array<{ message?: { content?: string } }>;
-        usage?: { prompt_tokens?: number; completion_tokens?: number };
-      };
-      const text = payload.choices?.[0]?.message?.content ?? "";
-      if (!text) throw new Error("AI provider returned an empty response");
+      const usage = await stream.usage;
+      const result: AiCompletionResult = { provider: "managed", model, text };
+      if (usage?.inputTokens != null) result.tokenInput = usage.inputTokens;
+      if (usage?.outputTokens != null) result.tokenOutput = usage.outputTokens;
 
-      const result: AiCompletionResult = { provider: providerId, model, text };
-      if (payload.usage?.prompt_tokens != null) result.tokenInput = payload.usage.prompt_tokens;
-      if (payload.usage?.completion_tokens != null) {
-        result.tokenOutput = payload.usage.completion_tokens;
-      }
       if (request.responseSchema) {
+        const cleaned = text
+          .replace(/^```(?:json)?/i, "")
+          .replace(/```$/, "")
+          .trim();
         try {
-          result.parsed = JSON.parse(text);
+          result.parsed = JSON.parse(cleaned);
         } catch {
-          throw new Error("AI provider did not return valid JSON for this stage");
+          throw new Error("The editorial model did not return valid JSON for this stage");
         }
       }
       return result;
