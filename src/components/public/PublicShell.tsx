@@ -17,19 +17,19 @@ export function PublicShell({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <header className="sticky top-0 z-40 border-b border-border/70 bg-background/90 backdrop-blur">
-        <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-5 py-3 sm:px-8">
+        <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-2 px-4 py-3 sm:gap-4 sm:px-8">
           <Link to="/" className="flex items-center gap-2.5" aria-label={`${BRAND.name} home`}>
             <BrandLogo size={34} />
-            <span className="text-[0.7rem] font-semibold uppercase tracking-[0.24em] text-foreground">
+            <span className="hidden text-[0.7rem] font-semibold uppercase tracking-[0.24em] text-foreground xs:inline sm:inline">
               {BRAND.name}
             </span>
           </Link>
-          <nav aria-label="Primary" className="flex items-center gap-1 sm:gap-2">
+          <nav aria-label="Primary" className="flex items-center gap-0.5 sm:gap-2">
             {PRIMARY_NAV.map((item) => (
               <Link
                 key={item.to}
                 to={item.to}
-                className="inline-flex min-h-11 items-center rounded-md px-2.5 text-sm text-muted-foreground transition-colors hover:text-foreground sm:px-3"
+                className="inline-flex min-h-11 items-center rounded-md px-2 text-[0.82rem] text-muted-foreground transition-colors hover:text-foreground sm:px-3 sm:text-sm"
                 activeProps={{ className: "text-foreground" }}
               >
                 {item.label}
@@ -37,7 +37,7 @@ export function PublicShell({ children }: { children: ReactNode }) {
             ))}
             <a
               href={BRAND.storeUrl}
-              className="ml-1 inline-flex min-h-11 items-center rounded-lg bg-primary px-3.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 sm:px-4"
+              className="ml-0.5 inline-flex min-h-11 shrink-0 items-center rounded-lg bg-primary px-3 text-[0.82rem] font-medium text-primary-foreground transition-colors hover:bg-primary/90 sm:ml-1 sm:px-4 sm:text-sm"
             >
               Shop
             </a>
