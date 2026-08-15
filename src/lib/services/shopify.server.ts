@@ -1,10 +1,11 @@
 /**
  * Store connection service.
  *
- * Credentials come from the admin panel first (shop domain and API version in
- * integration_settings, Admin API token in the encrypted vault) and fall back
- * to server environment variables for backwards compatibility. The token is
- * never returned to the browser and never written to an event payload.
+ * Pairing uses the current Shopify client credentials grant. The admin panel
+ * stores the shop domain, client ID and API version as ordinary settings and
+ * keeps the client secret in the encrypted vault. A short lived Admin API
+ * access token is acquired server side on demand and cached in memory only.
+ * No secret is ever returned to the browser or written to an event payload.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -12,8 +13,11 @@ export interface ShopifyCredentialStatus {
   configured: boolean;
   shopDomain: string | null;
   apiVersion: string;
+  clientId: string | null;
   missing: string[];
   source: "database" | "environment" | "none";
+  hasStoredSecret: boolean;
+  /** Legacy field name kept so existing admin views do not break. */
   hasStoredToken: boolean;
   connectionState: "not_connected" | "connected" | "error";
   lastTestedAt: string | null;
@@ -26,10 +30,14 @@ export const SHOPIFY_SECRET_NAMES = {
   shopDomain: "SHOPIFY_SHOP_DOMAIN",
   adminToken: "SHOPIFY_ADMIN_API_TOKEN",
   apiVersion: "SHOPIFY_API_VERSION",
+  clientId: "SHOPIFY_CLIENT_ID",
+  clientSecret: "SHOPIFY_CLIENT_SECRET",
 } as const;
 
-/** Vault secret name for the Admin API access token. */
+/** Vault secret name for the legacy Admin API access token. */
 export const SHOPIFY_VAULT_SECRET = "shopify_admin_api_token";
+/** Vault secret name for the app client secret. */
+export const SHOPIFY_CLIENT_SECRET_VAULT = "shopify_client_secret";
 
 export const DEFAULT_API_VERSION = "2026-07";
 
@@ -37,12 +45,15 @@ const SETTING_KEYS = {
   shopDomain: "shop_domain",
   apiVersion: "api_version",
   adminToken: "admin_api_token",
+  clientId: "client_id",
+  clientSecret: "client_secret",
   connectionState: "connection_state",
   lastTestedAt: "last_tested_at",
   lastSyncedAt: "last_synced_at",
   lastError: "last_error",
   shopName: "shop_name",
 } as const;
+
 
 /** Accepts a domain, a URL or a pasted admin link and returns the bare host. */
 export function normaliseShopDomain(input: string): string {
