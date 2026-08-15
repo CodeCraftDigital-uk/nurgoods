@@ -263,7 +263,7 @@ async function runTopicDiscovery(ctx: RunContext): Promise<JobRunResult> {
         ].join("\n"),
       },
     ],
-    responseSchema: true,
+    responseSchema: {},
     temperature: 0.6,
   });
 
