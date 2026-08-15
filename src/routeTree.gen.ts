@@ -43,6 +43,7 @@ import { Route as AuthenticatedAdminSeoRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedAdminJournalIndexRouteImport } from './routes/_authenticated/admin.journal.index'
 import { Route as AuthenticatedAdminJournalArticleIdRouteImport } from './routes/_authenticated/admin.journal.$articleId'
 import { Route as AuthenticatedAdminJournalNewRouteImport } from './routes/_authenticated/admin.journal.new'
+import { Route as ApiPublicJournalMediaSplatRouteImport } from './routes/api/public/journal-media.$'
 import { Route as ApiPublicV1IndexRouteImport } from './routes/api/public/v1/index'
 import { Route as ApiPublicV1AnswersRouteImport } from './routes/api/public/v1/answers'
 import { Route as ApiPublicV1ArticlesRouteImport } from './routes/api/public/v1/articles'
@@ -235,6 +236,12 @@ const AuthenticatedAdminJournalNewRoute =
     path: '/new',
     getParentRoute: () => AuthenticatedAdminJournalRoute,
   } as any)
+const ApiPublicJournalMediaSplatRoute =
+  ApiPublicJournalMediaSplatRouteImport.update({
+    id: '/api/public/journal-media/$',
+    path: '/api/public/journal-media/$',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicV1IndexRoute = ApiPublicV1IndexRouteImport.update({
   id: '/api/public/v1/',
   path: '/api/public/v1/',
@@ -315,6 +322,7 @@ export interface FileRoutesByFullPath {
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/admin/journal/$articleId': typeof AuthenticatedAdminJournalArticleIdRoute
   '/admin/journal/new': typeof AuthenticatedAdminJournalNewRoute
+  '/api/public/journal-media/$': typeof ApiPublicJournalMediaSplatRoute
   '/api/public/v1/answers': typeof ApiPublicV1AnswersRoute
   '/api/public/v1/articles': typeof ApiPublicV1ArticlesRouteWithChildren
   '/api/public/v1/collections': typeof ApiPublicV1CollectionsRoute
@@ -357,6 +365,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/admin/journal/$articleId': typeof AuthenticatedAdminJournalArticleIdRoute
   '/admin/journal/new': typeof AuthenticatedAdminJournalNewRoute
+  '/api/public/journal-media/$': typeof ApiPublicJournalMediaSplatRoute
   '/api/public/v1/answers': typeof ApiPublicV1AnswersRoute
   '/api/public/v1/articles': typeof ApiPublicV1ArticlesRouteWithChildren
   '/api/public/v1/collections': typeof ApiPublicV1CollectionsRoute
@@ -403,6 +412,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/admin/journal/$articleId': typeof AuthenticatedAdminJournalArticleIdRoute
   '/_authenticated/admin/journal/new': typeof AuthenticatedAdminJournalNewRoute
+  '/api/public/journal-media/$': typeof ApiPublicJournalMediaSplatRoute
   '/api/public/v1/answers': typeof ApiPublicV1AnswersRoute
   '/api/public/v1/articles': typeof ApiPublicV1ArticlesRouteWithChildren
   '/api/public/v1/collections': typeof ApiPublicV1CollectionsRoute
@@ -449,6 +459,7 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/admin/journal/$articleId'
     | '/admin/journal/new'
+    | '/api/public/journal-media/$'
     | '/api/public/v1/answers'
     | '/api/public/v1/articles'
     | '/api/public/v1/collections'
@@ -491,6 +502,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/admin/journal/$articleId'
     | '/admin/journal/new'
+    | '/api/public/journal-media/$'
     | '/api/public/v1/answers'
     | '/api/public/v1/articles'
     | '/api/public/v1/collections'
@@ -536,6 +548,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/'
     | '/_authenticated/admin/journal/$articleId'
     | '/_authenticated/admin/journal/new'
+    | '/api/public/journal-media/$'
     | '/api/public/v1/answers'
     | '/api/public/v1/articles'
     | '/api/public/v1/collections'
@@ -568,6 +581,7 @@ export interface RootRouteChildren {
   LegalIndexRoute: typeof LegalIndexRoute
   ShopIndexRoute: typeof ShopIndexRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
+  ApiPublicJournalMediaSplatRoute: typeof ApiPublicJournalMediaSplatRoute
   ApiPublicV1AnswersRoute: typeof ApiPublicV1AnswersRoute
   ApiPublicV1ArticlesRoute: typeof ApiPublicV1ArticlesRouteWithChildren
   ApiPublicV1CollectionsRoute: typeof ApiPublicV1CollectionsRoute
@@ -817,6 +831,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminJournalNewRouteImport
       parentRoute: typeof AuthenticatedAdminJournalRoute
     }
+    '/api/public/journal-media/$': {
+      id: '/api/public/journal-media/$'
+      path: '/api/public/journal-media/$'
+      fullPath: '/api/public/journal-media/$'
+      preLoaderRoute: typeof ApiPublicJournalMediaSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/v1/': {
       id: '/api/public/v1/'
       path: '/api/public/v1'
@@ -987,6 +1008,7 @@ const rootRouteChildren: RootRouteChildren = {
   LegalIndexRoute: LegalIndexRoute,
   ShopIndexRoute: ShopIndexRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
+  ApiPublicJournalMediaSplatRoute: ApiPublicJournalMediaSplatRoute,
   ApiPublicV1AnswersRoute: ApiPublicV1AnswersRoute,
   ApiPublicV1ArticlesRoute: ApiPublicV1ArticlesRouteWithChildren,
   ApiPublicV1CollectionsRoute: ApiPublicV1CollectionsRoute,
