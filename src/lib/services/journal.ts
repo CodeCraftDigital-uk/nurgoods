@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import type {
+  AiGenerationRun,
   Article,
   ArticleBrief,
   ArticleInternalLink,
@@ -157,6 +158,18 @@ export async function createBrief(input: {
     })
     .select("*")
     .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function listArticleRuns(articleId: string): Promise<AiGenerationRun[]> {
+  const { data, error } = await supabase
+    .from("ai_generation_runs")
+    .select("*")
+    .eq("entity_type", "article")
+    .eq("entity_id", articleId)
+    .order("created_at", { ascending: false })
+    .limit(10);
   if (error) throw error;
   return data;
 }
