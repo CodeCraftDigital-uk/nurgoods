@@ -16,7 +16,6 @@ import {
 } from "@/lib/services/operations";
 import { getAiProviderStatus } from "@/lib/ai/ai-config.functions";
 import { WORKFLOW_PIPELINE } from "@/lib/ai/workflow";
-import { AI_SECRET_NAMES } from "@/lib/ai/provider";
 
 export const Route = createFileRoute("/_authenticated/admin/automations")({
   component: AutomationsPage,
@@ -64,7 +63,7 @@ function AutomationsPage() {
             </span>
           ) : (
             <span className="text-sm text-muted-foreground">
-              Add these secrets in project settings: {Object.values(AI_SECRET_NAMES).join(", ")}
+              Managed AI is temporarily unavailable. Editorial stages will resume automatically.
             </span>
           )}
         </div>
