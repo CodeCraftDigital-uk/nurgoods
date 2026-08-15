@@ -12,14 +12,18 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as McpRouteImport } from './routes/mcp'
 import { Route as ReviewsRouteImport } from './routes/reviews'
 import { Route as RobotsDottxtRouteImport } from './routes/robots[.]txt'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
+import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as JournalIndexRouteImport } from './routes/journal.index'
 import { Route as JournalSlugRouteImport } from './routes/journal.$slug'
 import { Route as LegalIndexRouteImport } from './routes/legal.index'
 import { Route as LegalSlugRouteImport } from './routes/legal.$slug'
+import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
 import { Route as AuthenticatedAdminAutomationsRouteImport } from './routes/_authenticated/admin.automations'
 import { Route as AuthenticatedAdminCatalogueRouteImport } from './routes/_authenticated/admin.catalogue'
@@ -32,6 +36,15 @@ import { Route as AuthenticatedAdminSeoRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedAdminJournalIndexRouteImport } from './routes/_authenticated/admin.journal.index'
 import { Route as AuthenticatedAdminJournalArticleIdRouteImport } from './routes/_authenticated/admin.journal.$articleId'
 import { Route as AuthenticatedAdminJournalNewRouteImport } from './routes/_authenticated/admin.journal.new'
+import { Route as ApiPublicV1IndexRouteImport } from './routes/api/public/v1/index'
+import { Route as ApiPublicV1AnswersRouteImport } from './routes/api/public/v1/answers'
+import { Route as ApiPublicV1ArticlesRouteImport } from './routes/api/public/v1/articles'
+import { Route as ApiPublicV1CollectionsRouteImport } from './routes/api/public/v1/collections'
+import { Route as ApiPublicV1ProductsRouteImport } from './routes/api/public/v1/products'
+import { Route as ApiPublicV1StoreRouteImport } from './routes/api/public/v1/store'
+import { Route as ApiPublicV1ArticlesSlugRouteImport } from './routes/api/public/v1/articles.$slug'
+import { Route as ApiPublicV1PoliciesSlugRouteImport } from './routes/api/public/v1/policies.$slug'
+import { Route as ApiPublicV1ProductsHandleRouteImport } from './routes/api/public/v1/products.$handle'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -45,6 +58,11 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const McpRoute = McpRouteImport.update({
+  id: '/mcp',
+  path: '/mcp',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ReviewsRoute = ReviewsRouteImport.update({
@@ -62,6 +80,18 @@ const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   path: '/sitemap.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
+const Char91DotmcpChar93ListToolsRoute =
+  Char91DotmcpChar93ListToolsRouteImport.update({
+    id: '/.mcp/list-tools',
+    path: '/.mcp/list-tools',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const Char91DotwellKnownChar93OauthProtectedResourceRoute =
+  Char91DotwellKnownChar93OauthProtectedResourceRouteImport.update({
+    id: '/.well-known/oauth-protected-resource',
+    path: '/.well-known/oauth-protected-resource',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
   id: '/admin',
   path: '/admin',
@@ -87,6 +117,12 @@ const LegalSlugRoute = LegalSlugRouteImport.update({
   path: '/legal/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
+const Char91DotmcpChar93InvokeToolToolRoute =
+  Char91DotmcpChar93InvokeToolToolRouteImport.update({
+    id: '/.mcp/invoke-tool/$tool',
+    path: '/.mcp/invoke-tool/$tool',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -155,18 +191,68 @@ const AuthenticatedAdminJournalNewRoute =
     path: '/new',
     getParentRoute: () => AuthenticatedAdminJournalRoute,
   } as any)
+const ApiPublicV1IndexRoute = ApiPublicV1IndexRouteImport.update({
+  id: '/api/public/v1/',
+  path: '/api/public/v1/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicV1AnswersRoute = ApiPublicV1AnswersRouteImport.update({
+  id: '/api/public/v1/answers',
+  path: '/api/public/v1/answers',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicV1ArticlesRoute = ApiPublicV1ArticlesRouteImport.update({
+  id: '/api/public/v1/articles',
+  path: '/api/public/v1/articles',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicV1CollectionsRoute = ApiPublicV1CollectionsRouteImport.update({
+  id: '/api/public/v1/collections',
+  path: '/api/public/v1/collections',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicV1ProductsRoute = ApiPublicV1ProductsRouteImport.update({
+  id: '/api/public/v1/products',
+  path: '/api/public/v1/products',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicV1StoreRoute = ApiPublicV1StoreRouteImport.update({
+  id: '/api/public/v1/store',
+  path: '/api/public/v1/store',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicV1ArticlesSlugRoute = ApiPublicV1ArticlesSlugRouteImport.update({
+  id: '/$slug',
+  path: '/$slug',
+  getParentRoute: () => ApiPublicV1ArticlesRoute,
+} as any)
+const ApiPublicV1PoliciesSlugRoute = ApiPublicV1PoliciesSlugRouteImport.update({
+  id: '/api/public/v1/policies/$slug',
+  path: '/api/public/v1/policies/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicV1ProductsHandleRoute =
+  ApiPublicV1ProductsHandleRouteImport.update({
+    id: '/$handle',
+    path: '/$handle',
+    getParentRoute: () => ApiPublicV1ProductsRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/mcp': typeof McpRoute
   '/reviews': typeof ReviewsRoute
   '/robots.txt': typeof RobotsDottxtRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin': typeof AuthenticatedAdminRouteWithChildren
   '/journal/$slug': typeof JournalSlugRoute
   '/legal/$slug': typeof LegalSlugRoute
   '/journal/': typeof JournalIndexRoute
   '/legal/': typeof LegalIndexRoute
+  '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/admin/automations': typeof AuthenticatedAdminAutomationsRoute
   '/admin/catalogue': typeof AuthenticatedAdminCatalogueRoute
   '/admin/integrations': typeof AuthenticatedAdminIntegrationsRoute
@@ -178,18 +264,31 @@ export interface FileRoutesByFullPath {
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/admin/journal/$articleId': typeof AuthenticatedAdminJournalArticleIdRoute
   '/admin/journal/new': typeof AuthenticatedAdminJournalNewRoute
+  '/api/public/v1/answers': typeof ApiPublicV1AnswersRoute
+  '/api/public/v1/articles': typeof ApiPublicV1ArticlesRouteWithChildren
+  '/api/public/v1/collections': typeof ApiPublicV1CollectionsRoute
+  '/api/public/v1/products': typeof ApiPublicV1ProductsRouteWithChildren
+  '/api/public/v1/store': typeof ApiPublicV1StoreRoute
   '/admin/journal/': typeof AuthenticatedAdminJournalIndexRoute
+  '/api/public/v1/': typeof ApiPublicV1IndexRoute
+  '/api/public/v1/articles/$slug': typeof ApiPublicV1ArticlesSlugRoute
+  '/api/public/v1/policies/$slug': typeof ApiPublicV1PoliciesSlugRoute
+  '/api/public/v1/products/$handle': typeof ApiPublicV1ProductsHandleRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/mcp': typeof McpRoute
   '/reviews': typeof ReviewsRoute
   '/robots.txt': typeof RobotsDottxtRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/journal/$slug': typeof JournalSlugRoute
   '/legal/$slug': typeof LegalSlugRoute
   '/journal': typeof JournalIndexRoute
   '/legal': typeof LegalIndexRoute
+  '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/admin/automations': typeof AuthenticatedAdminAutomationsRoute
   '/admin/catalogue': typeof AuthenticatedAdminCatalogueRoute
   '/admin/integrations': typeof AuthenticatedAdminIntegrationsRoute
@@ -200,21 +299,34 @@ export interface FileRoutesByTo {
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/admin/journal/$articleId': typeof AuthenticatedAdminJournalArticleIdRoute
   '/admin/journal/new': typeof AuthenticatedAdminJournalNewRoute
+  '/api/public/v1/answers': typeof ApiPublicV1AnswersRoute
+  '/api/public/v1/articles': typeof ApiPublicV1ArticlesRouteWithChildren
+  '/api/public/v1/collections': typeof ApiPublicV1CollectionsRoute
+  '/api/public/v1/products': typeof ApiPublicV1ProductsRouteWithChildren
+  '/api/public/v1/store': typeof ApiPublicV1StoreRoute
   '/admin/journal': typeof AuthenticatedAdminJournalIndexRoute
+  '/api/public/v1': typeof ApiPublicV1IndexRoute
+  '/api/public/v1/articles/$slug': typeof ApiPublicV1ArticlesSlugRoute
+  '/api/public/v1/policies/$slug': typeof ApiPublicV1PoliciesSlugRoute
+  '/api/public/v1/products/$handle': typeof ApiPublicV1ProductsHandleRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/mcp': typeof McpRoute
   '/reviews': typeof ReviewsRoute
   '/robots.txt': typeof RobotsDottxtRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
   '/journal/$slug': typeof JournalSlugRoute
   '/legal/$slug': typeof LegalSlugRoute
   '/journal/': typeof JournalIndexRoute
   '/legal/': typeof LegalIndexRoute
+  '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/_authenticated/admin/automations': typeof AuthenticatedAdminAutomationsRoute
   '/_authenticated/admin/catalogue': typeof AuthenticatedAdminCatalogueRoute
   '/_authenticated/admin/integrations': typeof AuthenticatedAdminIntegrationsRoute
@@ -226,21 +338,34 @@ export interface FileRoutesById {
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/admin/journal/$articleId': typeof AuthenticatedAdminJournalArticleIdRoute
   '/_authenticated/admin/journal/new': typeof AuthenticatedAdminJournalNewRoute
+  '/api/public/v1/answers': typeof ApiPublicV1AnswersRoute
+  '/api/public/v1/articles': typeof ApiPublicV1ArticlesRouteWithChildren
+  '/api/public/v1/collections': typeof ApiPublicV1CollectionsRoute
+  '/api/public/v1/products': typeof ApiPublicV1ProductsRouteWithChildren
+  '/api/public/v1/store': typeof ApiPublicV1StoreRoute
   '/_authenticated/admin/journal/': typeof AuthenticatedAdminJournalIndexRoute
+  '/api/public/v1/': typeof ApiPublicV1IndexRoute
+  '/api/public/v1/articles/$slug': typeof ApiPublicV1ArticlesSlugRoute
+  '/api/public/v1/policies/$slug': typeof ApiPublicV1PoliciesSlugRoute
+  '/api/public/v1/products/$handle': typeof ApiPublicV1ProductsHandleRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/auth'
+    | '/mcp'
     | '/reviews'
     | '/robots.txt'
     | '/sitemap.xml'
+    | '/.mcp/list-tools'
+    | '/.well-known/oauth-protected-resource'
     | '/admin'
     | '/journal/$slug'
     | '/legal/$slug'
     | '/journal/'
     | '/legal/'
+    | '/.mcp/invoke-tool/$tool'
     | '/admin/automations'
     | '/admin/catalogue'
     | '/admin/integrations'
@@ -252,18 +377,31 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/admin/journal/$articleId'
     | '/admin/journal/new'
+    | '/api/public/v1/answers'
+    | '/api/public/v1/articles'
+    | '/api/public/v1/collections'
+    | '/api/public/v1/products'
+    | '/api/public/v1/store'
     | '/admin/journal/'
+    | '/api/public/v1/'
+    | '/api/public/v1/articles/$slug'
+    | '/api/public/v1/policies/$slug'
+    | '/api/public/v1/products/$handle'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/auth'
+    | '/mcp'
     | '/reviews'
     | '/robots.txt'
     | '/sitemap.xml'
+    | '/.mcp/list-tools'
+    | '/.well-known/oauth-protected-resource'
     | '/journal/$slug'
     | '/legal/$slug'
     | '/journal'
     | '/legal'
+    | '/.mcp/invoke-tool/$tool'
     | '/admin/automations'
     | '/admin/catalogue'
     | '/admin/integrations'
@@ -274,20 +412,33 @@ export interface FileRouteTypes {
     | '/admin'
     | '/admin/journal/$articleId'
     | '/admin/journal/new'
+    | '/api/public/v1/answers'
+    | '/api/public/v1/articles'
+    | '/api/public/v1/collections'
+    | '/api/public/v1/products'
+    | '/api/public/v1/store'
     | '/admin/journal'
+    | '/api/public/v1'
+    | '/api/public/v1/articles/$slug'
+    | '/api/public/v1/policies/$slug'
+    | '/api/public/v1/products/$handle'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/mcp'
     | '/reviews'
     | '/robots.txt'
     | '/sitemap.xml'
+    | '/.mcp/list-tools'
+    | '/.well-known/oauth-protected-resource'
     | '/_authenticated/admin'
     | '/journal/$slug'
     | '/legal/$slug'
     | '/journal/'
     | '/legal/'
+    | '/.mcp/invoke-tool/$tool'
     | '/_authenticated/admin/automations'
     | '/_authenticated/admin/catalogue'
     | '/_authenticated/admin/integrations'
@@ -299,20 +450,40 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/'
     | '/_authenticated/admin/journal/$articleId'
     | '/_authenticated/admin/journal/new'
+    | '/api/public/v1/answers'
+    | '/api/public/v1/articles'
+    | '/api/public/v1/collections'
+    | '/api/public/v1/products'
+    | '/api/public/v1/store'
     | '/_authenticated/admin/journal/'
+    | '/api/public/v1/'
+    | '/api/public/v1/articles/$slug'
+    | '/api/public/v1/policies/$slug'
+    | '/api/public/v1/products/$handle'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  McpRoute: typeof McpRoute
   ReviewsRoute: typeof ReviewsRoute
   RobotsDottxtRoute: typeof RobotsDottxtRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
+  Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   JournalSlugRoute: typeof JournalSlugRoute
   LegalSlugRoute: typeof LegalSlugRoute
   JournalIndexRoute: typeof JournalIndexRoute
   LegalIndexRoute: typeof LegalIndexRoute
+  Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
+  ApiPublicV1AnswersRoute: typeof ApiPublicV1AnswersRoute
+  ApiPublicV1ArticlesRoute: typeof ApiPublicV1ArticlesRouteWithChildren
+  ApiPublicV1CollectionsRoute: typeof ApiPublicV1CollectionsRoute
+  ApiPublicV1ProductsRoute: typeof ApiPublicV1ProductsRouteWithChildren
+  ApiPublicV1StoreRoute: typeof ApiPublicV1StoreRoute
+  ApiPublicV1IndexRoute: typeof ApiPublicV1IndexRoute
+  ApiPublicV1PoliciesSlugRoute: typeof ApiPublicV1PoliciesSlugRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -338,6 +509,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/mcp': {
+      id: '/mcp'
+      path: '/mcp'
+      fullPath: '/mcp'
+      preLoaderRoute: typeof McpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/reviews': {
       id: '/reviews'
       path: '/reviews'
@@ -357,6 +535,20 @@ declare module '@tanstack/react-router' {
       path: '/sitemap.xml'
       fullPath: '/sitemap.xml'
       preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.mcp/list-tools': {
+      id: '/.mcp/list-tools'
+      path: '/.mcp/list-tools'
+      fullPath: '/.mcp/list-tools'
+      preLoaderRoute: typeof Char91DotmcpChar93ListToolsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.well-known/oauth-protected-resource': {
+      id: '/.well-known/oauth-protected-resource'
+      path: '/.well-known/oauth-protected-resource'
+      fullPath: '/.well-known/oauth-protected-resource'
+      preLoaderRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/admin': {
@@ -392,6 +584,13 @@ declare module '@tanstack/react-router' {
       path: '/legal/$slug'
       fullPath: '/legal/$slug'
       preLoaderRoute: typeof LegalSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.mcp/invoke-tool/$tool': {
+      id: '/.mcp/invoke-tool/$tool'
+      path: '/.mcp/invoke-tool/$tool'
+      fullPath: '/.mcp/invoke-tool/$tool'
+      preLoaderRoute: typeof Char91DotmcpChar93InvokeToolToolRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/admin/': {
@@ -478,6 +677,69 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminJournalNewRouteImport
       parentRoute: typeof AuthenticatedAdminJournalRoute
     }
+    '/api/public/v1/': {
+      id: '/api/public/v1/'
+      path: '/api/public/v1'
+      fullPath: '/api/public/v1/'
+      preLoaderRoute: typeof ApiPublicV1IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/v1/answers': {
+      id: '/api/public/v1/answers'
+      path: '/api/public/v1/answers'
+      fullPath: '/api/public/v1/answers'
+      preLoaderRoute: typeof ApiPublicV1AnswersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/v1/articles': {
+      id: '/api/public/v1/articles'
+      path: '/api/public/v1/articles'
+      fullPath: '/api/public/v1/articles'
+      preLoaderRoute: typeof ApiPublicV1ArticlesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/v1/collections': {
+      id: '/api/public/v1/collections'
+      path: '/api/public/v1/collections'
+      fullPath: '/api/public/v1/collections'
+      preLoaderRoute: typeof ApiPublicV1CollectionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/v1/products': {
+      id: '/api/public/v1/products'
+      path: '/api/public/v1/products'
+      fullPath: '/api/public/v1/products'
+      preLoaderRoute: typeof ApiPublicV1ProductsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/v1/store': {
+      id: '/api/public/v1/store'
+      path: '/api/public/v1/store'
+      fullPath: '/api/public/v1/store'
+      preLoaderRoute: typeof ApiPublicV1StoreRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/v1/articles/$slug': {
+      id: '/api/public/v1/articles/$slug'
+      path: '/$slug'
+      fullPath: '/api/public/v1/articles/$slug'
+      preLoaderRoute: typeof ApiPublicV1ArticlesSlugRouteImport
+      parentRoute: typeof ApiPublicV1ArticlesRoute
+    }
+    '/api/public/v1/policies/$slug': {
+      id: '/api/public/v1/policies/$slug'
+      path: '/api/public/v1/policies/$slug'
+      fullPath: '/api/public/v1/policies/$slug'
+      preLoaderRoute: typeof ApiPublicV1PoliciesSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/v1/products/$handle': {
+      id: '/api/public/v1/products/$handle'
+      path: '/$handle'
+      fullPath: '/api/public/v1/products/$handle'
+      preLoaderRoute: typeof ApiPublicV1ProductsHandleRouteImport
+      parentRoute: typeof ApiPublicV1ProductsRoute
+    }
   }
 }
 
@@ -538,17 +800,51 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
 const AuthenticatedRouteRouteWithChildren =
   AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
 
+interface ApiPublicV1ArticlesRouteChildren {
+  ApiPublicV1ArticlesSlugRoute: typeof ApiPublicV1ArticlesSlugRoute
+}
+
+const ApiPublicV1ArticlesRouteChildren: ApiPublicV1ArticlesRouteChildren = {
+  ApiPublicV1ArticlesSlugRoute: ApiPublicV1ArticlesSlugRoute,
+}
+
+const ApiPublicV1ArticlesRouteWithChildren =
+  ApiPublicV1ArticlesRoute._addFileChildren(ApiPublicV1ArticlesRouteChildren)
+
+interface ApiPublicV1ProductsRouteChildren {
+  ApiPublicV1ProductsHandleRoute: typeof ApiPublicV1ProductsHandleRoute
+}
+
+const ApiPublicV1ProductsRouteChildren: ApiPublicV1ProductsRouteChildren = {
+  ApiPublicV1ProductsHandleRoute: ApiPublicV1ProductsHandleRoute,
+}
+
+const ApiPublicV1ProductsRouteWithChildren =
+  ApiPublicV1ProductsRoute._addFileChildren(ApiPublicV1ProductsRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  McpRoute: McpRoute,
   ReviewsRoute: ReviewsRoute,
   RobotsDottxtRoute: RobotsDottxtRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  Char91DotmcpChar93ListToolsRoute: Char91DotmcpChar93ListToolsRoute,
+  Char91DotwellKnownChar93OauthProtectedResourceRoute:
+    Char91DotwellKnownChar93OauthProtectedResourceRoute,
   JournalSlugRoute: JournalSlugRoute,
   LegalSlugRoute: LegalSlugRoute,
   JournalIndexRoute: JournalIndexRoute,
   LegalIndexRoute: LegalIndexRoute,
+  Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
+  ApiPublicV1AnswersRoute: ApiPublicV1AnswersRoute,
+  ApiPublicV1ArticlesRoute: ApiPublicV1ArticlesRouteWithChildren,
+  ApiPublicV1CollectionsRoute: ApiPublicV1CollectionsRoute,
+  ApiPublicV1ProductsRoute: ApiPublicV1ProductsRouteWithChildren,
+  ApiPublicV1StoreRoute: ApiPublicV1StoreRoute,
+  ApiPublicV1IndexRoute: ApiPublicV1IndexRoute,
+  ApiPublicV1PoliciesSlugRoute: ApiPublicV1PoliciesSlugRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
