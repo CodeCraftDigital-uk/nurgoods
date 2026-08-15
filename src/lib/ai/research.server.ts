@@ -163,7 +163,7 @@ export async function runResearch(
   const { data: brief } = article.brief_id
     ? await supabase
         .from("article_briefs")
-        .select("target_query,topic,search_intent")
+        .select("target_query,title,search_intent")
         .eq("id", article.brief_id)
         .maybeSingle()
     : { data: null };
@@ -171,7 +171,7 @@ export async function runResearch(
   const query = (
     input.query?.trim() ||
     brief?.target_query ||
-    brief?.topic ||
+    brief?.title ||
     article.title ||
     ""
   ).trim();

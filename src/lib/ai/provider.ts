@@ -69,5 +69,7 @@ export interface AiProviderStatus {
   providerId: string | null;
   model: string | null;
   researchConfigured: boolean;
+  researchProviderId: string | null;
+  researchMissing: string[];
   missing: string[];
 }
