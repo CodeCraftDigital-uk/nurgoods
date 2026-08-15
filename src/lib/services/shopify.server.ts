@@ -359,36 +359,14 @@ export async function getShopifyCredentialStatus(): Promise<ShopifyCredentialSta
 
 /* ---------------------------- GraphQL client ---------------------------- */
 
-/**
- * Describes what a token looks like without ever revealing it. Only the public
- * Shopify prefix convention is used, never the secret body of the value.
- */
-function describeTokenShape(token: string): string | null {
-  const value = (token ?? "").trim();
-  if (!value) return "No token was supplied.";
-  if (value.startsWith("shpss_")) {
-    return "That value is the custom app API secret key, not the Admin API access token. Copy the token that begins with shpat_.";
-  }
-  if (value.startsWith("shpca_")) {
-    return "That value is the custom app client ID, not the Admin API access token. Copy the token that begins with shpat_.";
-  }
-  if (/^[0-9a-f]{32}$/i.test(value)) {
-    return "That value looks like a Storefront API token or API key, not an Admin API access token. Copy the token that begins with shpat_.";
-  }
-  if (!value.startsWith("shpat_") && !value.startsWith("shpua_")) {
-    return "That value does not look like a Shopify Admin API access token. It should begin with shpat_.";
-  }
-  return null;
-}
+const SCOPE_ADVICE =
+  "Confirm the app version includes read_products and read_inventory, release the version, then reinstall it on this store.";
 
 async function graphql<T>(
   credentials: { shopDomain: string; adminToken: string; apiVersion: string },
   query: string,
   variables: Record<string, unknown> = {},
 ): Promise<T> {
-  const shapeIssue = describeTokenShape(credentials.adminToken);
-  if (shapeIssue) throw new Error(shapeIssue);
-
   const response = await fetch(
     `https://${credentials.shopDomain}/admin/api/${credentials.apiVersion}/graphql.json`,
     {
@@ -403,13 +381,11 @@ async function graphql<T>(
 
   if (response.status === 401) {
     throw new Error(
-      `The store at ${credentials.shopDomain} rejected the Admin API access token (401). The token is invalid, revoked, or belongs to a different store. Reinstall the custom app on this store and paste the freshly revealed Admin API access token beginning with shpat_.`,
+      `The store at ${credentials.shopDomain} rejected the access token (401). The app may no longer be installed on this store, or the client credentials belong to a different store.`,
     );
   }
   if (response.status === 403) {
-    throw new Error(
-      "The token was accepted but the custom app is missing Admin API scopes (403). Enable read_products, read_inventory and read_locations, save, then reinstall the app and use the new token.",
-    );
+    throw new Error(`The access token is missing Admin API scopes (403). ${SCOPE_ADVICE}`);
   }
   if (response.status === 404) {
     throw new Error(
@@ -417,7 +393,7 @@ async function graphql<T>(
     );
   }
   if (response.status === 402) {
-    throw new Error("The store is frozen or unavailable for API access (402). Check the store status in Shopify admin.");
+    throw new Error("The store is frozen or unavailable for API access (402). Check the store status in Shopify.");
   }
   if (response.status === 423) {
     throw new Error("The store is locked (423) and cannot serve Admin API requests.");
@@ -426,13 +402,15 @@ async function graphql<T>(
     throw new Error(`The store responded with ${response.status}`);
   }
 
-
   const payload = (await response.json()) as { data?: T; errors?: Array<{ message: string }> };
   if (payload.errors?.length) {
     const message = payload.errors.map((e) => e.message).join("; ");
     if (/access denied|not approved|scope/i.test(message)) {
+      throw new Error(`The app is missing an Admin API scope. Shopify said: ${message}. ${SCOPE_ADVICE}`);
+    }
+    if (/unsupported.*version|version.*not.*supported|invalid api version/i.test(message)) {
       throw new Error(
-        `The custom app is missing an Admin API scope. Shopify said: ${message}. Enable read_products, read_inventory and read_locations, save, then reinstall the app and use the new token.`,
+        `Shopify does not support Admin API version ${credentials.apiVersion}. Use a supported stable version such as ${DEFAULT_API_VERSION}.`,
       );
     }
     throw new Error(message);
@@ -464,11 +442,28 @@ export interface ConnectionTestResult {
   apiVersion: string;
 }
 
+/**
+ * Acquires an access token from the client credentials when they are supplied,
+ * then runs a minimal shop query. Only safe store metadata is returned.
+ */
 export async function testShopifyConnection(input: {
   shopDomain: string;
-  adminToken: string;
   apiVersion: string;
+  clientId?: string | null;
+  clientSecret?: string | null;
+  adminToken?: string | null;
 }): Promise<ConnectionTestResult> {
+  const adminToken =
+    input.clientId && input.clientSecret
+      ? await acquireAccessToken({
+          shopDomain: input.shopDomain,
+          clientId: input.clientId,
+          clientSecret: input.clientSecret,
+          force: true,
+        })
+      : input.adminToken;
+  if (!adminToken) throw new Error("A Client ID and Client secret are required");
+
   const data = await graphql<{
     shop: {
       name: string;
@@ -476,7 +471,7 @@ export async function testShopifyConnection(input: {
       primaryDomain: { host: string } | null;
       currencyCode: string | null;
     };
-  }>(input, SHOP_QUERY);
+  }>({ shopDomain: input.shopDomain, apiVersion: input.apiVersion, adminToken }, SHOP_QUERY);
 
   return {
     ok: true,
@@ -493,28 +488,33 @@ export async function testShopifyConnection(input: {
 export async function saveShopifyCredentials(input: {
   shopDomain: string;
   apiVersion: string;
-  adminToken?: string | null;
+  clientId?: string | null;
+  clientSecret?: string | null;
   shopName?: string | null;
 }): Promise<void> {
   const supabase = await adminClient();
-  if (input.adminToken) {
+  if (input.clientSecret) {
     const { error } = await supabase.rpc("set_integration_secret", {
-      _name: SHOPIFY_VAULT_SECRET,
-      _secret: input.adminToken,
+      _name: SHOPIFY_CLIENT_SECRET_VAULT,
+      _secret: input.clientSecret,
     });
-    if (error) throw new Error("The access token could not be stored securely");
+    if (error) throw new Error("The client secret could not be stored securely");
   }
-  await writeSetting(supabase, SETTING_KEYS.shopDomain, "Shop domain", input.shopDomain);
+  await writeSetting(supabase, SETTING_KEYS.shopDomain, "Store domain", input.shopDomain);
   await writeSetting(supabase, SETTING_KEYS.apiVersion, "Admin API version", input.apiVersion);
-  await writeSetting(supabase, SETTING_KEYS.adminToken, "Admin API access token", null, {
+  if (input.clientId) {
+    await writeSetting(supabase, SETTING_KEYS.clientId, "Client ID", input.clientId);
+  }
+  await writeSetting(supabase, SETTING_KEYS.clientSecret, "Client secret", null, {
     isSecretReference: true,
-    secretName: SHOPIFY_VAULT_SECRET,
+    secretName: SHOPIFY_CLIENT_SECRET_VAULT,
     helpText: "Stored in the encrypted vault. It is never sent back to the browser.",
   });
   if (input.shopName) {
     await writeSetting(supabase, SETTING_KEYS.shopName, "Store name", input.shopName);
   }
 }
+
 
 export async function markConnectionState(input: {
   state: "connected" | "error" | "not_connected";
