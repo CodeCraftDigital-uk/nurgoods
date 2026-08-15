@@ -33,7 +33,11 @@ import {
 } from "@/lib/services/journal";
 import { RUNNABLE_STAGES, WORKFLOW_PIPELINE } from "@/lib/ai/workflow";
 import { getAiProviderStatus } from "@/lib/ai/ai-config.functions";
-import { runArticleResearch, runArticleStage } from "@/lib/ai/generation.functions";
+import {
+  generateArticleHero,
+  runArticleResearch,
+  runArticleStage,
+} from "@/lib/ai/generation.functions";
 import {
   parseFaqs,
   WORKFLOW_STAGE_LABEL,
@@ -144,6 +148,20 @@ function ArticleEditor() {
         result.added > 0
           ? `Added ${result.added} unverified sources for "${result.query}". Verify each one before use.`
           : `No new sources found for "${result.query}".`,
+      );
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const generateHeroFn = useServerFn(generateArticleHero);
+  const generateHero = useMutation({
+    mutationFn: () => generateHeroFn({ data: { articleId } }),
+    onSuccess: async (result) => {
+      await queryClient.invalidateQueries({ queryKey: ["article", articleId] });
+      toast.success(
+        result.source === "generated"
+          ? "Hero image created and applied."
+          : "Hero image set from catalogue photography.",
       );
     },
     onError: (error: Error) => toast.error(error.message),
