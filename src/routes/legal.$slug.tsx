@@ -6,6 +6,7 @@ import { BRAND } from "@/lib/brand";
 import {
   getPublicLegalDocument,
   getPublicLegalSource,
+  getPublicLegalReference,
 } from "@/lib/services/public-content.functions";
 
 /**
@@ -20,10 +21,35 @@ export const Route = createFileRoute("/legal/$slug")({
     if (imported) return { kind: "imported" as const, imported };
     const local = await getPublicLegalDocument({ data: { slug: params.slug } });
     if (local) return { kind: "local" as const, local };
+    // The store holds this policy but its wording only resolves there, so we
+    // point visitors at the authoritative copy instead of showing raw markup.
+    const reference = await getPublicLegalReference({ data: { slug: params.slug } });
+    if (reference) return { kind: "reference" as const, reference };
     throw notFound();
   },
   head: ({ loaderData }) => {
     if (!loaderData) return {};
+    if (loaderData.kind === "reference") {
+      const refTitle = `${loaderData.reference.title} | ${BRAND.name}`;
+      return {
+        meta: [
+          { title: refTitle },
+          {
+            name: "description",
+            content: `Read the current ${loaderData.reference.title} for ${BRAND.name}.`,
+          },
+          { property: "og:title", content: refTitle },
+          {
+            property: "og:description",
+            content: `Read the current ${loaderData.reference.title} for ${BRAND.name}.`,
+          },
+          { property: "og:type", content: "article" },
+          { name: "twitter:card", content: "summary" },
+        ],
+        // The store copy is the authoritative version, so it stays canonical.
+        links: [{ rel: "canonical", href: loaderData.reference.source_url }],
+      };
+    }
     const title =
       loaderData.kind === "imported" ? loaderData.imported.title : loaderData.local.title;
     const summary =

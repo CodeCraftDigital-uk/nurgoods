@@ -305,3 +305,26 @@ export const listPublicLegalReferences = createServerFn({ method: "GET" }).handl
       .map((row: any) => ({ title: row.title as string, source_url: row.source_url as string }));
   },
 );
+
+/**
+ * A single published store policy that must be read on the store because its
+ * wording only resolves there. Never returns body text, only a safe pointer.
+ */
+export const getPublicLegalReference = createServerFn({ method: "GET" })
+  .inputValidator((input: { slug: string }) => ({ slug: String(input.slug) }))
+  .handler(async ({ data }): Promise<PublicLegalReference | null> => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: row, error } = await supabaseAdmin
+      .from("shopify_legal_sources")
+      .select("title, source_url, has_liquid, has_placeholders, is_published, public_visible")
+      .eq("slug", data.slug)
+      .eq("is_published", true)
+      .eq("public_visible", false)
+      .eq("has_liquid", true)
+      .eq("has_placeholders", false)
+      .maybeSingle();
+    if (error || !row) return null;
+    const url = (row as any).source_url;
+    if (typeof url !== "string" || url.length === 0) return null;
+    return { title: (row as any).title as string, source_url: url };
+  });
