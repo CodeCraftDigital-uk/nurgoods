@@ -76,7 +76,7 @@ function AuthPage() {
       <Card className="w-full max-w-sm">
         <CardHeader className="items-center text-center">
           <BrandLogo size={44} className="mb-3" />
-          <CardTitle>{mode === "signin" ? "Sign in" : "Create account"}</CardTitle>
+          <CardTitle>Sign in</CardTitle>
           <CardDescription>Internal access to the NUR GOODS platform console.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
