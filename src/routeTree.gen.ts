@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as ReviewsRouteImport } from './routes/reviews'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as JournalIndexRouteImport } from './routes/journal.index'
 import { Route as JournalSlugRouteImport } from './routes/journal.$slug'
@@ -42,6 +43,11 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReviewsRoute = ReviewsRouteImport.update({
+  id: '/reviews',
+  path: '/reviews',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
@@ -141,6 +147,7 @@ const AuthenticatedAdminJournalNewRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/reviews': typeof ReviewsRoute
   '/admin': typeof AuthenticatedAdminRouteWithChildren
   '/journal/$slug': typeof JournalSlugRoute
   '/legal/$slug': typeof LegalSlugRoute
@@ -162,6 +169,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/reviews': typeof ReviewsRoute
   '/journal/$slug': typeof JournalSlugRoute
   '/legal/$slug': typeof LegalSlugRoute
   '/journal': typeof JournalIndexRoute
@@ -183,6 +191,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/reviews': typeof ReviewsRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
   '/journal/$slug': typeof JournalSlugRoute
   '/legal/$slug': typeof LegalSlugRoute
@@ -206,6 +215,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/reviews'
     | '/admin'
     | '/journal/$slug'
     | '/legal/$slug'
@@ -227,6 +237,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/reviews'
     | '/journal/$slug'
     | '/legal/$slug'
     | '/journal'
@@ -247,6 +258,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/reviews'
     | '/_authenticated/admin'
     | '/journal/$slug'
     | '/legal/$slug'
@@ -270,6 +282,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  ReviewsRoute: typeof ReviewsRoute
   JournalSlugRoute: typeof JournalSlugRoute
   LegalSlugRoute: typeof LegalSlugRoute
   JournalIndexRoute: typeof JournalIndexRoute
@@ -297,6 +310,13 @@ declare module '@tanstack/react-router' {
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reviews': {
+      id: '/reviews'
+      path: '/reviews'
+      fullPath: '/reviews'
+      preLoaderRoute: typeof ReviewsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/admin': {
@@ -482,6 +502,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  ReviewsRoute: ReviewsRoute,
   JournalSlugRoute: JournalSlugRoute,
   LegalSlugRoute: LegalSlugRoute,
   JournalIndexRoute: JournalIndexRoute,

@@ -1,0 +1,62 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { BRAND } from "@/lib/brand";
+
+/** Sitemap for the content surfaces this platform owns. Commerce URLs stay with the store. */
+export const Route = createFileRoute("/sitemap.xml")({
+  server: {
+    handlers: {
+      GET: async () => {
+        const { listPublicArticles, listPublicLegalDocuments } = await import(
+          "@/lib/services/public-content.functions"
+        );
+
+        const entries: { loc: string; lastmod?: string; priority: string }[] = [
+          { loc: `${BRAND.siteUrl}/`, priority: "0.9" },
+          { loc: `${BRAND.siteUrl}/journal`, priority: "0.8" },
+          { loc: `${BRAND.siteUrl}/reviews`, priority: "0.6" },
+          { loc: `${BRAND.siteUrl}/legal`, priority: "0.4" },
+        ];
+
+        try {
+          const [articles, documents] = await Promise.all([
+            listPublicArticles({}),
+            listPublicLegalDocuments({}),
+          ]);
+          for (const article of articles) {
+            entries.push({
+              loc: `${BRAND.siteUrl}/journal/${article.slug}`,
+              lastmod: article.published_at ?? undefined,
+              priority: "0.7",
+            });
+          }
+          for (const doc of documents) {
+            entries.push({
+              loc: `${BRAND.siteUrl}/legal/${doc.slug}`,
+              lastmod: doc.updated_at,
+              priority: "0.3",
+            });
+          }
+        } catch {
+          // Static entries still ship if content reads fail.
+        }
+
+        const body = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${entries
+  .map(
+    (entry) =>
+      `  <url><loc>${entry.loc}</loc>${entry.lastmod ? `<lastmod>${new Date(entry.lastmod).toISOString()}</lastmod>` : ""}<priority>${entry.priority}</priority></url>`,
+  )
+  .join("\n")}
+</urlset>`;
+
+        return new Response(body, {
+          headers: {
+            "content-type": "application/xml; charset=utf-8",
+            "cache-control": "public, max-age=600",
+          },
+        });
+      },
+    },
+  },
+});
