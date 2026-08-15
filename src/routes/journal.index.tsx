@@ -125,7 +125,22 @@ function JournalIndex() {
                       {article.excerpt}
                     </p>
                   ) : null}
-                  <span className="mt-5 text-sm font-medium text-foreground">Read article</span>
+                  {article.tags && article.tags.length > 0 ? (
+                    <ul className="mt-4 flex flex-wrap gap-1.5">
+                      {article.tags.slice(0, 3).map((tag) => (
+                        <li
+                          key={tag}
+                          className="rounded-full bg-secondary px-2.5 py-1 text-[0.68rem] text-secondary-foreground"
+                        >
+                          {tag}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                  <span className="mt-auto pt-5 text-sm font-medium text-foreground">
+                    Read article
+                  </span>
+                  </div>
                 </Link>
               </li>
             ))}
