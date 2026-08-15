@@ -39,12 +39,17 @@ export interface PublicArticleLink {
   target_reference: string;
 }
 
+export interface PublicFaq {
+  question: string;
+  answer: string;
+}
+
 export interface PublicArticle extends PublicArticleSummary {
   body_markdown: string | null;
   meta_title: string | null;
   canonical_url: string | null;
   schema_type: string | null;
-  faqs: unknown;
+  faqs: PublicFaq[] | null;
   sources_verified: boolean;
   updated_at: string;
   sources: PublicArticleSource[];
@@ -139,11 +144,24 @@ export const getPublicArticle = createServerFn({ method: "GET" })
         .eq("accepted", true),
     ]);
 
+    const record = article as unknown as Omit<PublicArticle, "sources" | "links" | "faqs"> & {
+      faqs: unknown;
+    };
+    const faqs = Array.isArray(record.faqs)
+      ? (record.faqs as unknown[]).flatMap((item) => {
+          if (!item || typeof item !== "object") return [];
+          const entry = item as { question?: unknown; answer?: unknown };
+          if (typeof entry.question !== "string" || typeof entry.answer !== "string") return [];
+          return [{ question: entry.question, answer: entry.answer }];
+        })
+      : [];
+
     return {
-      ...(article as PublicArticleSummary & Record<string, never>),
+      ...record,
+      faqs,
       sources: (sources.data ?? []) as PublicArticleSource[],
       links: (links.data ?? []) as PublicArticleLink[],
-    } as PublicArticle;
+    };
   });
 
 /** Published, owner approved policy documents. Placeholders never appear. */
