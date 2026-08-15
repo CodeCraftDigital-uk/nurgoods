@@ -48,7 +48,7 @@ function McpPage() {
             title="Endpoints"
             description="Both surfaces read the same published data through the same contract."
             actions={
-              <StatusPill tone={readyCount > 0 ? "success" : "warning"}>
+              <StatusPill tone={readyCount > 0 ? "positive" : "warning"}>
                 {readyCount} of {data.resources.length} live
               </StatusPill>
             }
@@ -108,7 +108,7 @@ function McpPage() {
                 key={resource.key}
                 title={resource.label}
                 actions={
-                  <StatusPill tone={resource.ready ? "success" : "warning"}>
+                  <StatusPill tone={resource.ready ? "positive" : "warning"}>
                     {resource.ready ? "Live" : "Waiting on data"}
                   </StatusPill>
                 }
