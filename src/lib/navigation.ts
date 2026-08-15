@@ -49,7 +49,7 @@ export const ADMIN_NAV: NavItem[] = [
   {
     to: "/admin/reviews",
     label: "Reviews",
-    description: "Publiko widget placement configuration.",
+    description: "Publiko embed code and widget placements.",
     icon: Star,
   },
   {
