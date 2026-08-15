@@ -1,3 +1,4 @@
+import { useMemo, useState } from "react";
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { PublicShell } from "@/components/public/PublicShell";
 import { Breadcrumbs } from "@/components/public/Breadcrumbs";
@@ -72,9 +73,31 @@ function CollectionNotFound() {
   );
 }
 
+const SORT_OPTIONS = [
+  { value: "featured", label: "Featured" },
+  { value: "price_asc", label: "Price, low to high" },
+  { value: "price_desc", label: "Price, high to low" },
+  { value: "title_desc", label: "Name, Z to A" },
+] as const;
+
 function CollectionDetail() {
   const { collection, products } = Route.useLoaderData();
   const url = `${BRAND.siteUrl}/collections/${collection.handle}`;
+  const [sort, setSort] = useState<string>("featured");
+
+  const sorted = useMemo(() => {
+    const items = [...products];
+    switch (sort) {
+      case "price_asc":
+        return items.sort((a, b) => (a.price_min ?? Infinity) - (b.price_min ?? Infinity));
+      case "price_desc":
+        return items.sort((a, b) => (b.price_max ?? -Infinity) - (a.price_max ?? -Infinity));
+      case "title_desc":
+        return items.sort((a, b) => b.title.localeCompare(a.title));
+      default:
+        return items.sort((a, b) => a.title.localeCompare(b.title));
+    }
+  }, [products, sort]);
 
   return (
     <PublicShell>
@@ -118,6 +141,31 @@ function CollectionDetail() {
           </p>
         ) : null}
 
+        {products.length > 0 ? (
+          <div className="mt-8 flex flex-wrap items-center justify-between gap-3">
+            <p className="text-xs text-muted-foreground" aria-live="polite">
+              {products.length} product{products.length === 1 ? "" : "s"}
+            </p>
+            <div>
+              <label htmlFor="collection-sort" className="sr-only">
+                Sort products
+              </label>
+              <select
+                id="collection-sort"
+                value={sort}
+                onChange={(event) => setSort(event.target.value)}
+                className="h-11 rounded-lg border border-input bg-background px-3 text-sm text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              >
+                {SORT_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        ) : null}
+
         {products.length === 0 ? (
           <div className="mt-10 rounded-xl border border-dashed border-border p-10 text-center">
             <h2 className="font-display text-xl text-foreground">
@@ -134,8 +182,8 @@ function CollectionDetail() {
             </Link>
           </div>
         ) : (
-          <ul className="mt-10 grid grid-cols-2 gap-4 lg:grid-cols-4">
-            {products.map((product, index) => (
+          <ul className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
+            {sorted.map((product, index) => (
               <li key={product.id}>
                 <ProductCard product={product} eager={index < 4} />
               </li>

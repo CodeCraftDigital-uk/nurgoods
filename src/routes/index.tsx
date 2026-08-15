@@ -5,6 +5,7 @@ import { PublicShell } from "@/components/public/PublicShell";
 import { JsonLd } from "@/components/public/JsonLd";
 import { ReviewPlacementSlot } from "@/components/public/ReviewPlacementSlot";
 import { ProductCard, ProductCardSkeleton } from "@/components/public/ProductCard";
+import { CollectionTile, CollectionTileSkeleton } from "@/components/public/CollectionTile";
 import { BrandWordmark } from "@/components/admin/BrandLogo";
 import { BRAND } from "@/lib/brand";
 import { listPublicArticles } from "@/lib/services/public-content.functions";
@@ -20,13 +21,13 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Considered everyday goods from NUR GOODS. Browse the range, read the Journal and see customer reviews, with ordering handled on the main store.",
+          "Browse the NUR GOODS range across home, fitness, tech, pets, beauty and more. Clear pricing, honest guidance and ordering handled on the main store.",
       },
       { property: "og:title", content: "NUR GOODS | Good things, brought to light" },
       {
         property: "og:description",
         content:
-          "Considered everyday goods, honest guidance and genuine customer reviews from NUR GOODS.",
+          "Everyday goods across home, fitness, tech, pets and beauty, with honest guidance from NUR GOODS.",
       },
       { property: "og:type", content: "website" },
       { property: "og:url", content: `${BRAND.siteUrl}/` },
@@ -37,19 +38,40 @@ export const Route = createFileRoute("/")({
   component: Index,
 });
 
+/** Service cues. Every line here is a statement of how the store actually works. */
+const SERVICE_CUES = [
+  {
+    title: "Ordered on the main store",
+    body: "Payment, delivery options and order tracking are handled by the NUR GOODS store checkout.",
+  },
+  {
+    title: "One range, kept in step",
+    body: "Everything listed here is read directly from the live store catalogue, so nothing is shown that is not stocked.",
+  },
+  {
+    title: "A person answers",
+    body: `Write to ${BRAND.supportEmail} with any question before or after ordering.`,
+  },
+] as const;
+
 function Index() {
   const fetchProducts = useServerFn(listStorefrontProductsFn);
   const fetchCollections = useServerFn(listStorefrontCollectionsFn);
   const fetchArticles = useServerFn(listPublicArticles);
 
-  const products = useQuery({
-    queryKey: ["home-products"],
-    queryFn: () => fetchProducts({ data: { limit: 4, sort: "featured" } }),
+  const newest = useQuery({
+    queryKey: ["home-newest"],
+    queryFn: () => fetchProducts({ data: { limit: 8, sort: "newest" } }),
+    retry: false,
+  });
+  const browse = useQuery({
+    queryKey: ["home-browse"],
+    queryFn: () => fetchProducts({ data: { limit: 8, sort: "featured" } }),
     retry: false,
   });
   const collections = useQuery({
     queryKey: ["home-collections"],
-    queryFn: () => fetchCollections({}),
+    queryFn: () => fetchCollections({ data: { withProductsOnly: true } }),
     retry: false,
   });
   const articles = useQuery({
@@ -58,9 +80,17 @@ function Index() {
     retry: false,
   });
 
-  const productItems = products.data?.items ?? [];
-  const collectionItems = (collections.data ?? []).slice(0, 6);
+  const newestItems = newest.data?.items ?? [];
+  const browseItems = browse.data?.items ?? [];
+  const collectionItems = [...(collections.data ?? [])]
+    .sort((a, b) => b.product_count - a.product_count || a.title.localeCompare(b.title))
+    .slice(0, 8);
   const articleItems = (articles.data ?? []).slice(0, 3);
+  const heroImages = newestItems
+    .map((product) => product.image_url)
+    .filter((url): url is string => Boolean(url))
+    .slice(0, 3);
+  const totalProducts = browse.data?.total ?? newest.data?.total ?? 0;
 
   return (
     <PublicShell>
@@ -94,55 +124,144 @@ function Index() {
       />
 
       {/* Hero */}
-      <section className="mx-auto w-full max-w-5xl px-5 pt-14 sm:px-8 sm:pt-24">
-        <BrandWordmark height={56} className="sm:h-20" />
-        <h1 className="mt-8 max-w-3xl font-display text-[2.1rem] leading-[1.08] text-foreground sm:text-6xl">
-          {BRAND.tagline}
-        </h1>
-        <p className="mt-6 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg">
-          Considered everyday goods, clear guidance and reviews you can trust. Ordering, payment and
-          delivery are handled on the main store.
-        </p>
-        <div className="mt-9 flex flex-wrap gap-3">
-          <Link
-            to="/shop"
-            className="inline-flex min-h-11 items-center rounded-lg bg-primary px-5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-          >
-            Browse the range
-          </Link>
-          <Link
-            to="/journal"
-            className="inline-flex min-h-11 items-center rounded-lg border border-input px-5 text-sm font-medium text-foreground transition-colors hover:bg-accent"
-          >
-            Read the Journal
-          </Link>
+      <section className="border-b border-border/60 bg-gradient-to-b from-accent/40 to-background">
+        <div className="mx-auto grid w-full max-w-6xl items-center gap-10 px-5 pb-14 pt-12 sm:px-8 sm:pb-20 sm:pt-20 lg:grid-cols-[1.05fr_1fr] lg:gap-16">
+          <div>
+            <BrandWordmark height={44} className="sm:h-14" />
+            <h1 className="mt-7 max-w-2xl font-display text-[2.15rem] leading-[1.06] text-foreground sm:text-5xl lg:text-6xl">
+              {BRAND.tagline}
+            </h1>
+            <p className="mt-5 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg">
+              A carefully kept range across the home, fitness, tech, pets, beauty and play. Browse
+              here, then order securely on the {BRAND.name} store.
+            </p>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Link
+                to="/shop"
+                className="inline-flex min-h-12 items-center rounded-lg bg-primary px-6 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+              >
+                Browse the range
+              </Link>
+              <Link
+                to="/collections"
+                className="inline-flex min-h-12 items-center rounded-lg border border-input px-6 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+              >
+                Shop by category
+              </Link>
+            </div>
+            {totalProducts > 0 ? (
+              <p className="mt-5 text-xs uppercase tracking-[0.2em] text-muted-foreground">
+                {totalProducts} products listed from the live store
+              </p>
+            ) : null}
+          </div>
+
+          <div aria-hidden className="hidden gap-3 lg:grid lg:grid-cols-2">
+            {heroImages.length > 0 ? (
+              <>
+                <div className="row-span-2 overflow-hidden rounded-2xl border border-border/70 bg-card">
+                  <img
+                    src={heroImages[0]}
+                    alt=""
+                    width={800}
+                    height={1100}
+                    decoding="async"
+                    className="h-full w-full object-contain p-3"
+                  />
+                </div>
+                {heroImages.slice(1, 3).map((url) => (
+                  <div
+                    key={url}
+                    className="overflow-hidden rounded-2xl border border-border/70 bg-card"
+                  >
+                    <img
+                      src={url}
+                      alt=""
+                      width={600}
+                      height={600}
+                      loading="lazy"
+                      decoding="async"
+                      className="aspect-square w-full object-contain p-3"
+                    />
+                  </div>
+                ))}
+              </>
+            ) : (
+              <>
+                <div className="row-span-2 aspect-[3/4] animate-pulse rounded-2xl bg-muted/50" />
+                <div className="aspect-square animate-pulse rounded-2xl bg-muted/50" />
+                <div className="aspect-square animate-pulse rounded-2xl bg-muted/50" />
+              </>
+            )}
+          </div>
         </div>
       </section>
 
-      {/* Catalogue preview */}
-      <section className="mx-auto mt-20 w-full max-w-5xl px-5 sm:px-8" aria-labelledby="range">
+      {/* Categories */}
+      <section className="mx-auto mt-16 w-full max-w-6xl px-5 sm:mt-24 sm:px-8" aria-labelledby="categories">
         <div className="flex flex-wrap items-end justify-between gap-3">
-          <h2 id="range" className="font-display text-2xl text-foreground sm:text-3xl">
-            From the range
-          </h2>
+          <div>
+            <h2 id="categories" className="font-display text-2xl text-foreground sm:text-3xl">
+              Shop by category
+            </h2>
+            <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">
+              Categories come straight from the store, so each one only appears when there is
+              something in it.
+            </p>
+          </div>
           <Link
-            to="/shop"
+            to="/collections"
             className="inline-flex min-h-11 items-center text-sm font-medium text-foreground underline decoration-gold underline-offset-4"
           >
-            See everything
+            All categories
           </Link>
         </div>
-
-        <div className="mt-6">
-          {products.isLoading ? (
-            <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-              {[0, 1, 2, 3].map((i) => (
-                <ProductCardSkeleton key={i} />
+        <ul className="mt-6 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+          {collections.isLoading
+            ? [0, 1, 2, 3, 4, 5, 6, 7].map((index) => (
+                <li key={index}>
+                  <CollectionTileSkeleton />
+                </li>
+              ))
+            : collectionItems.map((collection) => (
+                <li key={collection.id}>
+                  <CollectionTile collection={collection} />
+                </li>
               ))}
-            </div>
-          ) : productItems.length > 0 ? (
+        </ul>
+      </section>
+
+      {/* New in */}
+      <section className="mx-auto mt-16 w-full max-w-6xl px-5 sm:mt-24 sm:px-8" aria-labelledby="new-in">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 id="new-in" className="font-display text-2xl text-foreground sm:text-3xl">
+              Recently added
+            </h2>
+            <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">
+              The most recently updated listings in the store range.
+            </p>
+          </div>
+          <Link
+            to="/shop"
+            search={{ sort: "newest" }}
+            className="inline-flex min-h-11 items-center text-sm font-medium text-foreground underline decoration-gold underline-offset-4"
+          >
+            See more
+          </Link>
+        </div>
+        <div className="mt-6">
+          {newest.isLoading ? (
             <ul className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-              {productItems.map((product, index) => (
+              {[0, 1, 2, 3].map((index) => (
+                <li key={index}>
+                  <ProductCardSkeleton />
+                </li>
+              ))}
+            </ul>
+          ) : newestItems.length > 0 ? (
+            <ul className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+              {newestItems.slice(0, 8).map((product, index) => (
                 <li key={product.id}>
                   <ProductCard product={product} eager={index < 2} />
                 </li>
@@ -152,8 +271,8 @@ function Index() {
             <div className="rounded-2xl border border-dashed border-border p-8 text-center sm:p-12">
               <h3 className="font-display text-xl text-foreground">The range is being prepared</h3>
               <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-muted-foreground">
-                Products appear here as soon as the store catalogue is live. In the meantime the
-                full range is available on the main store.
+                Products appear here as soon as the store catalogue is listed. Everything is already
+                available to buy on the store.
               </p>
               <a
                 href={BRAND.storeUrl}
@@ -166,44 +285,50 @@ function Index() {
         </div>
       </section>
 
-      {/* Collections */}
-      {collectionItems.length > 0 ? (
+      {/* A to Z of the range */}
+      {browseItems.length > 0 ? (
         <section
-          className="mx-auto mt-20 w-full max-w-5xl px-5 sm:px-8"
-          aria-labelledby="collections"
+          className="mx-auto mt-16 w-full max-w-6xl px-5 sm:mt-24 sm:px-8"
+          aria-labelledby="from-the-range"
         >
           <div className="flex flex-wrap items-end justify-between gap-3">
-            <h2 id="collections" className="font-display text-2xl text-foreground sm:text-3xl">
-              Collections
+            <h2 id="from-the-range" className="font-display text-2xl text-foreground sm:text-3xl">
+              From the range
             </h2>
             <Link
-              to="/collections"
+              to="/shop"
               className="inline-flex min-h-11 items-center text-sm font-medium text-foreground underline decoration-gold underline-offset-4"
             >
-              All collections
+              See everything
             </Link>
           </div>
-          <ul className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {collectionItems.map((collection) => (
-              <li key={collection.handle}>
-                <Link
-                  to="/collections/$handle"
-                  params={{ handle: collection.handle }}
-                  className="flex min-h-16 items-center justify-between rounded-xl border border-border/70 px-5 py-4 transition-colors hover:border-gold"
-                >
-                  <span className="font-display text-lg text-foreground">{collection.title}</span>
-                  <span aria-hidden className="text-gold">
-                    &rarr;
-                  </span>
-                </Link>
+          <ul className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
+            {browseItems.slice(0, 4).map((product) => (
+              <li key={product.id}>
+                <ProductCard product={product} />
               </li>
             ))}
           </ul>
         </section>
       ) : null}
 
+      {/* Service cues */}
+      <section className="mx-auto mt-16 w-full max-w-6xl px-5 sm:mt-24 sm:px-8" aria-labelledby="service">
+        <h2 id="service" className="sr-only">
+          How ordering works
+        </h2>
+        <ul className="grid gap-3 sm:grid-cols-3 sm:gap-4">
+          {SERVICE_CUES.map((cue) => (
+            <li key={cue.title} className="rounded-xl border border-border/70 bg-card p-6">
+              <h3 className="font-display text-lg text-foreground">{cue.title}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{cue.body}</p>
+            </li>
+          ))}
+        </ul>
+      </section>
+
       {/* Journal */}
-      <section className="mx-auto mt-20 w-full max-w-5xl px-5 sm:px-8" aria-labelledby="journal">
+      <section className="mx-auto mt-16 w-full max-w-6xl px-5 sm:mt-24 sm:px-8" aria-labelledby="journal">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <h2 id="journal" className="font-display text-2xl text-foreground sm:text-3xl">
             From the Journal
@@ -244,12 +369,12 @@ function Index() {
         )}
       </section>
 
-      <div className="mx-auto w-full max-w-5xl px-5 sm:px-8">
-        <ReviewPlacementSlot surface="homepage" className="mt-20" />
+      <div className="mx-auto w-full max-w-6xl px-5 sm:px-8">
+        <ReviewPlacementSlot surface="homepage" className="mt-16 sm:mt-24" />
       </div>
 
       {/* Support */}
-      <section className="mx-auto mt-20 w-full max-w-5xl px-5 sm:px-8" aria-labelledby="support">
+      <section className="mx-auto mt-16 w-full max-w-6xl px-5 sm:mt-24 sm:px-8" aria-labelledby="support">
         <div className="rounded-2xl border border-border/70 p-8 sm:p-10">
           <h2 id="support" className="font-display text-2xl text-foreground">
             Questions before you order?

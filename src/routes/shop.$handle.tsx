@@ -109,6 +109,11 @@ function ProductDetail() {
               price: product.price_min,
               priceCurrency: product.currency ?? "GBP",
               url,
+              ...(product.available_for_sale === true
+                ? { availability: "https://schema.org/InStock" }
+                : product.available_for_sale === false
+                  ? { availability: "https://schema.org/OutOfStock" }
+                  : {}),
             },
           }
         : {}),
@@ -145,7 +150,7 @@ function ProductDetail() {
                   width={activeImage.width ?? 1200}
                   height={activeImage.height ?? 1200}
                   decoding="async"
-                  className="aspect-square w-full object-cover"
+                  className="aspect-square w-full bg-background object-contain"
                 />
               ) : (
                 <div className="aspect-square w-full">
@@ -203,22 +208,50 @@ function ProductDetail() {
                 ) : null}
               </p>
             ) : null}
+            {product.available_for_sale != null ? (
+              <p className="mt-3 text-sm text-muted-foreground">
+                {product.available_for_sale ? "Available to order" : "Currently unavailable"}
+                {product.variant_count > 1 ? ` in ${product.variant_count} options` : ""}
+              </p>
+            ) : null}
             {product.summary ? (
               <p className="mt-5 text-base leading-relaxed text-muted-foreground">
                 {product.summary}
               </p>
             ) : null}
 
-            {product.variants.length > 1 ? (
+            {product.options.length > 0 ? (
+              <div className="mt-7 space-y-5">
+                {product.options.map((option) => (
+                  <div key={option.name}>
+                    <h2 className="text-[0.68rem] uppercase tracking-[0.22em] text-muted-foreground">
+                      {option.name}
+                    </h2>
+                    <ul className="mt-2.5 flex flex-wrap gap-2">
+                      {option.values.map((value) => (
+                        <li key={value}>
+                          <span className="inline-flex min-h-9 items-center rounded-lg border border-border px-3 text-sm text-foreground">
+                            {value}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+                <p className="text-xs text-muted-foreground">
+                  Choose your option at checkout on the store.
+                </p>
+              </div>
+            ) : product.variants.length > 1 ? (
               <div className="mt-7">
                 <h2 className="text-[0.68rem] uppercase tracking-[0.22em] text-muted-foreground">
                   Options
                 </h2>
                 <ul className="mt-3 flex flex-wrap gap-2">
-                  {product.variants.map((variant) => (
+                  {product.variants.slice(0, 24).map((variant) => (
                     <li key={variant.id}>
                       <span
-                        className={`inline-flex min-h-10 items-center rounded-lg border px-3.5 text-sm ${
+                        className={`inline-flex min-h-9 items-center rounded-lg border px-3 text-sm ${
                           variant.available_for_sale === false
                             ? "border-border/60 text-muted-foreground line-through"
                             : "border-border text-foreground"
@@ -227,11 +260,6 @@ function ProductDetail() {
                         {variant.selected_options.length > 0
                           ? variant.selected_options.map((option) => option.value).join(" / ")
                           : variant.title}
-                        {variant.price != null ? (
-                          <span className="ml-2 text-xs text-muted-foreground">
-                            {formatPrice(variant.price, null, variant.currency)}
-                          </span>
-                        ) : null}
                       </span>
                     </li>
                   ))}
@@ -278,7 +306,7 @@ function ProductDetail() {
 
         {product.description_html ? (
           <section className="mt-16 max-w-3xl">
-            <h2 className="font-display text-2xl text-foreground">Description</h2>
+            <h2 className="font-display text-2xl text-foreground">Product details</h2>
             <div
               className="prose prose-sm mt-4 max-w-none text-muted-foreground prose-headings:font-display prose-headings:text-foreground prose-strong:text-foreground prose-a:text-foreground"
               dangerouslySetInnerHTML={{ __html: product.description_html }}

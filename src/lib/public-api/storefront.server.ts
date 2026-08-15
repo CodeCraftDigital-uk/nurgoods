@@ -31,6 +31,7 @@ export interface StorefrontProductCard {
 
 export interface StorefrontFacets {
   product_types: string[];
+  tags: string[];
   total: number;
 }
 
@@ -82,6 +83,7 @@ export async function listStorefrontProducts(input: {
   query?: string | undefined;
   productType?: string | undefined;
   collectionHandle?: string | undefined;
+  tag?: string | undefined;
   sort?: StorefrontSort | undefined;
   limit?: number | undefined;
   offset?: number | undefined;
@@ -114,10 +116,11 @@ export async function listStorefrontProducts(input: {
   const term = input.query ? safeTerm(input.query) : "";
   if (term) {
     builder = builder.or(
-      `title.ilike.%${term}%,product_type.ilike.%${term}%,vendor.ilike.%${term}%`,
+      `title.ilike.%${term}%,product_type.ilike.%${term}%,vendor.ilike.%${term}%,description.ilike.%${term}%`,
     );
   }
   if (input.productType) builder = builder.eq("product_type", input.productType);
+  if (input.tag) builder = builder.contains("tags", [input.tag]);
   if (productIds) builder = builder.in("id", productIds);
 
   const { data, error, count } = await builder;
@@ -149,16 +152,32 @@ export async function listStorefrontFacets(): Promise<StorefrontFacets> {
   const supabase = await publicClient();
   const { data, count, error } = await supabase
     .from("shopify_products")
-    .select("product_type", { count: "exact" })
-    .limit(500);
+    .select("product_type, tags", { count: "exact" })
+    .limit(1000);
   if (error) throw new Error(error.message);
   const types = new Set<string>();
+  const tagCounts = new Map<string, number>();
   for (const row of (data ?? []) as any[]) {
     if (typeof row.product_type === "string" && row.product_type.trim()) {
       types.add(row.product_type.trim());
     }
+    for (const tag of Array.isArray(row.tags) ? row.tags : []) {
+      if (typeof tag !== "string" || !tag.trim()) continue;
+      const key = tag.trim();
+      tagCounts.set(key, (tagCounts.get(key) ?? 0) + 1);
+    }
   }
-  return { product_types: [...types].sort((a, b) => a.localeCompare(b)), total: count ?? 0 };
+  // Only tags that group more than one product are useful as a filter.
+  const tags = [...tagCounts.entries()]
+    .filter(([, hits]) => hits > 1)
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .slice(0, 24)
+    .map(([tag]) => tag);
+  return {
+    product_types: [...types].sort((a, b) => a.localeCompare(b)),
+    tags,
+    total: count ?? 0,
+  };
 }
 
 export interface StorefrontCollection {
@@ -183,7 +202,9 @@ function mapCollection(row: any): StorefrontCollection {
   };
 }
 
-export async function listStorefrontCollections(): Promise<StorefrontCollection[]> {
+export async function listStorefrontCollections(options?: {
+  withProductsOnly?: boolean;
+}): Promise<StorefrontCollection[]> {
   const supabase = await publicClient();
   const { data, error } = await supabase
     .from("shopify_collections")
@@ -191,7 +212,50 @@ export async function listStorefrontCollections(): Promise<StorefrontCollection[
     .order("title", { ascending: true })
     .limit(100);
   if (error) throw new Error(error.message);
-  return ((data ?? []) as any[]).map(mapCollection);
+  const rows = (data ?? []) as any[];
+  if (rows.length === 0) return [];
+
+  // The store does not always set a collection image, so a genuine member
+  // product image stands in. Nothing is invented: the image always belongs to a
+  // product inside that collection.
+  const { data: joins } = await supabase
+    .from("shopify_product_collections")
+    .select("collection_id, product_id")
+    .in(
+      "collection_id",
+      rows.map((row) => row.id),
+    )
+    .limit(2000);
+  const joinRows = (joins ?? []) as any[];
+  const productIds = [...new Set(joinRows.map((join) => join.product_id))];
+  const imageByProduct = new Map<string, string>();
+  if (productIds.length > 0) {
+    const { data: products } = await supabase
+      .from("shopify_products")
+      .select("id, featured_image_url, title")
+      .in("id", productIds);
+    for (const product of (products ?? []) as any[]) {
+      if (product.featured_image_url) imageByProduct.set(product.id, product.featured_image_url);
+    }
+  }
+  const counts = new Map<string, number>();
+  const covers = new Map<string, string>();
+  for (const join of joinRows) {
+    counts.set(join.collection_id, (counts.get(join.collection_id) ?? 0) + 1);
+    const image = imageByProduct.get(join.product_id);
+    if (image && !covers.has(join.collection_id)) covers.set(join.collection_id, image);
+  }
+
+  const mapped = rows.map((row) => {
+    const collection = mapCollection(row);
+    const count = counts.get(row.id) ?? collection.product_count;
+    return {
+      ...collection,
+      product_count: count,
+      image_url: collection.image_url ?? covers.get(row.id) ?? null,
+    };
+  });
+  return options?.withProductsOnly ? mapped.filter((c) => c.product_count > 0) : mapped;
 }
 
 export async function getStorefrontCollection(handle: string): Promise<StorefrontCollection | null> {
@@ -343,7 +407,26 @@ export async function getStorefrontProduct(handle: string): Promise<StorefrontPr
   }
 
   let related: StorefrontProductCard[] = [];
-  if (row.product_type) {
+  if (collectionIds.length > 0) {
+    const { data: siblingJoins } = await supabase
+      .from("shopify_product_collections")
+      .select("product_id")
+      .in("collection_id", collectionIds)
+      .limit(60);
+    const siblingIds = [
+      ...new Set(((siblingJoins ?? []) as any[]).map((join) => join.product_id as string)),
+    ].filter((id) => id !== row.id);
+    if (siblingIds.length > 0) {
+      const { data: siblings } = await supabase
+        .from("shopify_products")
+        .select(CARD_COLUMNS)
+        .in("id", siblingIds.slice(0, 24))
+        .order("title", { ascending: true })
+        .limit(4);
+      related = ((siblings ?? []) as any[]).map((sibling) => mapCard(sibling));
+    }
+  }
+  if (related.length === 0 && row.product_type) {
     const { data: siblings } = await supabase
       .from("shopify_products")
       .select(CARD_COLUMNS)
