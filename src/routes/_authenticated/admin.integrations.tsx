@@ -24,11 +24,11 @@ const REQUIREMENTS: Record<string, string[]> = {
   ],
   zendrop: ["Confirmation of the Zendrop to Shopify link", "Any supplier feed reference"],
   ai: [
-    `Provider identifier (${AI_SECRET_NAMES.providerId})`,
-    `Model (${AI_SECRET_NAMES.model})`,
-    `API key (${AI_SECRET_NAMES.apiKey})`,
-    `Optional research key (${AI_SECRET_NAMES.researchApiKey})`,
+    "Managed AI, included with the platform",
+    "No owner supplied model keys or accounts",
+    "Optional live web research key (RESEARCH_PROVIDER_API_KEY) only if you want live research",
   ],
+
   publiko: ["Account reference", "Widget identifiers", "Embed details"],
   mcp: ["Confirmed resource scope", "Authentication decision for connecting clients"],
 };
