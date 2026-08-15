@@ -91,7 +91,7 @@ export async function planMonthlyEditorial(
     monthStart.getUTCMonth() === now.getUTCMonth()
       ? now.getUTCDate()
       : 1;
-  const wanted = Math.min(input.topics ?? daysInMonth - firstDay + 1, 31);
+  const wanted = Math.min(input.topics ?? daysInMonth - firstDay + 1, 16);
   if (wanted <= 0) return { created: 0, month: monthKey, skipped: 0 };
 
   const [products, collections, articles, existingPlan] = await Promise.all([
@@ -129,7 +129,7 @@ export async function planMonthlyEditorial(
     stage: "topic_discovery",
     promptVersionKey: "journal.monthly_plan",
     temperature: 0.7,
-    maxOutputTokens: 4000,
+    maxOutputTokens: 12000,
     responseSchema: {},
     messages: [
       { role: "system", content: BRAND_RULES },
@@ -146,6 +146,7 @@ export async function planMonthlyEditorial(
           `Plan ${wanted} distinct evergreen Journal topics for the month starting ${monthKey}.`,
           "Each topic must be genuinely useful to a shopper, commercially relevant to the catalogue and answerable without current news, prices or statistics.",
           "Vary the format across buying guides, comparisons, how to use, care and gifting ideas.",
+          "Keep every field short. Titles under 70 characters, at most four keywords and three related handles per topic.",
           'Return JSON only: {"topics":[{"title":"","targetQuery":"","searchIntent":"","audience":"","angle":"","keywords":[""],"relatedHandles":[""]}]}',
         ].join("\n"),
       },
