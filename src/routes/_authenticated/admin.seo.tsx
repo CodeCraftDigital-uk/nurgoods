@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Search } from "lucide-react";
+import { Loader2, RefreshCw, Search, Sparkles, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { SectionCard } from "@/components/admin/SectionCard";
 import { EmptyState } from "@/components/admin/EmptyState";
@@ -10,6 +11,7 @@ import { StatusPill, statusTone, humanise } from "@/components/admin/StatusPill"
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -18,20 +20,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
+  addSeoQuestion,
   createSeoEntity,
   createSeoRecord,
+  deleteSeoQuestion,
   listSeoEntities,
+  listSeoQuestions,
   listSeoRecords,
+  updateSeoQuestion,
   updateSeoRecord,
 } from "@/lib/services/seo";
+import { runSeoRecordPlan, syncSeoCoverageRecords } from "@/lib/ai/seo.functions";
 import {
   OPTIMISATION_STATUS_LABEL,
   type OptimisationStatus,
@@ -50,10 +49,16 @@ function SeoPage() {
   const records = useQuery({ queryKey: ["seo-records"], queryFn: listSeoRecords });
   const entities = useQuery({ queryKey: ["seo-entities"], queryFn: listSeoEntities });
 
+  const syncCoverage = useServerFn(syncSeoCoverageRecords);
+  const runPlan = useServerFn(runSeoRecordPlan);
+
   const [targetType, setTargetType] = useState<SeoTargetType>("product");
   const [reference, setReference] = useState("");
   const [query, setQuery] = useState("");
   const [entityName, setEntityName] = useState("");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  const selected = (records.data ?? []).find((record) => record.id === selectedId) ?? null;
 
   const addRecord = useMutation({
     mutationFn: () =>
@@ -82,19 +87,218 @@ function SeoPage() {
 
   const setStatus = useMutation({
     mutationFn: ({ id, status }: { id: string; status: OptimisationStatus }) =>
-      updateSeoRecord(id, { optimisation_status: status }),
+      updateSeoRecord(id, {
+        optimisation_status: status,
+        last_reviewed_at: status === "optimised" ? new Date().toISOString() : null,
+      }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["seo-records"] }),
+    onError: (error: Error) => toast.error(error.message),
   });
+
+  const coverage = useMutation({
+    mutationFn: () => syncCoverage({ data: undefined }),
+    onSuccess: async (result) => {
+      await queryClient.invalidateQueries({ queryKey: ["seo-records"] });
+      if (result.skipped) {
+        toast.info(result.skipped.reason);
+        return;
+      }
+      toast.success(
+        result.created > 0
+          ? `${result.created} new record${result.created === 1 ? "" : "s"} added, ${result.existing} already covered`
+          : `Coverage is already complete across ${result.existing} items`,
+      );
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const plan = useMutation({
+    mutationFn: (recordId: string) => runPlan({ data: { recordId } }),
+    onSuccess: async (result, recordId) => {
+      await queryClient.invalidateQueries({ queryKey: ["seo-records"] });
+      await queryClient.invalidateQueries({ queryKey: ["seo-questions", recordId] });
+      setSelectedId(recordId);
+      toast.success(
+        `Draft plan ready for review. ${result.applied.length} field${result.applied.length === 1 ? "" : "s"} updated, ${result.questionsAdded} question${result.questionsAdded === 1 ? "" : "s"} added.`,
+      );
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const summary = summarise(records.data ?? []);
 
   return (
     <div className="space-y-8">
       <PageHeader
         eyebrow="SEO Intelligence"
         title="Query, entity and metadata coverage"
-        description="Track target query, search intent, entities, FAQs, internal link targets, title, meta description, canonical, schema type and optimisation status for every product, collection, article and page."
+        description="Track target query, search intent, entities, answerable questions, internal link targets, title, meta description, canonical, schema type and optimisation status for every product, collection, article and page."
+        actions={
+          <Button
+            onClick={() => coverage.mutate()}
+            disabled={coverage.isPending}
+            className="min-h-11 w-full sm:w-auto"
+          >
+            {coverage.isPending ? (
+              <Loader2 className="mr-2 size-4 animate-spin" />
+            ) : (
+              <RefreshCw className="mr-2 size-4" />
+            )}
+            Sync coverage
+          </Button>
+        }
       />
 
-      <SectionCard title="Add a record">
+      <div className="grid gap-3 sm:grid-cols-4">
+        {[
+          { label: "Records", value: summary.total },
+          { label: "Not started", value: summary.not_started },
+          { label: "Needs review", value: summary.needs_review },
+          { label: "Optimised", value: summary.optimised },
+        ].map((tile) => (
+          <div key={tile.label} className="rounded-xl border border-border/70 p-4">
+            <p className="text-[0.7rem] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+              {tile.label}
+            </p>
+            <p className="mt-1.5 font-display text-2xl text-foreground">{tile.value}</p>
+          </div>
+        ))}
+      </div>
+
+      <SectionCard
+        title="Records"
+        description="Coverage is generated from real Journal and catalogue rows. Drafted plans always land as needs review so a person confirms the wording."
+      >
+        {records.isLoading ? (
+          <div className="space-y-2">
+            {[0, 1, 2].map((row) => (
+              <div key={row} className="h-16 animate-pulse rounded-lg bg-muted/60" />
+            ))}
+          </div>
+        ) : records.isError ? (
+          <EmptyState
+            icon={Search}
+            title="Records could not be loaded"
+            description="The connection to the platform database failed. Retry in a moment."
+            action={
+              <Button variant="outline" onClick={() => records.refetch()} className="min-h-11">
+                Retry
+              </Button>
+            }
+          />
+        ) : (records.data ?? []).length === 0 ? (
+          <EmptyState
+            icon={Search}
+            title="No SEO records yet"
+            description="Run coverage sync to create a record for every Journal article and every synced product and collection, or add one by hand below."
+            action={
+              <Button
+                onClick={() => coverage.mutate()}
+                disabled={coverage.isPending}
+                className="min-h-11"
+              >
+                Sync coverage
+              </Button>
+            }
+          />
+        ) : (
+          <ul className="space-y-3">
+            {(records.data ?? []).map((record) => {
+              const isOpen = record.id === selectedId;
+              return (
+                <li key={record.id} className="rounded-xl border border-border/70">
+                  <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+                    <button
+                      type="button"
+                      className="min-w-0 flex-1 text-left"
+                      onClick={() => setSelectedId(isOpen ? null : record.id)}
+                      aria-expanded={isOpen}
+                    >
+                      <p className="truncate font-medium text-foreground">
+                        {record.target_label ?? record.target_reference}
+                      </p>
+                      <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                        {humanise(record.target_type)} - {record.target_query ?? "No query set"}
+                      </p>
+                    </button>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <StatusPill tone={statusTone(record.optimisation_status)}>
+                        {OPTIMISATION_STATUS_LABEL[record.optimisation_status]}
+                      </StatusPill>
+                      <Button
+                        variant="outline"
+                        className="min-h-11"
+                        onClick={() => plan.mutate(record.id)}
+                        disabled={plan.isPending}
+                      >
+                        {plan.isPending && plan.variables === record.id ? (
+                          <Loader2 className="mr-2 size-4 animate-spin" />
+                        ) : (
+                          <Sparkles className="mr-2 size-4" />
+                        )}
+                        Draft plan
+                      </Button>
+                    </div>
+                  </div>
+
+                  {isOpen ? (
+                    <div className="space-y-4 border-t border-border/70 p-4">
+                      <dl className="grid gap-3 sm:grid-cols-2">
+                        <Field label="Search intent" value={record.search_intent} />
+                        <Field label="Schema type" value={record.schema_type} />
+                        <Field label="Meta title" value={record.meta_title} />
+                        <Field label="Meta description" value={record.meta_description} />
+                      </dl>
+
+                      {(record.secondary_queries ?? []).length > 0 ? (
+                        <div>
+                          <p className="text-[0.7rem] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                            Secondary queries
+                          </p>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {record.secondary_queries.map((item) => (
+                              <StatusPill key={item} tone={statusTone(null)}>
+                                {item}
+                              </StatusPill>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null}
+
+                      <QuestionsPanel recordId={record.id} />
+
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                        <Label className="text-xs text-muted-foreground sm:w-40">
+                          Optimisation status
+                        </Label>
+                        <Select
+                          value={record.optimisation_status}
+                          onValueChange={(v) =>
+                            setStatus.mutate({ id: record.id, status: v as OptimisationStatus })
+                          }
+                        >
+                          <SelectTrigger className="min-h-11 sm:w-56">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {STATUSES.map((status) => (
+                              <SelectItem key={status} value={status}>
+                                {OPTIMISATION_STATUS_LABEL[status]}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </SectionCard>
+
+      <SectionCard title="Add a record by hand">
         <form
           className="grid gap-3 sm:grid-cols-[1fr_1.5fr_1.5fr_auto]"
           onSubmit={(e) => {
@@ -109,7 +313,7 @@ function SeoPage() {
           <div className="space-y-2">
             <Label>Target type</Label>
             <Select value={targetType} onValueChange={(v) => setTargetType(v as SeoTargetType)}>
-              <SelectTrigger>
+              <SelectTrigger className="min-h-11">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -140,69 +344,15 @@ function SeoPage() {
             />
           </div>
           <div className="flex items-end">
-            <Button type="submit" disabled={addRecord.isPending} className="w-full sm:w-auto">
+            <Button
+              type="submit"
+              disabled={addRecord.isPending}
+              className="min-h-11 w-full sm:w-auto"
+            >
               Add
             </Button>
           </div>
         </form>
-      </SectionCard>
-
-      <SectionCard title="Records">
-        {(records.data ?? []).length === 0 ? (
-          <EmptyState
-            icon={Search}
-            title="No SEO records yet"
-            description="Add a record by hand, or let the catalogue sync and Journal workflow create them automatically."
-          />
-        ) : (
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Target</TableHead>
-                  <TableHead>Query</TableHead>
-                  <TableHead>Intent</TableHead>
-                  <TableHead>Schema</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {(records.data ?? []).map((record) => (
-                  <TableRow key={record.id}>
-                    <TableCell>
-                      <p className="font-medium">{record.target_reference}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {humanise(record.target_type)}
-                      </p>
-                    </TableCell>
-                    <TableCell>{record.target_query ?? "Not set"}</TableCell>
-                    <TableCell>{record.search_intent ?? "Not set"}</TableCell>
-                    <TableCell>{record.schema_type ?? "Not set"}</TableCell>
-                    <TableCell>
-                      <Select
-                        value={record.optimisation_status}
-                        onValueChange={(v) =>
-                          setStatus.mutate({ id: record.id, status: v as OptimisationStatus })
-                        }
-                      >
-                        <SelectTrigger className="w-40">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {STATUSES.map((status) => (
-                            <SelectItem key={status} value={status}>
-                              {OPTIMISATION_STATUS_LABEL[status]}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        )}
       </SectionCard>
 
       <SectionCard
@@ -222,7 +372,7 @@ function SeoPage() {
             onChange={(e) => setEntityName(e.target.value)}
             placeholder="Entity name"
           />
-          <Button type="submit" disabled={addEntity.isPending}>
+          <Button type="submit" disabled={addEntity.isPending} className="min-h-11">
             Add entity
           </Button>
         </form>
@@ -239,4 +389,119 @@ function SeoPage() {
       </SectionCard>
     </div>
   );
+}
+
+function Field({ label, value }: { label: string; value: string | null }) {
+  return (
+    <div>
+      <dt className="text-[0.7rem] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+        {label}
+      </dt>
+      <dd className="mt-1 text-sm text-foreground">{value ?? "Not set"}</dd>
+    </div>
+  );
+}
+
+function QuestionsPanel({ recordId }: { recordId: string }) {
+  const queryClient = useQueryClient();
+  const questions = useQuery({
+    queryKey: ["seo-questions", recordId],
+    queryFn: () => listSeoQuestions(recordId),
+  });
+  const [draft, setDraft] = useState("");
+
+  const invalidate = () =>
+    queryClient.invalidateQueries({ queryKey: ["seo-questions", recordId] });
+
+  const add = useMutation({
+    mutationFn: () => addSeoQuestion({ recordId, question: draft.trim() }),
+    onSuccess: async () => {
+      setDraft("");
+      await invalidate();
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const toggle = useMutation({
+    mutationFn: ({ id, include }: { id: string; include: boolean }) =>
+      updateSeoQuestion(id, { include_in_faq_schema: include }),
+    onSuccess: invalidate,
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const remove = useMutation({
+    mutationFn: (id: string) => deleteSeoQuestion(id),
+    onSuccess: invalidate,
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  return (
+    <div>
+      <p className="text-[0.7rem] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+        Answerable questions
+      </p>
+      {questions.isLoading ? (
+        <div className="mt-2 h-10 animate-pulse rounded-lg bg-muted/60" />
+      ) : (questions.data ?? []).length === 0 ? (
+        <p className="mt-2 text-sm text-muted-foreground">
+          No questions recorded yet. Draft a plan or add one below.
+        </p>
+      ) : (
+        <ul className="mt-2 space-y-2">
+          {(questions.data ?? []).map((item) => (
+            <li key={item.id} className="rounded-lg border border-border/70 p-3">
+              <p className="text-sm font-medium text-foreground">{item.question}</p>
+              {item.answer ? (
+                <p className="mt-1 text-sm text-muted-foreground">{item.answer}</p>
+              ) : null}
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Switch
+                    checked={item.include_in_faq_schema}
+                    onCheckedChange={(value) => toggle.mutate({ id: item.id, include: value })}
+                  />
+                  Approved for FAQ structured data
+                </label>
+                <Button
+                  variant="ghost"
+                  className="min-h-11 text-muted-foreground"
+                  onClick={() => remove.mutate(item.id)}
+                >
+                  <Trash2 className="mr-2 size-4" />
+                  Remove
+                </Button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <form
+        className="mt-3 flex flex-col gap-2 sm:flex-row"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (!draft.trim()) return;
+          add.mutate();
+        }}
+      >
+        <Input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          placeholder="Add a question a shopper would ask"
+        />
+        <Button type="submit" variant="outline" disabled={add.isPending} className="min-h-11">
+          Add question
+        </Button>
+      </form>
+    </div>
+  );
+}
+
+function summarise(records: Array<{ optimisation_status: OptimisationStatus }>) {
+  return {
+    total: records.length,
+    not_started: records.filter((r) => r.optimisation_status === "not_started").length,
+    needs_review: records.filter((r) => r.optimisation_status === "needs_review").length,
+    optimised: records.filter((r) => r.optimisation_status === "optimised").length,
+  };
 }
