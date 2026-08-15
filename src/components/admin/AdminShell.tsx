@@ -5,6 +5,7 @@ import { ADMIN_NAV, type NavItem } from "@/lib/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { BrandLogo } from "@/components/admin/BrandLogo";
 
 function isActive(pathname: string, item: NavItem): boolean {
   if (item.exact) return pathname === item.to;
@@ -48,9 +49,7 @@ function NavList({ pathname, onNavigate }: { pathname: string; onNavigate?: () =
 function BrandMark() {
   return (
     <Link to="/" className="flex items-center gap-2.5">
-      <span className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-sidebar-primary text-sm font-semibold text-sidebar-primary-foreground">
-        N
-      </span>
+      <BrandLogo size={32} className="shrink-0 ring-1 ring-sidebar-border/40" />
       <span className="leading-tight">
         <span className="block text-sm font-semibold tracking-[0.16em] text-sidebar-foreground">
           NUR GOODS

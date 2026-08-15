@@ -92,15 +92,16 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           "Commerce intelligence, content automation and integration layer for the NUR GOODS store.",
       },
       { property: "og:type", content: "website" },
+      { property: "og:site_name", content: "NUR GOODS" },
       { name: "twitter:card", content: "summary_large_image" },
-      
     ],
     links: [
       {
         rel: "stylesheet",
         href: appCss,
       },
-      { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
+      { rel: "icon", type: "image/png", href: "/favicon.png" },
+      { rel: "apple-touch-icon", href: "/favicon.png" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {

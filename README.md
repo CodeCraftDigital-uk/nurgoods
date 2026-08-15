@@ -1,29 +1,43 @@
-# Welcome to your Lovable project
+# NUR GOODS Platform
 
-This project was built with [Lovable](https://lovable.dev).
+Good things, brought to light.
 
-## Build with Lovable
+This repository holds the NUR GOODS commerce intelligence, content automation and integration platform. It sits alongside the production store and never replaces it.
 
-Open your project in the [Lovable editor](https://lovable.dev) and keep building.
+- Brand: NUR GOODS
+- Site: https://NurGoods.com
+- Support: support@nurgoods.com
 
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: connect the project to GitHub and every change made in Lovable is committed straight to your repository.
-- **Full ownership**: this code is yours. Push to your repository and your changes sync back into Lovable, ready for your next prompt.
+## Scope
 
-## Development
+- Commerce remains authoritative in the production store: products, variants, inventory, customers, orders, checkout and payments.
+- This platform owns catalogue intelligence, the Journal editorial engine, review placements, SEO intelligence, automations, legal and trust records, and machine readable resource metadata.
 
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
+## Stack
+
+- React with TanStack Start and TanStack Router
+- TypeScript
+- Tailwind CSS design tokens in `src/styles.css`
+- Postgres with row level security for data, auth and storage
+
+## Local development
 
 ```sh
-git clone <this-repository-url>
-cd <repository-name>
-npm i
-npm run dev
+bun install
+bun run dev
 ```
 
-## Built with
+## Structure
 
-- TanStack Start
-- TypeScript
-- React
-- Tailwind CSS
+```
+src/components/admin   shared admin shell and UI primitives
+src/lib/services       typed data services per domain
+src/lib/ai             provider agnostic editorial workflow
+src/routes             application routes
+```
+
+## Conventions
+
+- Semantic design tokens only, no hardcoded colours in components.
+- Mobile first, accessible, generous spacing, clear hierarchy.
+- No em dashes in public facing copy.
