@@ -159,6 +159,32 @@ function LegalDocumentPage() {
     );
   }
 
+  if (data.kind === "reference") {
+    const ref = data.reference;
+    return (
+      <PublicShell>
+        <article className="mx-auto w-full max-w-3xl px-5 pt-14 sm:px-8 sm:pt-20">
+          <Breadcrumb title={ref.title} slug="" />
+          <h1 className="mt-4 font-display text-4xl leading-tight text-foreground sm:text-5xl">
+            {ref.title}
+          </h1>
+          <p className="mt-5 text-base leading-relaxed text-muted-foreground">
+            This policy is maintained on the NUR GOODS store, where parts of the wording are
+            generated for your location. To make sure you always read the version that applies to
+            you, we link to the authoritative copy rather than showing an incomplete one here.
+          </p>
+          <a
+            href={ref.source_url}
+            className="mt-7 inline-flex min-h-11 items-center rounded-lg bg-primary px-5 text-sm font-medium text-primary-foreground"
+          >
+            Read the {ref.title.toLowerCase()}
+          </a>
+          <PolicyFooter />
+        </article>
+      </PublicShell>
+    );
+  }
+
   const doc = data.local;
   return (
     <PublicShell>
