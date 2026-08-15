@@ -11,6 +11,7 @@ import {
 } from "@/lib/services/operations";
 import { getAiProviderStatus } from "@/lib/ai/ai-config.functions";
 import { ShopifyConnectionPanel } from "@/components/admin/ShopifyConnectionPanel";
+import { StorefrontApiPanel } from "@/components/admin/StorefrontApiPanel";
 import { CheckoutDomainPanel } from "@/components/admin/CheckoutDomainPanel";
 
 export const Route = createFileRoute("/_authenticated/admin/integrations")({
