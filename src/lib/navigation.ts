@@ -3,6 +3,7 @@ import {
   Boxes,
   FileText,
   Gauge,
+  Inbox,
   LayoutGrid,
   Plug,
   Scale,
