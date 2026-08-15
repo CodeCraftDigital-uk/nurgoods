@@ -15,6 +15,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as JournalIndexRouteImport } from './routes/journal.index'
 import { Route as JournalSlugRouteImport } from './routes/journal.$slug'
+import { Route as LegalIndexRouteImport } from './routes/legal.index'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
 import { Route as AuthenticatedAdminAutomationsRouteImport } from './routes/_authenticated/admin.automations'
 import { Route as AuthenticatedAdminCatalogueRouteImport } from './routes/_authenticated/admin.catalogue'
@@ -55,6 +56,11 @@ const JournalIndexRoute = JournalIndexRouteImport.update({
 const JournalSlugRoute = JournalSlugRouteImport.update({
   id: '/journal/$slug',
   path: '/journal/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LegalIndexRoute = LegalIndexRouteImport.update({
+  id: '/legal/',
+  path: '/legal/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
@@ -132,6 +138,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AuthenticatedAdminRouteWithChildren
   '/journal/$slug': typeof JournalSlugRoute
   '/journal/': typeof JournalIndexRoute
+  '/legal/': typeof LegalIndexRoute
   '/admin/automations': typeof AuthenticatedAdminAutomationsRoute
   '/admin/catalogue': typeof AuthenticatedAdminCatalogueRoute
   '/admin/integrations': typeof AuthenticatedAdminIntegrationsRoute
@@ -150,6 +157,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/journal/$slug': typeof JournalSlugRoute
   '/journal': typeof JournalIndexRoute
+  '/legal': typeof LegalIndexRoute
   '/admin/automations': typeof AuthenticatedAdminAutomationsRoute
   '/admin/catalogue': typeof AuthenticatedAdminCatalogueRoute
   '/admin/integrations': typeof AuthenticatedAdminIntegrationsRoute
@@ -170,6 +178,7 @@ export interface FileRoutesById {
   '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
   '/journal/$slug': typeof JournalSlugRoute
   '/journal/': typeof JournalIndexRoute
+  '/legal/': typeof LegalIndexRoute
   '/_authenticated/admin/automations': typeof AuthenticatedAdminAutomationsRoute
   '/_authenticated/admin/catalogue': typeof AuthenticatedAdminCatalogueRoute
   '/_authenticated/admin/integrations': typeof AuthenticatedAdminIntegrationsRoute
@@ -191,6 +200,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/journal/$slug'
     | '/journal/'
+    | '/legal/'
     | '/admin/automations'
     | '/admin/catalogue'
     | '/admin/integrations'
@@ -209,6 +219,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/journal/$slug'
     | '/journal'
+    | '/legal'
     | '/admin/automations'
     | '/admin/catalogue'
     | '/admin/integrations'
@@ -228,6 +239,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin'
     | '/journal/$slug'
     | '/journal/'
+    | '/legal/'
     | '/_authenticated/admin/automations'
     | '/_authenticated/admin/catalogue'
     | '/_authenticated/admin/integrations'
@@ -248,6 +260,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   JournalSlugRoute: typeof JournalSlugRoute
   JournalIndexRoute: typeof JournalIndexRoute
+  LegalIndexRoute: typeof LegalIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -292,6 +305,13 @@ declare module '@tanstack/react-router' {
       path: '/journal/$slug'
       fullPath: '/journal/$slug'
       preLoaderRoute: typeof JournalSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/legal/': {
+      id: '/legal/'
+      path: '/legal'
+      fullPath: '/legal/'
+      preLoaderRoute: typeof LegalIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/admin/': {
@@ -444,6 +464,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   JournalSlugRoute: JournalSlugRoute,
   JournalIndexRoute: JournalIndexRoute,
+  LegalIndexRoute: LegalIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
