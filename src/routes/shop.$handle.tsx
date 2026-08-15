@@ -530,10 +530,14 @@ function ProductDetail() {
 
       <div className="sticky bottom-0 z-30 mt-16 border-t border-border/70 bg-background/95 px-5 py-3 backdrop-blur sm:hidden">
         <a
-          href={storeHref}
-          className="flex min-h-12 items-center justify-center rounded-lg bg-primary px-5 text-sm font-medium text-primary-foreground"
+          href={buyHref && !soldOut ? buyHref : storeHref}
+          className={`flex min-h-12 items-center justify-center rounded-lg px-5 text-sm font-medium ${
+            buyHref && !soldOut
+              ? "bg-primary text-primary-foreground"
+              : "border border-input text-foreground"
+          }`}
         >
-          View on the store
+          {buyHref && !soldOut ? "Buy now" : soldOut ? "Currently unavailable" : "View on the store"}
         </a>
       </div>
     </PublicShell>
