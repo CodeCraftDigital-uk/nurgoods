@@ -158,10 +158,14 @@ async function writeSetting(
 
 export interface ResolvedCredentials {
   shopDomain: string | null;
-  adminToken: string | null;
   apiVersion: string;
+  clientId: string | null;
+  clientSecret: string | null;
+  /** Legacy access token, environment or vault, used only when no client pair exists. */
+  adminToken: string | null;
   missing: string[];
   source: "database" | "environment" | "none";
+  hasStoredSecret: boolean;
   hasStoredToken: boolean;
 }
 
@@ -170,6 +174,8 @@ export async function resolveShopifyCredentials(): Promise<ResolvedCredentials> 
   const env = readShopifyCredentials();
   let dbDomain: string | null = null;
   let dbVersion: string | null = null;
+  let dbClientId: string | null = null;
+  let dbClientSecret: string | null = null;
   let dbToken: string | null = null;
 
   try {
@@ -177,33 +183,142 @@ export async function resolveShopifyCredentials(): Promise<ResolvedCredentials> 
     const settings = await readSettings(supabase);
     dbDomain = settings.get(SETTING_KEYS.shopDomain) ?? null;
     dbVersion = settings.get(SETTING_KEYS.apiVersion) ?? null;
-    const { data } = await supabase.rpc("get_integration_secret", {
+    dbClientId = settings.get(SETTING_KEYS.clientId) ?? null;
+    const secret = await supabase.rpc("get_integration_secret", {
+      _name: SHOPIFY_CLIENT_SECRET_VAULT,
+    });
+    dbClientSecret =
+      typeof secret.data === "string" && secret.data.trim() ? secret.data.trim() : null;
+    const legacy = await supabase.rpc("get_integration_secret", {
       _name: SHOPIFY_VAULT_SECRET,
     });
-    dbToken = typeof data === "string" && data.trim() ? data.trim() : null;
+    dbToken = typeof legacy.data === "string" && legacy.data.trim() ? legacy.data.trim() : null;
   } catch {
     // Vault or settings unavailable. Environment fallback still applies.
   }
 
   const shopDomain = dbDomain || env.shopDomain;
+  const clientId = dbClientId || env.clientId;
+  const clientSecret = dbClientSecret || env.clientSecret;
   const adminToken = dbToken || env.adminToken;
   const apiVersion = dbVersion || env.apiVersion || DEFAULT_API_VERSION;
 
+  const hasClientPair = Boolean(clientId && clientSecret);
+
   const missing: string[] = [];
-  if (!shopDomain) missing.push("Shop domain");
-  if (!adminToken) missing.push("Admin API access token");
+  if (!shopDomain) missing.push("Store domain");
+  if (!hasClientPair && !adminToken) {
+    if (!clientId) missing.push("Client ID");
+    if (!clientSecret) missing.push("Client secret");
+  }
 
   const source: ResolvedCredentials["source"] =
-    dbDomain && dbToken ? "database" : shopDomain && adminToken ? "environment" : "none";
+    dbDomain && (dbClientSecret || dbToken)
+      ? "database"
+      : shopDomain && (hasClientPair || adminToken)
+        ? "environment"
+        : "none";
 
   return {
     shopDomain,
-    adminToken,
     apiVersion,
+    clientId,
+    clientSecret,
+    adminToken,
     missing,
     source,
+    hasStoredSecret: Boolean(dbClientSecret),
     hasStoredToken: Boolean(dbToken),
   };
+}
+
+/* ----------------------- access token acquisition ----------------------- */
+
+interface CachedToken {
+  token: string;
+  expiresAt: number;
+}
+
+const tokenCache = new Map<string, CachedToken>();
+
+/**
+ * Exchanges the client ID and client secret for a short lived Admin API access
+ * token using the Shopify client credentials grant. Tokens are cached in memory
+ * until shortly before expiry so the owner never has to intervene.
+ */
+export async function acquireAccessToken(input: {
+  shopDomain: string;
+  clientId: string;
+  clientSecret: string;
+  force?: boolean;
+}): Promise<string> {
+  const key = `${input.shopDomain}:${input.clientId}`;
+  const cached = tokenCache.get(key);
+  if (!input.force && cached && cached.expiresAt > Date.now() + 60_000) return cached.token;
+
+  let response: Response;
+  try {
+    response = await fetch(`https://${input.shopDomain}/admin/oauth/access_token`, {
+      method: "POST",
+      headers: { "content-type": "application/json", accept: "application/json" },
+      body: JSON.stringify({
+        client_id: input.clientId,
+        client_secret: input.clientSecret,
+        grant_type: "client_credentials",
+      }),
+    });
+  } catch {
+    throw new Error(
+      `The store at ${input.shopDomain} could not be reached. Check the .myshopify.com domain.`,
+    );
+  }
+
+  if (response.status === 404) {
+    throw new Error(
+      `No Shopify store was found at ${input.shopDomain}. Use the exact .myshopify.com domain.`,
+    );
+  }
+  if (response.status === 400 || response.status === 401) {
+    throw new Error(
+      `Shopify rejected the client credentials for ${input.shopDomain}. Confirm the Client ID and Client secret are from the app built for this organisation, that the app has a released version, and that it is installed on this store.`,
+    );
+  }
+  if (!response.ok) {
+    throw new Error(`Shopify returned ${response.status} while issuing an access token.`);
+  }
+
+  const payload = (await response.json().catch(() => null)) as
+    | { access_token?: string; expires_in?: number; error?: string }
+    | null;
+  if (!payload?.access_token) {
+    throw new Error(
+      payload?.error
+        ? `Shopify declined the token request: ${payload.error}`
+        : "Shopify did not return an access token for these client credentials.",
+    );
+  }
+
+  const ttl = typeof payload.expires_in === "number" ? payload.expires_in : 86_400;
+  tokenCache.set(key, { token: payload.access_token, expiresAt: Date.now() + ttl * 1000 });
+  return payload.access_token;
+}
+
+/** Returns a usable Admin API token, acquiring a fresh one when needed. */
+export async function getAdminAccessToken(
+  resolved: ResolvedCredentials,
+  force = false,
+): Promise<string> {
+  if (!resolved.shopDomain) throw new Error("A store domain is required");
+  if (resolved.clientId && resolved.clientSecret) {
+    return acquireAccessToken({
+      shopDomain: resolved.shopDomain,
+      clientId: resolved.clientId,
+      clientSecret: resolved.clientSecret,
+      force,
+    });
+  }
+  if (resolved.adminToken) return resolved.adminToken;
+  throw new Error("Store credentials are not configured");
 }
 
 export async function getShopifyCredentialStatus(): Promise<ShopifyCredentialStatus> {
@@ -219,8 +334,10 @@ export async function getShopifyCredentialStatus(): Promise<ShopifyCredentialSta
     configured: resolved.missing.length === 0,
     shopDomain: resolved.shopDomain,
     apiVersion: resolved.apiVersion,
+    clientId: resolved.clientId,
     missing: resolved.missing,
     source: resolved.source,
+    hasStoredSecret: resolved.hasStoredSecret,
     hasStoredToken: resolved.hasStoredToken,
     connectionState:
       state === "connected" || state === "error"
@@ -234,6 +351,7 @@ export async function getShopifyCredentialStatus(): Promise<ShopifyCredentialSta
     shopName: settings.get(SETTING_KEYS.shopName) ?? null,
   };
 }
+
 
 /* ---------------------------- GraphQL client ---------------------------- */
 
