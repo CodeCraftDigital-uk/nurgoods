@@ -137,7 +137,7 @@ function ArticleEditor() {
     onSuccess: async (result) => {
       await queryClient.invalidateQueries({ queryKey: ["article", articleId] });
       await queryClient.invalidateQueries({ queryKey: ["article-runs", articleId] });
-      await queryClient.invalidateQueries({ queryKey: ["internal-links", articleId] });
+      await queryClient.invalidateQueries({ queryKey: ["article-links", articleId] });
       setForm(null);
       toast.success(
         result.applied.length > 0
