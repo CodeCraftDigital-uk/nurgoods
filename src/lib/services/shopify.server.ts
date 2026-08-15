@@ -98,8 +98,17 @@ async function integrationId(supabase: AdminClient): Promise<string | null> {
     .select("id")
     .eq("provider", "shopify")
     .maybeSingle();
-  return (data as any)?.id ?? null;
+  if ((data as any)?.id) return (data as any).id as string;
+
+  // First pairing on a fresh environment: create the integration record.
+  const { data: created } = await supabase
+    .from("integrations")
+    .upsert({ provider: "shopify", label: "Shopify", status: "not_connected" }, { onConflict: "provider" })
+    .select("id")
+    .maybeSingle();
+  return (created as any)?.id ?? null;
 }
+
 
 async function readSettings(supabase: AdminClient): Promise<Map<string, string | null>> {
   const id = await integrationId(supabase);
@@ -766,7 +775,7 @@ export async function syncCatalogue(
 }
 
 export async function recordSyncEvent(
-  supabase: SupabaseClient<any, "public", any>,
+  _supabase: SupabaseClient<any, "public", any>,
   input: {
     status: "success" | "failed";
     message: string;
@@ -774,17 +783,17 @@ export async function recordSyncEvent(
     eventType?: string;
   },
 ): Promise<void> {
-  const { data: integration } = await supabase
-    .from("integrations")
-    .select("id")
-    .eq("provider", "shopify")
-    .maybeSingle();
+  // Event writes use the privileged client: the browser role has read only
+  // access to the audit trail by design.
+  const supabase = await adminClient();
+  const id = await integrationId(supabase);
 
   await supabase.from("integration_events").insert({
-    integration_id: (integration as any)?.id ?? null,
+    integration_id: id,
     event_type: input.eventType ?? "catalogue_sync",
     status: input.status,
     message: input.message,
     payload: input.payload ?? {},
   });
 }
+
