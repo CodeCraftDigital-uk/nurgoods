@@ -522,6 +522,7 @@ export async function getStorefrontProduct(handle: string): Promise<StorefrontPr
     seo_title: row.seo_title ?? null,
     seo_description: row.seo_description ?? null,
     store_url: row.online_store_url ?? null,
+    checkout_domain: await getCheckoutDomain(),
     options,
     media,
     variants,
