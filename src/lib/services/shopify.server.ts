@@ -78,22 +78,26 @@ export function normaliseApiVersion(input: string | null | undefined): string {
   return value;
 }
 
-/** Legacy synchronous environment read. Kept for backwards compatibility. */
+/** Environment read. Kept as a backwards compatible fallback. */
 export function readShopifyCredentials(): {
   shopDomain: string | null;
   adminToken: string | null;
+  clientId: string | null;
+  clientSecret: string | null;
   apiVersion: string;
   missing: string[];
 } {
   const shopDomain = process.env[SHOPIFY_SECRET_NAMES.shopDomain]?.trim() || null;
   const adminToken = process.env[SHOPIFY_SECRET_NAMES.adminToken]?.trim() || null;
+  const clientId = process.env[SHOPIFY_SECRET_NAMES.clientId]?.trim() || null;
+  const clientSecret = process.env[SHOPIFY_SECRET_NAMES.clientSecret]?.trim() || null;
   const apiVersion = process.env[SHOPIFY_SECRET_NAMES.apiVersion]?.trim() || DEFAULT_API_VERSION;
 
   const missing: string[] = [];
   if (!shopDomain) missing.push(SHOPIFY_SECRET_NAMES.shopDomain);
-  if (!adminToken) missing.push(SHOPIFY_SECRET_NAMES.adminToken);
+  if (!adminToken && !(clientId && clientSecret)) missing.push(SHOPIFY_SECRET_NAMES.clientId);
 
-  return { shopDomain, adminToken, apiVersion, missing };
+  return { shopDomain, adminToken, clientId, clientSecret, apiVersion, missing };
 }
 
 type AdminClient = SupabaseClient<any, "public", any>;
