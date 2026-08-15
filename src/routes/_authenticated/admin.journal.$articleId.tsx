@@ -608,6 +608,63 @@ function ArticleEditor() {
             </div>
           </SectionCard>
 
+          <SectionCard
+            title="Assisted generation"
+            description="Runs one stage at a time against the brief, the article body and the stored sources. Every run is recorded with provider, model and outcome. Research, verification, approval and scheduling stay with a person."
+          >
+            {aiStatus.data?.configured ? (
+              <p className="text-xs text-muted-foreground">
+                Provider {aiStatus.data.providerId} using {aiStatus.data.model}.
+              </p>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Generation is blocked until these server secrets are added:{" "}
+                {(aiStatus.data?.missing ?? Object.values(AI_SECRET_NAMES)).join(", ")}.
+              </p>
+            )}
+            <div className="mt-4 flex flex-wrap gap-2">
+              {RUNNABLE_STAGES.map((stage) => (
+                <Button
+                  key={stage}
+                  size="sm"
+                  variant="outline"
+                  disabled={!aiStatus.data?.configured || runStage.isPending}
+                  onClick={() => runStage.mutate(stage)}
+                >
+                  <Sparkles className="h-4 w-4" aria-hidden="true" />
+                  {WORKFLOW_STAGE_LABEL[stage]}
+                </Button>
+              ))}
+            </div>
+
+            <div className="mt-6 border-t border-border pt-4">
+              <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+                Recent runs
+              </p>
+              {(runs.data ?? []).length === 0 ? (
+                <p className="mt-2 text-sm text-muted-foreground">No runs recorded yet.</p>
+              ) : (
+                <ul className="mt-2 divide-y divide-border">
+                  {(runs.data ?? []).map((run) => (
+                    <li key={run.id} className="flex items-start justify-between gap-3 py-3">
+                      <div>
+                        <p className="text-sm text-foreground">
+                          {WORKFLOW_STAGE_LABEL[run.stage]}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {run.provider ?? "No provider"} {run.model ? `· ${run.model}` : ""} ·{" "}
+                          {new Date(run.created_at).toLocaleString()}
+                          {run.error_message ? ` · ${run.error_message}` : ""}
+                        </p>
+                      </div>
+                      <StatusPill tone={statusTone(run.status)}>{humanise(run.status)}</StatusPill>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </SectionCard>
+
           <SectionCard title="Pipeline">
             <ol className="space-y-3">
               {WORKFLOW_PIPELINE.map((stage) => (
@@ -635,6 +692,7 @@ function ArticleEditor() {
               ))}
             </ol>
           </SectionCard>
+
         </TabsContent>
       </Tabs>
     </div>
