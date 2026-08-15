@@ -58,7 +58,7 @@ function ProductNotFound() {
         </p>
         <div className="mt-7 flex flex-wrap justify-center gap-3">
           <Link
-            to="/shop"
+            to="/shop/"
             className="inline-flex min-h-11 items-center rounded-lg border border-input px-5 text-sm font-medium text-foreground hover:bg-accent"
           >
             Back to the range
