@@ -13,7 +13,7 @@ const { data: brief, error: be } = await sb.from("article_briefs").insert({
   target_query: "best gadget gifts uk",
   search_intent: "informational, pre purchase research",
   requires_live_research: false,
-  status: "approved",
+  status: "in_review",
 }).select("id").single();
 if (be) throw be;
 
