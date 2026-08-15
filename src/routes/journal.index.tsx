@@ -93,8 +93,20 @@ function JournalIndex() {
                 <Link
                   to="/journal/$slug"
                   params={{ slug: article.slug }}
-                  className="flex h-full flex-col rounded-xl border border-border/70 p-6 transition-colors hover:border-gold"
+                  className="flex h-full flex-col overflow-hidden rounded-xl border border-border/70 transition-colors hover:border-gold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                 >
+                  {article.hero_image_url ? (
+                    <img
+                      src={article.hero_image_url}
+                      alt={article.hero_image_alt ?? ""}
+                      width={800}
+                      height={450}
+                      loading="lazy"
+                      decoding="async"
+                      className="aspect-[16/9] w-full object-cover"
+                    />
+                  ) : null}
+                  <div className="flex flex-1 flex-col p-6">
                   <p className="text-[0.7rem] uppercase tracking-[0.18em] text-muted-foreground">
                     {article.published_at
                       ? new Date(article.published_at).toLocaleDateString("en-GB", {
