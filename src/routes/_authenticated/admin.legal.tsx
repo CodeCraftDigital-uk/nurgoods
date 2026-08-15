@@ -8,6 +8,7 @@ import { StatusPill, statusTone, humanise } from "@/components/admin/StatusPill"
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { listLegalDocuments, updateLegalDocument } from "@/lib/services/operations";
 
 export const Route = createFileRoute("/_authenticated/admin/legal")({
@@ -19,6 +20,7 @@ function LegalPage() {
   const documents = useQuery({ queryKey: ["legal-documents"], queryFn: listLegalDocuments });
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [body, setBody] = useState("");
+  const [summary, setSummary] = useState("");
 
   const selected = (documents.data ?? []).find((doc) => doc.id === selectedId) ?? null;
 
@@ -26,6 +28,7 @@ function LegalPage() {
     mutationFn: () =>
       updateLegalDocument(selectedId!, {
         body_markdown: body,
+        summary: summary.trim() || null,
         is_placeholder: body.trim().length === 0,
         last_reviewed_at: new Date().toISOString(),
       }),
@@ -35,6 +38,23 @@ function LegalPage() {
     },
     onError: (error: Error) => toast.error(error.message),
   });
+
+  const setStatus = useMutation({
+    mutationFn: (status: "draft" | "published") =>
+      updateLegalDocument(selectedId!, {
+        status,
+        is_placeholder: body.trim().length === 0,
+        last_reviewed_at: new Date().toISOString(),
+      }),
+    onSuccess: async (_data, status) => {
+      await queryClient.invalidateQueries({ queryKey: ["legal-documents"] });
+      await queryClient.invalidateQueries({ queryKey: ["onboarding"] });
+      toast.success(status === "published" ? "Document published" : "Document unpublished");
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const canPublish = Boolean(selected) && body.trim().length > 0;
 
   return (
     <div className="space-y-8">
@@ -53,6 +73,7 @@ function LegalPage() {
                   onClick={() => {
                     setSelectedId(doc.id);
                     setBody(doc.body_markdown);
+                    setSummary(doc.summary ?? "");
                   }}
                   className={
                     doc.id === selectedId
@@ -79,14 +100,50 @@ function LegalPage() {
           }
           actions={
             selected ? (
-              <Button onClick={() => save.mutate()} disabled={save.isPending}>
-                {save.isPending ? "Saving" : "Save"}
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => save.mutate()}
+                  disabled={save.isPending}
+                  className="min-h-11"
+                >
+                  {save.isPending ? "Saving" : "Save draft"}
+                </Button>
+                {selected.status === "published" ? (
+                  <Button
+                    variant="outline"
+                    onClick={() => setStatus.mutate("draft")}
+                    disabled={setStatus.isPending}
+                    className="min-h-11"
+                  >
+                    Unpublish
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={() => {
+                      save.mutate(undefined, { onSuccess: () => setStatus.mutate("published") });
+                    }}
+                    disabled={!canPublish || save.isPending || setStatus.isPending}
+                    className="min-h-11"
+                  >
+                    Publish
+                  </Button>
+                )}
+              </div>
             ) : undefined
           }
         >
           {selected ? (
-            <div className="space-y-2">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="legalSummary">Summary shown on the public policy list</Label>
+                <Input
+                  id="legalSummary"
+                  value={summary}
+                  onChange={(e) => setSummary(e.target.value)}
+                  placeholder="One short line describing this document"
+                />
+              </div>
               <Label htmlFor="legalBody">Document content (markdown)</Label>
               <Textarea
                 id="legalBody"
@@ -98,7 +155,8 @@ function LegalPage() {
               />
               <p className="text-xs text-muted-foreground">
                 Content stays a placeholder while this field is empty, so nothing incorrect can be
-                presented as a policy.
+                presented as a policy. Publishing makes the document visible at /
+                {selected.slug ? `legal/${selected.slug}` : "legal"} and adds it to the sitemap.
               </p>
             </div>
           ) : (

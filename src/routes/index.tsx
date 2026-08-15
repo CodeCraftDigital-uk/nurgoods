@@ -1,85 +1,165 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { BrandLogo } from "@/components/admin/BrandLogo";
+import { PublicShell } from "@/components/public/PublicShell";
+import { JsonLd } from "@/components/public/JsonLd";
+import { ReviewPlacementSlot } from "@/components/public/ReviewPlacementSlot";
+import { BRAND } from "@/lib/brand";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "NUR GOODS Intelligence Platform" },
+      { title: "NUR GOODS | Good things, brought to light" },
       {
         name: "description",
         content:
-          "Commerce intelligence, content automation and integration layer for NUR GOODS. Shopify remains the source of truth for products, orders and checkout.",
+          "NUR GOODS brings considered everyday goods to light. Read the Journal, see customer reviews and shop the full range with tracked UK delivery.",
       },
-      { property: "og:title", content: "NUR GOODS Intelligence Platform" },
+      { property: "og:title", content: "NUR GOODS | Good things, brought to light" },
       {
         property: "og:description",
         content:
-          "Catalogue intelligence, Journal automation, reviews, SEO and MCP readiness alongside the NUR GOODS Shopify store.",
+          "Considered everyday goods, honest guidance and verified customer reviews from NUR GOODS.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
+    links: [{ rel: "canonical", href: `${BRAND.siteUrl}/` }],
   }),
   component: Index,
 });
 
-const LAYERS = [
+const PILLARS = [
   {
-    title: "Commerce stays on Shopify",
-    body: "Products, variants, inventory, customers, orders, checkout and payments remain in Shopify, with Zendrop handling fulfilment. This platform never replaces them.",
+    title: "Chosen with care",
+    body: "Every product in the range is picked for how it performs in daily use, not for how loud it looks on a shelf.",
+    href: BRAND.storeUrl,
+    label: "Browse the range",
   },
   {
-    title: "Intelligence and content automation",
-    body: "Catalogue enrichment, the Journal editorial workflow, SEO records and review placements live here, with full provenance on every generated piece.",
+    title: "Guidance you can check",
+    body: "The Journal answers the questions people actually ask, and lists the sources behind every claim so you can verify them yourself.",
+    to: "/journal" as const,
+    label: "Read the Journal",
   },
   {
-    title: "Integration and MCP readiness",
-    body: "Shopify Admin APIs, editorial AI, Publiko reviews and a future read only MCP surface for ChatGPT and Claude all connect through one place.",
+    title: "Reviews from real orders",
+    body: "Customer feedback is collected from completed orders and published as written. Nothing is edited and nothing is invented.",
+    to: "/reviews" as const,
+    label: "See reviews",
   },
-];
+] as const;
 
 function Index() {
   return (
-    <main className="min-h-screen bg-background">
-      <div className="mx-auto max-w-4xl px-5 py-20 sm:px-8 sm:py-28">
-        <div className="flex items-center gap-3">
-          <BrandLogo size={44} />
-          <p className="text-[0.7rem] font-medium uppercase tracking-[0.28em] text-muted-foreground">
-            NUR GOODS
-          </p>
-        </div>
-        <h1 className="mt-5 font-display text-4xl leading-tight text-foreground sm:text-5xl">
-          Good things, brought to light.
-        </h1>
-        <p className="mt-5 max-w-xl text-base leading-relaxed text-muted-foreground">
-          The commerce intelligence and content platform behind the NUR GOODS store. Sign in to
-          reach the admin console.
-        </p>
+    <PublicShell>
+      <JsonLd
+        data={[
+          {
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            name: BRAND.name,
+            url: BRAND.siteUrl,
+            slogan: BRAND.tagline,
+            email: BRAND.supportEmail,
+            sameAs: [BRAND.tiktokUrl],
+            contactPoint: [
+              {
+                "@type": "ContactPoint",
+                contactType: "customer support",
+                email: BRAND.supportEmail,
+                availableLanguage: "English",
+              },
+            ],
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            name: BRAND.name,
+            url: BRAND.siteUrl,
+            publisher: { "@type": "Organization", name: BRAND.name },
+          },
+        ]}
+      />
 
-        <div className="mt-10 flex flex-wrap gap-3">
-          <Link
-            to="/admin"
+      <section className="mx-auto w-full max-w-5xl px-5 pt-16 sm:px-8 sm:pt-24">
+        <p className="text-[0.7rem] font-medium uppercase tracking-[0.28em] text-muted-foreground">
+          {BRAND.name}
+        </p>
+        <h1 className="mt-5 max-w-3xl font-display text-4xl leading-[1.08] text-foreground sm:text-6xl">
+          {BRAND.tagline}
+        </h1>
+        <p className="mt-6 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg">
+          Considered everyday goods, clear guidance and reviews you can trust. Shopping and delivery
+          are handled on the main store.
+        </p>
+        <div className="mt-9 flex flex-wrap gap-3">
+          <a
+            href={BRAND.storeUrl}
             className="inline-flex min-h-11 items-center rounded-lg bg-primary px-5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            Open admin console
-          </Link>
+            Shop NUR GOODS
+          </a>
           <Link
-            to="/auth"
+            to="/journal"
             className="inline-flex min-h-11 items-center rounded-lg border border-input px-5 text-sm font-medium text-foreground transition-colors hover:bg-accent"
           >
-            Sign in
+            Read the Journal
           </Link>
         </div>
+      </section>
 
-        <div className="mt-16 grid gap-6 sm:grid-cols-3">
-          {LAYERS.map((layer) => (
-            <section key={layer.title} className="border-t-2 border-gold pt-5">
-              <h2 className="text-sm font-semibold text-foreground">{layer.title}</h2>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{layer.body}</p>
-            </section>
+      <section className="mx-auto mt-20 w-full max-w-5xl px-5 sm:px-8">
+        <div className="grid gap-8 sm:grid-cols-3">
+          {PILLARS.map((pillar) => (
+            <div key={pillar.title} className="border-t-2 border-gold pt-5">
+              <h2 className="font-display text-xl text-foreground">{pillar.title}</h2>
+              <p className="mt-2.5 text-sm leading-relaxed text-muted-foreground">{pillar.body}</p>
+              {"href" in pillar ? (
+                <a
+                  href={pillar.href}
+                  className="mt-4 inline-block text-sm font-medium text-foreground underline decoration-gold underline-offset-4"
+                >
+                  {pillar.label}
+                </a>
+              ) : (
+                <Link
+                  to={pillar.to}
+                  className="mt-4 inline-block text-sm font-medium text-foreground underline decoration-gold underline-offset-4"
+                >
+                  {pillar.label}
+                </Link>
+              )}
+            </div>
           ))}
         </div>
+      </section>
+
+      <div className="mx-auto w-full max-w-5xl px-5 sm:px-8">
+        <ReviewPlacementSlot surface="homepage" className="mt-20" />
       </div>
-    </main>
+
+      <section className="mx-auto mt-20 w-full max-w-5xl px-5 sm:px-8">
+        <div className="rounded-2xl border border-border/70 p-8 sm:p-10">
+          <h2 className="font-display text-2xl text-foreground">Questions before you order?</h2>
+          <p className="mt-3 max-w-xl text-sm leading-relaxed text-muted-foreground">
+            Delivery timescales, returns and privacy are set out in full in the policy pages. If
+            anything is unclear, write to us and a person will reply.
+          </p>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <Link
+              to="/legal"
+              className="inline-flex min-h-11 items-center rounded-lg border border-input px-5 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+            >
+              Policies and trust
+            </Link>
+            <a
+              href={`mailto:${BRAND.supportEmail}`}
+              className="inline-flex min-h-11 items-center rounded-lg border border-input px-5 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+            >
+              {BRAND.supportEmail}
+            </a>
+          </div>
+        </div>
+      </section>
+    </PublicShell>
   );
 }
