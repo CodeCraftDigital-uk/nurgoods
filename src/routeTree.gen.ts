@@ -34,6 +34,7 @@ import { Route as AuthenticatedAdminJournalArticleIdRouteImport } from './routes
 import { Route as AuthenticatedAdminJournalNewRouteImport } from './routes/_authenticated/admin.journal.new'
 import { Route as ApiPublicV1IndexRouteImport } from './routes/api/public/v1/index'
 import { Route as ApiPublicV1ProductsRouteImport } from './routes/api/public/v1/products'
+import { Route as ApiPublicV1ProductsHandleRouteImport } from './routes/api/public/v1/products.$handle'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -167,6 +168,12 @@ const ApiPublicV1ProductsRoute = ApiPublicV1ProductsRouteImport.update({
   path: '/api/public/v1/products',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicV1ProductsHandleRoute =
+  ApiPublicV1ProductsHandleRouteImport.update({
+    id: '/$handle',
+    path: '/$handle',
+    getParentRoute: () => ApiPublicV1ProductsRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -190,9 +197,10 @@ export interface FileRoutesByFullPath {
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/admin/journal/$articleId': typeof AuthenticatedAdminJournalArticleIdRoute
   '/admin/journal/new': typeof AuthenticatedAdminJournalNewRoute
-  '/api/public/v1/products': typeof ApiPublicV1ProductsRoute
+  '/api/public/v1/products': typeof ApiPublicV1ProductsRouteWithChildren
   '/admin/journal/': typeof AuthenticatedAdminJournalIndexRoute
   '/api/public/v1/': typeof ApiPublicV1IndexRoute
+  '/api/public/v1/products/$handle': typeof ApiPublicV1ProductsHandleRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -214,9 +222,10 @@ export interface FileRoutesByTo {
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/admin/journal/$articleId': typeof AuthenticatedAdminJournalArticleIdRoute
   '/admin/journal/new': typeof AuthenticatedAdminJournalNewRoute
-  '/api/public/v1/products': typeof ApiPublicV1ProductsRoute
+  '/api/public/v1/products': typeof ApiPublicV1ProductsRouteWithChildren
   '/admin/journal': typeof AuthenticatedAdminJournalIndexRoute
   '/api/public/v1': typeof ApiPublicV1IndexRoute
+  '/api/public/v1/products/$handle': typeof ApiPublicV1ProductsHandleRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -242,9 +251,10 @@ export interface FileRoutesById {
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/admin/journal/$articleId': typeof AuthenticatedAdminJournalArticleIdRoute
   '/_authenticated/admin/journal/new': typeof AuthenticatedAdminJournalNewRoute
-  '/api/public/v1/products': typeof ApiPublicV1ProductsRoute
+  '/api/public/v1/products': typeof ApiPublicV1ProductsRouteWithChildren
   '/_authenticated/admin/journal/': typeof AuthenticatedAdminJournalIndexRoute
   '/api/public/v1/': typeof ApiPublicV1IndexRoute
+  '/api/public/v1/products/$handle': typeof ApiPublicV1ProductsHandleRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -273,6 +283,7 @@ export interface FileRouteTypes {
     | '/api/public/v1/products'
     | '/admin/journal/'
     | '/api/public/v1/'
+    | '/api/public/v1/products/$handle'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -297,6 +308,7 @@ export interface FileRouteTypes {
     | '/api/public/v1/products'
     | '/admin/journal'
     | '/api/public/v1'
+    | '/api/public/v1/products/$handle'
   id:
     | '__root__'
     | '/'
@@ -324,6 +336,7 @@ export interface FileRouteTypes {
     | '/api/public/v1/products'
     | '/_authenticated/admin/journal/'
     | '/api/public/v1/'
+    | '/api/public/v1/products/$handle'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -337,7 +350,7 @@ export interface RootRouteChildren {
   LegalSlugRoute: typeof LegalSlugRoute
   JournalIndexRoute: typeof JournalIndexRoute
   LegalIndexRoute: typeof LegalIndexRoute
-  ApiPublicV1ProductsRoute: typeof ApiPublicV1ProductsRoute
+  ApiPublicV1ProductsRoute: typeof ApiPublicV1ProductsRouteWithChildren
   ApiPublicV1IndexRoute: typeof ApiPublicV1IndexRoute
 }
 
@@ -518,6 +531,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicV1ProductsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/v1/products/$handle': {
+      id: '/api/public/v1/products/$handle'
+      path: '/$handle'
+      fullPath: '/api/public/v1/products/$handle'
+      preLoaderRoute: typeof ApiPublicV1ProductsHandleRouteImport
+      parentRoute: typeof ApiPublicV1ProductsRoute
+    }
   }
 }
 
@@ -578,6 +598,17 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
 const AuthenticatedRouteRouteWithChildren =
   AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
 
+interface ApiPublicV1ProductsRouteChildren {
+  ApiPublicV1ProductsHandleRoute: typeof ApiPublicV1ProductsHandleRoute
+}
+
+const ApiPublicV1ProductsRouteChildren: ApiPublicV1ProductsRouteChildren = {
+  ApiPublicV1ProductsHandleRoute: ApiPublicV1ProductsHandleRoute,
+}
+
+const ApiPublicV1ProductsRouteWithChildren =
+  ApiPublicV1ProductsRoute._addFileChildren(ApiPublicV1ProductsRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
@@ -589,7 +620,7 @@ const rootRouteChildren: RootRouteChildren = {
   LegalSlugRoute: LegalSlugRoute,
   JournalIndexRoute: JournalIndexRoute,
   LegalIndexRoute: LegalIndexRoute,
-  ApiPublicV1ProductsRoute: ApiPublicV1ProductsRoute,
+  ApiPublicV1ProductsRoute: ApiPublicV1ProductsRouteWithChildren,
   ApiPublicV1IndexRoute: ApiPublicV1IndexRoute,
 }
 export const routeTree = rootRouteImport
