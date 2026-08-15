@@ -127,8 +127,14 @@ export function ShopifyConnectionPanel() {
   const hasToken = Boolean(data?.hasStoredToken);
   const state = test.isPending || connect.isPending ? "testing" : (data?.connectionState ?? "not_connected");
 
-  const tone =
-    state === "connected" ? "positive" : state === "error" ? "negative" : ("neutral" as const);
+  const tone: "positive" | "danger" | "pending" | "neutral" =
+    state === "testing"
+      ? "pending"
+      : state === "connected"
+        ? "positive"
+        : state === "error"
+          ? "danger"
+          : "neutral";
   const label =
     state === "testing"
       ? "Testing"
@@ -142,7 +148,7 @@ export function ShopifyConnectionPanel() {
     <SectionCard
       title="Store connection"
       description="Pair the platform with your store using an Admin API access token. The token is encrypted at rest and never displayed again."
-      actions={<StatusPill tone={tone as any}>{label}</StatusPill>}
+      actions={<StatusPill tone={tone}>{label}</StatusPill>}
     >
       <form
         className="grid gap-4 sm:grid-cols-2"

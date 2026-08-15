@@ -10,6 +10,7 @@ import {
   listIntegrations,
 } from "@/lib/services/operations";
 import { getAiProviderStatus } from "@/lib/ai/ai-config.functions";
+import { ShopifyConnectionPanel } from "@/components/admin/ShopifyConnectionPanel";
 
 export const Route = createFileRoute("/_authenticated/admin/integrations")({
   component: IntegrationsPage,
@@ -17,9 +18,9 @@ export const Route = createFileRoute("/_authenticated/admin/integrations")({
 
 const REQUIREMENTS: Record<string, string[]> = {
   shopify: [
-    "Shop domain (SHOPIFY_SHOP_DOMAIN)",
-    "Admin API access token (SHOPIFY_ADMIN_API_TOKEN)",
-    "Optional Admin API version (SHOPIFY_API_VERSION)",
+    "Shop domain, entered in the store connection panel above",
+    "Admin API access token, stored encrypted after it is submitted",
+    "Admin API version, defaults to 2026-07",
     "Read scopes for products, collections and inventory",
   ],
   zendrop: ["Confirmation of the Zendrop to Shopify link", "Any supplier feed reference"],
@@ -57,6 +58,8 @@ function IntegrationsPage() {
         title="Connection state"
         description="Nothing is reported as connected unless credentials are present and a sync has succeeded. Secrets are stored server side only and never rendered here."
       />
+
+      <ShopifyConnectionPanel />
 
       <div className="grid gap-4 lg:grid-cols-2">
         {(integrations.data ?? []).map((integration) => {
