@@ -24,6 +24,7 @@ import { Route as JournalSlugRouteImport } from './routes/journal.$slug'
 import { Route as LegalIndexRouteImport } from './routes/legal.index'
 import { Route as LegalSlugRouteImport } from './routes/legal.$slug'
 import { Route as ShopIndexRouteImport } from './routes/shop.index'
+import { Route as ShopHandleRouteImport } from './routes/shop.$handle'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
 import { Route as AuthenticatedAdminAutomationsRouteImport } from './routes/_authenticated/admin.automations'
@@ -121,6 +122,11 @@ const LegalSlugRoute = LegalSlugRouteImport.update({
 const ShopIndexRoute = ShopIndexRouteImport.update({
   id: '/shop/',
   path: '/shop/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ShopHandleRoute = ShopHandleRouteImport.update({
+  id: '/shop/$handle',
+  path: '/shop/$handle',
   getParentRoute: () => rootRouteImport,
 } as any)
 const Char91DotmcpChar93InvokeToolToolRoute =
@@ -256,6 +262,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AuthenticatedAdminRouteWithChildren
   '/journal/$slug': typeof JournalSlugRoute
   '/legal/$slug': typeof LegalSlugRoute
+  '/shop/$handle': typeof ShopHandleRoute
   '/journal/': typeof JournalIndexRoute
   '/legal/': typeof LegalIndexRoute
   '/shop/': typeof ShopIndexRoute
@@ -293,6 +300,7 @@ export interface FileRoutesByTo {
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/journal/$slug': typeof JournalSlugRoute
   '/legal/$slug': typeof LegalSlugRoute
+  '/shop/$handle': typeof ShopHandleRoute
   '/journal': typeof JournalIndexRoute
   '/legal': typeof LegalIndexRoute
   '/shop': typeof ShopIndexRoute
@@ -332,6 +340,7 @@ export interface FileRoutesById {
   '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
   '/journal/$slug': typeof JournalSlugRoute
   '/legal/$slug': typeof LegalSlugRoute
+  '/shop/$handle': typeof ShopHandleRoute
   '/journal/': typeof JournalIndexRoute
   '/legal/': typeof LegalIndexRoute
   '/shop/': typeof ShopIndexRoute
@@ -372,6 +381,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/journal/$slug'
     | '/legal/$slug'
+    | '/shop/$handle'
     | '/journal/'
     | '/legal/'
     | '/shop/'
@@ -409,6 +419,7 @@ export interface FileRouteTypes {
     | '/.well-known/oauth-protected-resource'
     | '/journal/$slug'
     | '/legal/$slug'
+    | '/shop/$handle'
     | '/journal'
     | '/legal'
     | '/shop'
@@ -447,6 +458,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin'
     | '/journal/$slug'
     | '/legal/$slug'
+    | '/shop/$handle'
     | '/journal/'
     | '/legal/'
     | '/shop/'
@@ -486,6 +498,7 @@ export interface RootRouteChildren {
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   JournalSlugRoute: typeof JournalSlugRoute
   LegalSlugRoute: typeof LegalSlugRoute
+  ShopHandleRoute: typeof ShopHandleRoute
   JournalIndexRoute: typeof JournalIndexRoute
   LegalIndexRoute: typeof LegalIndexRoute
   ShopIndexRoute: typeof ShopIndexRoute
@@ -604,6 +617,13 @@ declare module '@tanstack/react-router' {
       path: '/shop'
       fullPath: '/shop/'
       preLoaderRoute: typeof ShopIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/shop/$handle': {
+      id: '/shop/$handle'
+      path: '/shop/$handle'
+      fullPath: '/shop/$handle'
+      preLoaderRoute: typeof ShopHandleRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/.mcp/invoke-tool/$tool': {
@@ -855,6 +875,7 @@ const rootRouteChildren: RootRouteChildren = {
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
   JournalSlugRoute: JournalSlugRoute,
   LegalSlugRoute: LegalSlugRoute,
+  ShopHandleRoute: ShopHandleRoute,
   JournalIndexRoute: JournalIndexRoute,
   LegalIndexRoute: LegalIndexRoute,
   ShopIndexRoute: ShopIndexRoute,
