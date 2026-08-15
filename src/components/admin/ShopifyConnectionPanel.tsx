@@ -118,7 +118,7 @@ export function ShopifyConnectionPanel() {
   const remove = useMutation({
     mutationFn: () => removeFn({}),
     onSuccess: () => {
-      setToken("");
+      setClientSecret("");
       setReplacing(false);
       toast.success("Store credentials removed");
       refresh();
