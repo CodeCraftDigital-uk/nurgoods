@@ -973,12 +973,15 @@ export type Database = {
         Row: {
           created_at: string
           description: string | null
+          description_html: string | null
           handle: string
           id: string
           image_url: string | null
           last_synced_at: string | null
           product_count: number
           raw: Json
+          seo_description: string | null
+          seo_title: string | null
           shopify_collection_id: string
           shopify_updated_at: string | null
           sync_status: Database["public"]["Enums"]["sync_status"]
@@ -988,12 +991,15 @@ export type Database = {
         Insert: {
           created_at?: string
           description?: string | null
+          description_html?: string | null
           handle: string
           id?: string
           image_url?: string | null
           last_synced_at?: string | null
           product_count?: number
           raw?: Json
+          seo_description?: string | null
+          seo_title?: string | null
           shopify_collection_id: string
           shopify_updated_at?: string | null
           sync_status?: Database["public"]["Enums"]["sync_status"]
@@ -1003,12 +1009,15 @@ export type Database = {
         Update: {
           created_at?: string
           description?: string | null
+          description_html?: string | null
           handle?: string
           id?: string
           image_url?: string | null
           last_synced_at?: string | null
           product_count?: number
           raw?: Json
+          seo_description?: string | null
+          seo_title?: string | null
           shopify_collection_id?: string
           shopify_updated_at?: string | null
           sync_status?: Database["public"]["Enums"]["sync_status"]
@@ -1050,66 +1059,208 @@ export type Database = {
           },
         ]
       }
-      shopify_products: {
+      shopify_product_media: {
         Row: {
+          alt_text: string | null
+          created_at: string
+          height: number | null
+          id: string
+          media_type: string | null
+          position: number
+          product_id: string
+          shopify_media_id: string
+          url: string
+          width: number | null
+        }
+        Insert: {
+          alt_text?: string | null
+          created_at?: string
+          height?: number | null
+          id?: string
+          media_type?: string | null
+          position?: number
+          product_id: string
+          shopify_media_id: string
+          url: string
+          width?: number | null
+        }
+        Update: {
+          alt_text?: string | null
+          created_at?: string
+          height?: number | null
+          id?: string
+          media_type?: string | null
+          position?: number
+          product_id?: string
+          shopify_media_id?: string
+          url?: string
+          width?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shopify_product_media_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "shopify_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shopify_product_variants: {
+        Row: {
+          available_for_sale: boolean | null
+          compare_at_price: number | null
           created_at: string
           currency: string | null
+          id: string
+          image_url: string | null
+          inventory_quantity: number | null
+          last_synced_at: string | null
+          position: number
+          price: number | null
+          product_id: string
+          selected_options: Json
+          shopify_updated_at: string | null
+          shopify_variant_id: string
+          sku: string | null
+          title: string
+        }
+        Insert: {
+          available_for_sale?: boolean | null
+          compare_at_price?: number | null
+          created_at?: string
+          currency?: string | null
+          id?: string
+          image_url?: string | null
+          inventory_quantity?: number | null
+          last_synced_at?: string | null
+          position?: number
+          price?: number | null
+          product_id: string
+          selected_options?: Json
+          shopify_updated_at?: string | null
+          shopify_variant_id: string
+          sku?: string | null
+          title: string
+        }
+        Update: {
+          available_for_sale?: boolean | null
+          compare_at_price?: number | null
+          created_at?: string
+          currency?: string | null
+          id?: string
+          image_url?: string | null
+          inventory_quantity?: number | null
+          last_synced_at?: string | null
+          position?: number
+          price?: number | null
+          product_id?: string
+          selected_options?: Json
+          shopify_updated_at?: string | null
+          shopify_variant_id?: string
+          sku?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shopify_product_variants_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "shopify_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shopify_products: {
+        Row: {
+          available_for_sale: boolean | null
+          compare_at_price_max: number | null
+          compare_at_price_min: number | null
+          created_at: string
+          currency: string | null
+          description: string | null
+          description_html: string | null
           featured_image_url: string | null
           handle: string
           id: string
           last_synced_at: string | null
+          online_store_url: string | null
+          options: Json
           price_max: number | null
           price_min: number | null
           product_type: string | null
           raw: Json
+          seo_description: string | null
+          seo_title: string | null
           shopify_product_id: string
           shopify_updated_at: string | null
           status: string | null
           sync_status: Database["public"]["Enums"]["sync_status"]
           tags: string[]
           title: string
+          total_inventory: number | null
           updated_at: string
           variant_count: number
           vendor: string | null
         }
         Insert: {
+          available_for_sale?: boolean | null
+          compare_at_price_max?: number | null
+          compare_at_price_min?: number | null
           created_at?: string
           currency?: string | null
+          description?: string | null
+          description_html?: string | null
           featured_image_url?: string | null
           handle: string
           id?: string
           last_synced_at?: string | null
+          online_store_url?: string | null
+          options?: Json
           price_max?: number | null
           price_min?: number | null
           product_type?: string | null
           raw?: Json
+          seo_description?: string | null
+          seo_title?: string | null
           shopify_product_id: string
           shopify_updated_at?: string | null
           status?: string | null
           sync_status?: Database["public"]["Enums"]["sync_status"]
           tags?: string[]
           title: string
+          total_inventory?: number | null
           updated_at?: string
           variant_count?: number
           vendor?: string | null
         }
         Update: {
+          available_for_sale?: boolean | null
+          compare_at_price_max?: number | null
+          compare_at_price_min?: number | null
           created_at?: string
           currency?: string | null
+          description?: string | null
+          description_html?: string | null
           featured_image_url?: string | null
           handle?: string
           id?: string
           last_synced_at?: string | null
+          online_store_url?: string | null
+          options?: Json
           price_max?: number | null
           price_min?: number | null
           product_type?: string | null
           raw?: Json
+          seo_description?: string | null
+          seo_title?: string | null
           shopify_product_id?: string
           shopify_updated_at?: string | null
           status?: string | null
           sync_status?: Database["public"]["Enums"]["sync_status"]
           tags?: string[]
           title?: string
+          total_inventory?: number | null
           updated_at?: string
           variant_count?: number
           vendor?: string | null
@@ -1142,12 +1293,18 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      delete_integration_secret: { Args: { _name: string }; Returns: undefined }
+      get_integration_secret: { Args: { _name: string }; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
         Returns: boolean
+      }
+      set_integration_secret: {
+        Args: { _name: string; _secret: string }
+        Returns: undefined
       }
     }
     Enums: {

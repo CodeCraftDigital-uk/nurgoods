@@ -35,6 +35,7 @@ import { Route as AuthenticatedAdminIntegrationsRouteImport } from './routes/_au
 import { Route as AuthenticatedAdminJournalRouteImport } from './routes/_authenticated/admin.journal'
 import { Route as AuthenticatedAdminLegalRouteImport } from './routes/_authenticated/admin.legal'
 import { Route as AuthenticatedAdminMcpRouteImport } from './routes/_authenticated/admin.mcp'
+import { Route as AuthenticatedAdminPreviewRouteImport } from './routes/_authenticated/admin.preview'
 import { Route as AuthenticatedAdminReviewsRouteImport } from './routes/_authenticated/admin.reviews'
 import { Route as AuthenticatedAdminSeoRouteImport } from './routes/_authenticated/admin.seo'
 import { Route as AuthenticatedAdminJournalIndexRouteImport } from './routes/_authenticated/admin.journal.index'
@@ -186,6 +187,12 @@ const AuthenticatedAdminMcpRoute = AuthenticatedAdminMcpRouteImport.update({
   path: '/mcp',
   getParentRoute: () => AuthenticatedAdminRoute,
 } as any)
+const AuthenticatedAdminPreviewRoute =
+  AuthenticatedAdminPreviewRouteImport.update({
+    id: '/preview',
+    path: '/preview',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 const AuthenticatedAdminReviewsRoute =
   AuthenticatedAdminReviewsRouteImport.update({
     id: '/reviews',
@@ -287,6 +294,7 @@ export interface FileRoutesByFullPath {
   '/admin/journal': typeof AuthenticatedAdminJournalRouteWithChildren
   '/admin/legal': typeof AuthenticatedAdminLegalRoute
   '/admin/mcp': typeof AuthenticatedAdminMcpRoute
+  '/admin/preview': typeof AuthenticatedAdminPreviewRoute
   '/admin/reviews': typeof AuthenticatedAdminReviewsRoute
   '/admin/seo': typeof AuthenticatedAdminSeoRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
@@ -326,6 +334,7 @@ export interface FileRoutesByTo {
   '/admin/integrations': typeof AuthenticatedAdminIntegrationsRoute
   '/admin/legal': typeof AuthenticatedAdminLegalRoute
   '/admin/mcp': typeof AuthenticatedAdminMcpRoute
+  '/admin/preview': typeof AuthenticatedAdminPreviewRoute
   '/admin/reviews': typeof AuthenticatedAdminReviewsRoute
   '/admin/seo': typeof AuthenticatedAdminSeoRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
@@ -369,6 +378,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/journal': typeof AuthenticatedAdminJournalRouteWithChildren
   '/_authenticated/admin/legal': typeof AuthenticatedAdminLegalRoute
   '/_authenticated/admin/mcp': typeof AuthenticatedAdminMcpRoute
+  '/_authenticated/admin/preview': typeof AuthenticatedAdminPreviewRoute
   '/_authenticated/admin/reviews': typeof AuthenticatedAdminReviewsRoute
   '/_authenticated/admin/seo': typeof AuthenticatedAdminSeoRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
@@ -412,6 +422,7 @@ export interface FileRouteTypes {
     | '/admin/journal'
     | '/admin/legal'
     | '/admin/mcp'
+    | '/admin/preview'
     | '/admin/reviews'
     | '/admin/seo'
     | '/admin/'
@@ -451,6 +462,7 @@ export interface FileRouteTypes {
     | '/admin/integrations'
     | '/admin/legal'
     | '/admin/mcp'
+    | '/admin/preview'
     | '/admin/reviews'
     | '/admin/seo'
     | '/admin'
@@ -493,6 +505,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/journal'
     | '/_authenticated/admin/legal'
     | '/_authenticated/admin/mcp'
+    | '/_authenticated/admin/preview'
     | '/_authenticated/admin/reviews'
     | '/_authenticated/admin/seo'
     | '/_authenticated/admin/'
@@ -722,6 +735,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminMcpRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/preview': {
+      id: '/_authenticated/admin/preview'
+      path: '/preview'
+      fullPath: '/admin/preview'
+      preLoaderRoute: typeof AuthenticatedAdminPreviewRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/_authenticated/admin/reviews': {
       id: '/_authenticated/admin/reviews'
       path: '/reviews'
@@ -849,6 +869,7 @@ interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminJournalRoute: typeof AuthenticatedAdminJournalRouteWithChildren
   AuthenticatedAdminLegalRoute: typeof AuthenticatedAdminLegalRoute
   AuthenticatedAdminMcpRoute: typeof AuthenticatedAdminMcpRoute
+  AuthenticatedAdminPreviewRoute: typeof AuthenticatedAdminPreviewRoute
   AuthenticatedAdminReviewsRoute: typeof AuthenticatedAdminReviewsRoute
   AuthenticatedAdminSeoRoute: typeof AuthenticatedAdminSeoRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
@@ -861,6 +882,7 @@ const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminJournalRoute: AuthenticatedAdminJournalRouteWithChildren,
   AuthenticatedAdminLegalRoute: AuthenticatedAdminLegalRoute,
   AuthenticatedAdminMcpRoute: AuthenticatedAdminMcpRoute,
+  AuthenticatedAdminPreviewRoute: AuthenticatedAdminPreviewRoute,
   AuthenticatedAdminReviewsRoute: AuthenticatedAdminReviewsRoute,
   AuthenticatedAdminSeoRoute: AuthenticatedAdminSeoRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,

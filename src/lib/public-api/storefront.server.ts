@@ -23,6 +23,8 @@ export interface StorefrontProductCard {
   price_max: number | null;
   currency: string | null;
   variant_count: number;
+  compare_at_price_min: number | null;
+  available_for_sale: boolean | null;
   summary: string | null;
   updated_at: string | null;
 }
@@ -33,7 +35,9 @@ export interface StorefrontFacets {
 }
 
 const CARD_COLUMNS =
-  "id, handle, title, product_type, vendor, tags, featured_image_url, price_min, price_max, currency, variant_count, shopify_updated_at, last_synced_at";
+  "id, handle, title, product_type, vendor, tags, featured_image_url, price_min, price_max, currency, compare_at_price_min, available_for_sale, variant_count, shopify_updated_at, last_synced_at";
+
+const DETAIL_COLUMNS = `${CARD_COLUMNS}, description, description_html, seo_title, seo_description, online_store_url, options`;
 
 function safeTerm(term: string): string {
   return term.replace(/[%,()*\\]/g, " ").trim().slice(0, 120);
@@ -52,6 +56,8 @@ function mapCard(row: any, summary: string | null = null): StorefrontProductCard
     price_max: row.price_max ?? null,
     currency: row.currency ?? null,
     variant_count: row.variant_count ?? 0,
+    compare_at_price_min: row.compare_at_price_min ?? null,
+    available_for_sale: row.available_for_sale ?? null,
     summary,
     updated_at: row.shopify_updated_at ?? row.last_synced_at ?? null,
   };
@@ -199,7 +205,33 @@ export async function getStorefrontCollection(handle: string): Promise<Storefron
   return data ? mapCollection(data) : null;
 }
 
+export interface StorefrontMedia {
+  url: string;
+  alt: string | null;
+  width: number | null;
+  height: number | null;
+}
+
+export interface StorefrontVariant {
+  id: string;
+  title: string;
+  price: number | null;
+  compare_at_price: number | null;
+  currency: string | null;
+  image_url: string | null;
+  selected_options: { name: string; value: string }[];
+  available_for_sale: boolean | null;
+}
+
 export interface StorefrontProductDetail extends StorefrontProductCard {
+  description: string | null;
+  description_html: string | null;
+  seo_title: string | null;
+  seo_description: string | null;
+  store_url: string | null;
+  options: { name: string; values: string[] }[];
+  media: StorefrontMedia[];
+  variants: StorefrontVariant[];
   long_description: string | null;
   benefits: string[];
   use_cases: string[];
@@ -210,6 +242,18 @@ export interface StorefrontProductDetail extends StorefrontProductCard {
   content_updated_at: string | null;
   collections: { handle: string; title: string }[];
   related: StorefrontProductCard[];
+}
+
+/** Store supplied HTML is trimmed to a safe subset before it reaches a page. */
+function sanitiseHtml(input: unknown): string | null {
+  if (typeof input !== "string" || !input.trim()) return null;
+  return input
+    .replace(/<\s*(script|style|iframe|object|embed|link|meta)[^>]*>[\s\S]*?<\s*\/\s*\1\s*>/gi, "")
+    .replace(/<\s*(script|style|iframe|object|embed|link|meta)[^>]*\/?\s*>/gi, "")
+    .replace(/\son[a-z]+\s*=\s*"[^"]*"/gi, "")
+    .replace(/\son[a-z]+\s*=\s*'[^']*'/gi, "")
+    .replace(/javascript:/gi, "")
+    .trim();
 }
 
 function stringList(value: unknown): string[] {
@@ -234,14 +278,14 @@ export async function getStorefrontProduct(handle: string): Promise<StorefrontPr
   const supabase = await publicClient();
   const { data, error } = await supabase
     .from("shopify_products")
-    .select(CARD_COLUMNS)
+    .select(DETAIL_COLUMNS)
     .eq("handle", handle)
     .maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) return null;
   const row = data as any;
 
-  const [{ data: enrichment }, { data: joins }, { data: seoRecord }] = await Promise.all([
+  const [{ data: enrichment }, { data: joins }, { data: seoRecord }, { data: mediaRows }, { data: variantRows }] = await Promise.all([
     supabase
       .from("product_enrichment")
       .select(
@@ -259,6 +303,18 @@ export async function getStorefrontProduct(handle: string): Promise<StorefrontPr
       .eq("target_type", "product")
       .eq("target_reference", handle)
       .maybeSingle(),
+    supabase
+      .from("shopify_product_media")
+      .select("url, alt_text, width, height, position")
+      .eq("product_id", row.id)
+      .order("position", { ascending: true }),
+    supabase
+      .from("shopify_product_variants")
+      .select(
+        "id, title, price, compare_at_price, currency, image_url, selected_options, available_for_sale, position",
+      )
+      .eq("product_id", row.id)
+      .order("position", { ascending: true }),
   ]);
 
   const content = (enrichment ?? {}) as any;
@@ -298,8 +354,46 @@ export async function getStorefrontProduct(handle: string): Promise<StorefrontPr
     related = ((siblings ?? []) as any[]).map((sibling) => mapCard(sibling));
   }
 
+  const media: StorefrontMedia[] = ((mediaRows ?? []) as any[]).map((m) => ({
+    url: m.url,
+    alt: m.alt_text ?? null,
+    width: m.width ?? null,
+    height: m.height ?? null,
+  }));
+
+  const variants: StorefrontVariant[] = ((variantRows ?? []) as any[]).map((v) => ({
+    id: v.id,
+    title: v.title,
+    price: v.price ?? null,
+    compare_at_price: v.compare_at_price ?? null,
+    currency: v.currency ?? row.currency ?? null,
+    image_url: v.image_url ?? null,
+    selected_options: Array.isArray(v.selected_options)
+      ? v.selected_options.filter(
+          (o: any) => o && typeof o.name === "string" && typeof o.value === "string",
+        )
+      : [],
+    available_for_sale: v.available_for_sale ?? null,
+  }));
+
+  const options = Array.isArray(row.options)
+    ? (row.options as any[]).flatMap((o) =>
+        o && typeof o.name === "string" && Array.isArray(o.values)
+          ? [{ name: o.name as string, values: o.values.filter((x: any) => typeof x === "string") }]
+          : [],
+      )
+    : [];
+
   return {
     ...mapCard(row, content.summary ?? null),
+    description: row.description ?? null,
+    description_html: sanitiseHtml(row.description_html),
+    seo_title: row.seo_title ?? null,
+    seo_description: row.seo_description ?? null,
+    store_url: row.online_store_url ?? null,
+    options,
+    media,
+    variants,
     long_description: content.long_description ?? null,
     benefits: stringList(content.benefits),
     use_cases: stringList(content.use_cases),

@@ -3,6 +3,7 @@ import {
   Boxes,
   FileText,
   Gauge,
+  LayoutGrid,
   Plug,
   Scale,
   Search,
@@ -32,6 +33,12 @@ export const ADMIN_NAV: NavItem[] = [
     label: "Catalogue Intelligence",
     description: "Synced Shopify products, collections and enrichment coverage.",
     icon: Boxes,
+  },
+  {
+    to: "/admin/preview",
+    label: "Storefront Preview",
+    description: "Internal design preview of the customer product grid.",
+    icon: LayoutGrid,
   },
   {
     to: "/admin/journal",

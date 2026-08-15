@@ -96,10 +96,10 @@ async function execute(ctx: RunContext, jobKey: string): Promise<JobRunResult> {
 /* --------------------------- catalogue sync --------------------------- */
 
 async function runCatalogueSync(ctx: RunContext): Promise<JobRunResult> {
-  const { readShopifyCredentials, syncCatalogue, recordSyncEvent } = await import(
+  const { resolveShopifyCredentials, syncCatalogue, recordSyncEvent } = await import(
     "@/lib/services/shopify.server"
   );
-  const { missing } = readShopifyCredentials();
+  const { missing } = await resolveShopifyCredentials();
   if (missing.length > 0) {
     return {
       jobKey: "shopify_catalogue_sync",
