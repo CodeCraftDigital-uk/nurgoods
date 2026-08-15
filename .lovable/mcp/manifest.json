@@ -1,0 +1,257 @@
+{
+  "version": 1,
+  "sdk_version": "0.26.2",
+  "path": "/mcp",
+  "auth": {
+    "type": "none"
+  },
+  "mcp": {
+    "server": {
+      "name": "nur-goods",
+      "version": "1.0.0",
+      "title": "NUR GOODS"
+    },
+    "tools": [
+      {
+        "name": "search_products",
+        "title": "Search NUR GOODS products",
+        "description": "Search active NUR GOODS products by keyword, product type or tag. Returns titles, pricing where synced, and canonical store links.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 120,
+              "description": "Free text search term."
+            },
+            "product_type": {
+              "type": "string",
+              "maxLength": 80,
+              "description": "Exact product type filter."
+            },
+            "tag": {
+              "type": "string",
+              "maxLength": 80,
+              "description": "Exact product tag filter."
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            },
+            "offset": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "get_product",
+        "title": "Get a NUR GOODS product",
+        "description": "Retrieve one active NUR GOODS product by handle, including published benefits, use cases, specifications, delivery notes and questions.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "handle": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120,
+              "description": "Product handle."
+            }
+          },
+          "required": [
+            "handle"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "search_categories",
+        "title": "Search NUR GOODS categories",
+        "description": "List or search NUR GOODS store categories with canonical links and product counts.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 120
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            },
+            "offset": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "search_articles",
+        "title": "Search the NUR GOODS Journal",
+        "description": "Search published NUR GOODS Journal articles by keyword or tag. Only human approved, published articles are returned.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 120
+            },
+            "tag": {
+              "type": "string",
+              "maxLength": 80
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            },
+            "offset": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "get_article",
+        "title": "Get a Journal article",
+        "description": "Retrieve one published NUR GOODS Journal article with its body, verified sources and questions.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "slug": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120,
+              "description": "Article slug."
+            }
+          },
+          "required": [
+            "slug"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "get_store_information",
+        "title": "Get NUR GOODS store information",
+        "description": "Brand facts, support contact, social presence and the list of published NUR GOODS policies including shipping and returns where published.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {}
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "get_policy",
+        "title": "Get a NUR GOODS policy",
+        "description": "Retrieve one published NUR GOODS policy document such as privacy, returns and refunds, or shipping and delivery.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "slug": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120,
+              "description": "Policy slug."
+            }
+          },
+          "required": [
+            "slug"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "get_answers",
+        "title": "Get approved answers",
+        "description": "Approved question and answer pairs attached to public NUR GOODS products, categories and Journal articles.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 120
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            },
+            "offset": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}
