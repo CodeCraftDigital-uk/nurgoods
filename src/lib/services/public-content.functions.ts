@@ -210,3 +210,98 @@ export const listPublicPlacements = createServerFn({ method: "GET" }).handler(
     return (data ?? []) as PublicPlacement[];
   },
 );
+
+/* --------------------- store sourced legal documents --------------------- */
+
+export interface PublicLegalSourceSummary {
+  slug: string;
+  title: string;
+  summary: string | null;
+  source_type: string;
+  source_url: string | null;
+  shopify_updated_at: string | null;
+  last_synced_at: string;
+}
+
+export interface PublicLegalSource extends PublicLegalSourceSummary {
+  body_html: string;
+  shopify_published_at: string | null;
+}
+
+const LEGAL_SOURCE_COLUMNS =
+  "slug, title, body_summary, source_type, source_url, shopify_updated_at, shopify_published_at, last_synced_at";
+
+function toSummary(row: any): PublicLegalSourceSummary {
+  return {
+    slug: row.slug,
+    title: row.title,
+    summary: row.body_summary ?? null,
+    source_type: row.source_type,
+    source_url: row.source_url ?? null,
+    shopify_updated_at: row.shopify_updated_at ?? null,
+    last_synced_at: row.last_synced_at,
+  };
+}
+
+/** Imported policies that are safe to render in full on this site. */
+export const listPublicLegalSources = createServerFn({ method: "GET" }).handler(
+  async (): Promise<PublicLegalSourceSummary[]> => {
+    const supabase = await publicClient();
+    const { data, error } = await supabase
+      .from("shopify_legal_sources")
+      .select(LEGAL_SOURCE_COLUMNS)
+      .eq("public_visible", true)
+      .eq("is_published", true)
+      .order("title", { ascending: true });
+    if (error) throw new Error(error.message);
+    return (data ?? []).map(toSummary);
+  },
+);
+
+export const getPublicLegalSource = createServerFn({ method: "GET" })
+  .inputValidator((input: { slug: string }) => ({ slug: String(input.slug) }))
+  .handler(async ({ data }): Promise<PublicLegalSource | null> => {
+    const supabase = await publicClient();
+    const { data: row, error } = await supabase
+      .from("shopify_legal_sources")
+      .select(`${LEGAL_SOURCE_COLUMNS}, body_html`)
+      .eq("slug", data.slug)
+      .eq("public_visible", true)
+      .eq("is_published", true)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!row) return null;
+    const { sanitizeStoreHtml } = await import("@/lib/legal/sanitize");
+    return {
+      ...toSummary(row),
+      shopify_published_at: (row as any).shopify_published_at ?? null,
+      body_html: sanitizeStoreHtml((row as any).body_html ?? ""),
+    };
+  });
+
+export interface PublicLegalReference {
+  title: string;
+  source_url: string;
+}
+
+/**
+ * Published store policies that cannot be rendered here because their wording
+ * still contains store template variables. Only the title and the canonical
+ * store URL are returned so visitors are always sent to authoritative wording.
+ */
+export const listPublicLegalReferences = createServerFn({ method: "GET" }).handler(
+  async (): Promise<PublicLegalReference[]> => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data, error } = await supabaseAdmin
+      .from("shopify_legal_sources")
+      .select("title, source_url, has_liquid, has_placeholders, is_published, public_visible")
+      .eq("is_published", true)
+      .eq("public_visible", false)
+      .eq("has_liquid", true)
+      .eq("has_placeholders", false);
+    if (error) return [];
+    return (data ?? [])
+      .filter((row: any) => typeof row.source_url === "string" && row.source_url.length > 0)
+      .map((row: any) => ({ title: row.title as string, source_url: row.source_url as string }));
+  },
+);
