@@ -176,6 +176,14 @@ export function PublicShell({ children }: { children: ReactNode }) {
             </h2>
             <ul className="mt-3 space-y-2.5">
               <li>
+                <Link
+                  to="/contact"
+                  className="inline-flex min-h-8 items-center text-muted-foreground hover:text-foreground"
+                >
+                  Contact us
+                </Link>
+              </li>
+              <li>
                 <a
                   href={`mailto:${BRAND.supportEmail}`}
                   className="inline-flex min-h-8 items-center text-muted-foreground hover:text-foreground"
