@@ -226,11 +226,36 @@ export async function getShopifyCredentialStatus(): Promise<ShopifyCredentialSta
 
 /* ---------------------------- GraphQL client ---------------------------- */
 
+/**
+ * Describes what a token looks like without ever revealing it. Only the public
+ * Shopify prefix convention is used, never the secret body of the value.
+ */
+function describeTokenShape(token: string): string | null {
+  const value = (token ?? "").trim();
+  if (!value) return "No token was supplied.";
+  if (value.startsWith("shpss_")) {
+    return "That value is the custom app API secret key, not the Admin API access token. Copy the token that begins with shpat_.";
+  }
+  if (value.startsWith("shpca_")) {
+    return "That value is the custom app client ID, not the Admin API access token. Copy the token that begins with shpat_.";
+  }
+  if (/^[0-9a-f]{32}$/i.test(value)) {
+    return "That value looks like a Storefront API token or API key, not an Admin API access token. Copy the token that begins with shpat_.";
+  }
+  if (!value.startsWith("shpat_") && !value.startsWith("shpua_")) {
+    return "That value does not look like a Shopify Admin API access token. It should begin with shpat_.";
+  }
+  return null;
+}
+
 async function graphql<T>(
   credentials: { shopDomain: string; adminToken: string; apiVersion: string },
   query: string,
   variables: Record<string, unknown> = {},
 ): Promise<T> {
+  const shapeIssue = describeTokenShape(credentials.adminToken);
+  if (shapeIssue) throw new Error(shapeIssue);
+
   const response = await fetch(
     `https://${credentials.shopDomain}/admin/api/${credentials.apiVersion}/graphql.json`,
     {
@@ -243,15 +268,31 @@ async function graphql<T>(
     },
   );
 
-  if (response.status === 401 || response.status === 403) {
-    throw new Error("The store rejected the Admin API token. Check the token and its scopes.");
+  if (response.status === 401) {
+    throw new Error(
+      `The store at ${credentials.shopDomain} rejected the Admin API access token (401). The token is invalid, revoked, or belongs to a different store. Reinstall the custom app on this store and paste the freshly revealed Admin API access token beginning with shpat_.`,
+    );
+  }
+  if (response.status === 403) {
+    throw new Error(
+      "The token was accepted but the custom app is missing Admin API scopes (403). Enable read_products, read_inventory and read_locations, save, then reinstall the app and use the new token.",
+    );
   }
   if (response.status === 404) {
-    throw new Error("The store or API version was not found. Check the shop domain and version.");
+    throw new Error(
+      `No Admin API was found at ${credentials.shopDomain} for version ${credentials.apiVersion}. Check the .myshopify.com domain and the API version.`,
+    );
+  }
+  if (response.status === 402) {
+    throw new Error("The store is frozen or unavailable for API access (402). Check the store status in Shopify admin.");
+  }
+  if (response.status === 423) {
+    throw new Error("The store is locked (423) and cannot serve Admin API requests.");
   }
   if (!response.ok) {
     throw new Error(`The store responded with ${response.status}`);
   }
+
 
   const payload = (await response.json()) as { data?: T; errors?: Array<{ message: string }> };
   if (payload.errors?.length) throw new Error(payload.errors.map((e) => e.message).join("; "));
