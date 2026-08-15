@@ -56,16 +56,22 @@ export interface AiProviderAdapter {
   research?(query: ResearchQuery): Promise<ResearchSource[]>;
 }
 
-/** Secret names the operator must add in project settings before generation runs. */
-export const AI_SECRET_NAMES = {
-  providerId: "AI_PROVIDER_ID",
-  apiKey: "AI_PROVIDER_API_KEY",
-  model: "AI_PROVIDER_MODEL",
-  researchApiKey: "RESEARCH_PROVIDER_API_KEY",
+/**
+ * Research is the only editorial capability that still needs an external
+ * service. The managed AI platform does not currently expose a runtime web
+ * search or retrieval API, so live research stays an isolated optional
+ * dependency behind this single secret.
+ */
+export const RESEARCH_SECRET_NAMES = {
+  providerId: "RESEARCH_PROVIDER_ID",
+  apiKey: "RESEARCH_PROVIDER_API_KEY",
 } as const;
 
 export interface AiProviderStatus {
+  /** True when the managed AI service is available for generation. */
   configured: boolean;
+  /** True when generation runs on the managed platform rather than owner keys. */
+  managed: boolean;
   providerId: string | null;
   model: string | null;
   researchConfigured: boolean;
