@@ -220,16 +220,38 @@ function ProductDetail() {
               </p>
             ) : null}
 
-            {product.variants.length > 1 ? (
+            {product.options.length > 0 ? (
+              <div className="mt-7 space-y-5">
+                {product.options.map((option) => (
+                  <div key={option.name}>
+                    <h2 className="text-[0.68rem] uppercase tracking-[0.22em] text-muted-foreground">
+                      {option.name}
+                    </h2>
+                    <ul className="mt-2.5 flex flex-wrap gap-2">
+                      {option.values.map((value) => (
+                        <li key={value}>
+                          <span className="inline-flex min-h-9 items-center rounded-lg border border-border px-3 text-sm text-foreground">
+                            {value}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+                <p className="text-xs text-muted-foreground">
+                  Choose your option at checkout on the store.
+                </p>
+              </div>
+            ) : product.variants.length > 1 ? (
               <div className="mt-7">
                 <h2 className="text-[0.68rem] uppercase tracking-[0.22em] text-muted-foreground">
                   Options
                 </h2>
                 <ul className="mt-3 flex flex-wrap gap-2">
-                  {product.variants.map((variant) => (
+                  {product.variants.slice(0, 24).map((variant) => (
                     <li key={variant.id}>
                       <span
-                        className={`inline-flex min-h-10 items-center rounded-lg border px-3.5 text-sm ${
+                        className={`inline-flex min-h-9 items-center rounded-lg border px-3 text-sm ${
                           variant.available_for_sale === false
                             ? "border-border/60 text-muted-foreground line-through"
                             : "border-border text-foreground"
@@ -238,11 +260,6 @@ function ProductDetail() {
                         {variant.selected_options.length > 0
                           ? variant.selected_options.map((option) => option.value).join(" / ")
                           : variant.title}
-                        {variant.price != null ? (
-                          <span className="ml-2 text-xs text-muted-foreground">
-                            {formatPrice(variant.price, null, variant.currency)}
-                          </span>
-                        ) : null}
                       </span>
                     </li>
                   ))}

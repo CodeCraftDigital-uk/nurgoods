@@ -159,20 +159,20 @@ function Index() {
           <div aria-hidden className="hidden gap-3 lg:grid lg:grid-cols-2">
             {heroImages.length > 0 ? (
               <>
-                <div className="row-span-2 overflow-hidden rounded-2xl border border-border/70 bg-muted/40">
+                <div className="row-span-2 overflow-hidden rounded-2xl border border-border/70 bg-card">
                   <img
                     src={heroImages[0]}
                     alt=""
                     width={800}
                     height={1100}
                     decoding="async"
-                    className="h-full w-full object-cover"
+                    className="h-full w-full object-contain p-3"
                   />
                 </div>
                 {heroImages.slice(1, 3).map((url) => (
                   <div
                     key={url}
-                    className="overflow-hidden rounded-2xl border border-border/70 bg-muted/40"
+                    className="overflow-hidden rounded-2xl border border-border/70 bg-card"
                   >
                     <img
                       src={url}
@@ -181,7 +181,7 @@ function Index() {
                       height={600}
                       loading="lazy"
                       decoding="async"
-                      className="aspect-square w-full object-cover"
+                      className="aspect-square w-full object-contain p-3"
                     />
                   </div>
                 ))}
