@@ -271,66 +271,101 @@ function ProductDetail() {
               </p>
             ) : null}
 
-            {product.options.length > 0 ? (
+            {optionNames.length > 0 ? (
               <div className="mt-7 space-y-5">
-                {product.options.map((option) => (
-                  <div key={option.name}>
-                    <h2 className="text-[0.68rem] uppercase tracking-[0.22em] text-muted-foreground">
-                      {option.name}
-                    </h2>
-                    <ul className="mt-2.5 flex flex-wrap gap-2">
-                      {option.values.map((value) => (
-                        <li key={value}>
-                          <span className="inline-flex min-h-9 items-center rounded-lg border border-border px-3 text-sm text-foreground">
-                            {value}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
-                <p className="text-xs text-muted-foreground">
-                  Choose your option at checkout on the store.
-                </p>
-              </div>
-            ) : product.variants.length > 1 ? (
-              <div className="mt-7">
-                <h2 className="text-[0.68rem] uppercase tracking-[0.22em] text-muted-foreground">
-                  Options
-                </h2>
-                <ul className="mt-3 flex flex-wrap gap-2">
-                  {product.variants.slice(0, 24).map((variant) => (
-                    <li key={variant.id}>
-                      <span
-                        className={`inline-flex min-h-9 items-center rounded-lg border px-3 text-sm ${
-                          variant.available_for_sale === false
-                            ? "border-border/60 text-muted-foreground line-through"
-                            : "border-border text-foreground"
-                        }`}
-                      >
-                        {variant.selected_options.length > 0
-                          ? variant.selected_options.map((option) => option.value).join(" / ")
-                          : variant.title}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-                <p className="mt-2 text-xs text-muted-foreground">
-                  Choose your option at checkout on the store.
-                </p>
+                {optionNames.map((name) => {
+                  const values: string[] = [];
+                  for (const variant of purchasable) {
+                    const value = variant.selected_options.find((o) => o.name === name)?.value;
+                    if (value && !values.includes(value)) values.push(value);
+                  }
+                  return (
+                    <div key={name}>
+                      <h2 className="text-[0.68rem] uppercase tracking-[0.22em] text-muted-foreground">
+                        {name}
+                      </h2>
+                      <ul className="mt-2.5 flex flex-wrap gap-2">
+                        {values.map((value) => {
+                          const active = selection[name] === value;
+                          const outOfStock = purchasable
+                            .filter((variant) =>
+                              variant.selected_options.some(
+                                (o) => o.name === name && o.value === value,
+                              ),
+                            )
+                            .every((variant) => variant.available_for_sale === false);
+                          return (
+                            <li key={value}>
+                              <button
+                                type="button"
+                                aria-pressed={active}
+                                onClick={() => setSelection((prev) => ({ ...prev, [name]: value }))}
+                                className={`inline-flex min-h-10 items-center rounded-lg border px-3.5 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${
+                                  active
+                                    ? "border-gold bg-accent text-foreground"
+                                    : "border-border text-foreground hover:border-gold/60"
+                                } ${outOfStock ? "text-muted-foreground line-through" : ""}`}
+                              >
+                                {value}
+                              </button>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                  );
+                })}
               </div>
             ) : null}
 
-            <a
-              href={storeHref}
-              className="mt-7 inline-flex min-h-12 w-full items-center justify-center rounded-lg bg-primary px-6 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 sm:w-auto"
-            >
-              View on the {BRAND.name} store
-            </a>
+            <div className="mt-7 flex flex-wrap items-center gap-3">
+              <label htmlFor="quantity" className="sr-only">
+                Quantity
+              </label>
+              <select
+                id="quantity"
+                value={quantity}
+                onChange={(event) => setQuantity(Number(event.target.value))}
+                className="min-h-12 rounded-lg border border-input bg-background px-3 text-sm text-foreground"
+              >
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((value) => (
+                  <option key={value} value={value}>
+                    {value}
+                  </option>
+                ))}
+              </select>
+
+              {buyHref && !soldOut ? (
+                <a
+                  href={buyHref}
+                  className="inline-flex min-h-12 flex-1 items-center justify-center rounded-lg bg-primary px-6 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 sm:flex-none"
+                >
+                  Buy now
+                </a>
+              ) : (
+                <a
+                  href={storeHref}
+                  className="inline-flex min-h-12 flex-1 items-center justify-center rounded-lg border border-input px-6 text-sm font-medium text-foreground hover:bg-accent sm:flex-none"
+                >
+                  {soldOut ? "Currently unavailable" : `View on the ${BRAND.name} store`}
+                </a>
+              )}
+            </div>
+            {selectedVariant && optionNames.length > 0 ? (
+              <p className="mt-3 text-xs text-muted-foreground">
+                Selected: {selectedVariant.selected_options.map((o) => o.value).join(" / ")}
+              </p>
+            ) : null}
+            {optionNames.length > 0 && !selectedVariant ? (
+              <p className="mt-3 text-xs text-muted-foreground">
+                That combination is not offered. Choose another option.
+              </p>
+            ) : null}
             <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
-              Payment, delivery options and order tracking are handled on the store. Full terms are
-              set out in the policy pages.
+              Payment, delivery options and order tracking are handled securely on the {BRAND.name}{" "}
+              store. Full terms are set out in the policy pages.
             </p>
+
 
             {product.collections.length > 0 ? (
               <div className="mt-8">
