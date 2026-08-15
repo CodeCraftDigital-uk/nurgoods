@@ -16,7 +16,10 @@ import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
 import { Route as AuthenticatedAdminAutomationsRouteImport } from './routes/_authenticated/admin.automations'
 import { Route as AuthenticatedAdminCatalogueRouteImport } from './routes/_authenticated/admin.catalogue'
+import { Route as AuthenticatedAdminIntegrationsRouteImport } from './routes/_authenticated/admin.integrations'
 import { Route as AuthenticatedAdminJournalRouteImport } from './routes/_authenticated/admin.journal'
+import { Route as AuthenticatedAdminLegalRouteImport } from './routes/_authenticated/admin.legal'
+import { Route as AuthenticatedAdminMcpRouteImport } from './routes/_authenticated/admin.mcp'
 import { Route as AuthenticatedAdminReviewsRouteImport } from './routes/_authenticated/admin.reviews'
 import { Route as AuthenticatedAdminSeoRouteImport } from './routes/_authenticated/admin.seo'
 import { Route as AuthenticatedAdminJournalIndexRouteImport } from './routes/_authenticated/admin.journal.index'
@@ -59,12 +62,28 @@ const AuthenticatedAdminCatalogueRoute =
     path: '/catalogue',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const AuthenticatedAdminIntegrationsRoute =
+  AuthenticatedAdminIntegrationsRouteImport.update({
+    id: '/integrations',
+    path: '/integrations',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 const AuthenticatedAdminJournalRoute =
   AuthenticatedAdminJournalRouteImport.update({
     id: '/journal',
     path: '/journal',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const AuthenticatedAdminLegalRoute = AuthenticatedAdminLegalRouteImport.update({
+  id: '/legal',
+  path: '/legal',
+  getParentRoute: () => AuthenticatedAdminRoute,
+} as any)
+const AuthenticatedAdminMcpRoute = AuthenticatedAdminMcpRouteImport.update({
+  id: '/mcp',
+  path: '/mcp',
+  getParentRoute: () => AuthenticatedAdminRoute,
+} as any)
 const AuthenticatedAdminReviewsRoute =
   AuthenticatedAdminReviewsRouteImport.update({
     id: '/reviews',
@@ -101,7 +120,10 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AuthenticatedAdminRouteWithChildren
   '/admin/automations': typeof AuthenticatedAdminAutomationsRoute
   '/admin/catalogue': typeof AuthenticatedAdminCatalogueRoute
+  '/admin/integrations': typeof AuthenticatedAdminIntegrationsRoute
   '/admin/journal': typeof AuthenticatedAdminJournalRouteWithChildren
+  '/admin/legal': typeof AuthenticatedAdminLegalRoute
+  '/admin/mcp': typeof AuthenticatedAdminMcpRoute
   '/admin/reviews': typeof AuthenticatedAdminReviewsRoute
   '/admin/seo': typeof AuthenticatedAdminSeoRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
@@ -114,6 +136,9 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/admin/automations': typeof AuthenticatedAdminAutomationsRoute
   '/admin/catalogue': typeof AuthenticatedAdminCatalogueRoute
+  '/admin/integrations': typeof AuthenticatedAdminIntegrationsRoute
+  '/admin/legal': typeof AuthenticatedAdminLegalRoute
+  '/admin/mcp': typeof AuthenticatedAdminMcpRoute
   '/admin/reviews': typeof AuthenticatedAdminReviewsRoute
   '/admin/seo': typeof AuthenticatedAdminSeoRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
@@ -129,7 +154,10 @@ export interface FileRoutesById {
   '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
   '/_authenticated/admin/automations': typeof AuthenticatedAdminAutomationsRoute
   '/_authenticated/admin/catalogue': typeof AuthenticatedAdminCatalogueRoute
+  '/_authenticated/admin/integrations': typeof AuthenticatedAdminIntegrationsRoute
   '/_authenticated/admin/journal': typeof AuthenticatedAdminJournalRouteWithChildren
+  '/_authenticated/admin/legal': typeof AuthenticatedAdminLegalRoute
+  '/_authenticated/admin/mcp': typeof AuthenticatedAdminMcpRoute
   '/_authenticated/admin/reviews': typeof AuthenticatedAdminReviewsRoute
   '/_authenticated/admin/seo': typeof AuthenticatedAdminSeoRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
@@ -145,7 +173,10 @@ export interface FileRouteTypes {
     | '/admin'
     | '/admin/automations'
     | '/admin/catalogue'
+    | '/admin/integrations'
     | '/admin/journal'
+    | '/admin/legal'
+    | '/admin/mcp'
     | '/admin/reviews'
     | '/admin/seo'
     | '/admin/'
@@ -158,6 +189,9 @@ export interface FileRouteTypes {
     | '/auth'
     | '/admin/automations'
     | '/admin/catalogue'
+    | '/admin/integrations'
+    | '/admin/legal'
+    | '/admin/mcp'
     | '/admin/reviews'
     | '/admin/seo'
     | '/admin'
@@ -172,7 +206,10 @@ export interface FileRouteTypes {
     | '/_authenticated/admin'
     | '/_authenticated/admin/automations'
     | '/_authenticated/admin/catalogue'
+    | '/_authenticated/admin/integrations'
     | '/_authenticated/admin/journal'
+    | '/_authenticated/admin/legal'
+    | '/_authenticated/admin/mcp'
     | '/_authenticated/admin/reviews'
     | '/_authenticated/admin/seo'
     | '/_authenticated/admin/'
@@ -238,11 +275,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminCatalogueRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/integrations': {
+      id: '/_authenticated/admin/integrations'
+      path: '/integrations'
+      fullPath: '/admin/integrations'
+      preLoaderRoute: typeof AuthenticatedAdminIntegrationsRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/_authenticated/admin/journal': {
       id: '/_authenticated/admin/journal'
       path: '/journal'
       fullPath: '/admin/journal'
       preLoaderRoute: typeof AuthenticatedAdminJournalRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/legal': {
+      id: '/_authenticated/admin/legal'
+      path: '/legal'
+      fullPath: '/admin/legal'
+      preLoaderRoute: typeof AuthenticatedAdminLegalRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/mcp': {
+      id: '/_authenticated/admin/mcp'
+      path: '/mcp'
+      fullPath: '/admin/mcp'
+      preLoaderRoute: typeof AuthenticatedAdminMcpRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
     '/_authenticated/admin/reviews': {
@@ -305,7 +363,10 @@ const AuthenticatedAdminJournalRouteWithChildren =
 interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminAutomationsRoute: typeof AuthenticatedAdminAutomationsRoute
   AuthenticatedAdminCatalogueRoute: typeof AuthenticatedAdminCatalogueRoute
+  AuthenticatedAdminIntegrationsRoute: typeof AuthenticatedAdminIntegrationsRoute
   AuthenticatedAdminJournalRoute: typeof AuthenticatedAdminJournalRouteWithChildren
+  AuthenticatedAdminLegalRoute: typeof AuthenticatedAdminLegalRoute
+  AuthenticatedAdminMcpRoute: typeof AuthenticatedAdminMcpRoute
   AuthenticatedAdminReviewsRoute: typeof AuthenticatedAdminReviewsRoute
   AuthenticatedAdminSeoRoute: typeof AuthenticatedAdminSeoRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
@@ -314,7 +375,10 @@ interface AuthenticatedAdminRouteChildren {
 const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminAutomationsRoute: AuthenticatedAdminAutomationsRoute,
   AuthenticatedAdminCatalogueRoute: AuthenticatedAdminCatalogueRoute,
+  AuthenticatedAdminIntegrationsRoute: AuthenticatedAdminIntegrationsRoute,
   AuthenticatedAdminJournalRoute: AuthenticatedAdminJournalRouteWithChildren,
+  AuthenticatedAdminLegalRoute: AuthenticatedAdminLegalRoute,
+  AuthenticatedAdminMcpRoute: AuthenticatedAdminMcpRoute,
   AuthenticatedAdminReviewsRoute: AuthenticatedAdminReviewsRoute,
   AuthenticatedAdminSeoRoute: AuthenticatedAdminSeoRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
