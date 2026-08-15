@@ -54,12 +54,14 @@ export function ShopifyConnectionPanel() {
 
   const [shopDomain, setShopDomain] = useState("");
   const [apiVersion, setApiVersion] = useState(DEFAULT_API_VERSION);
-  const [token, setToken] = useState("");
+  const [clientId, setClientId] = useState("");
+  const [clientSecret, setClientSecret] = useState("");
   const [replacing, setReplacing] = useState(false);
 
   useEffect(() => {
     if (!status.data) return;
     setShopDomain((current) => current || (status.data.shopDomain ?? ""));
+    setClientId((current) => current || (status.data.clientId ?? ""));
     setApiVersion((current) =>
       current === DEFAULT_API_VERSION ? (status.data.apiVersion ?? DEFAULT_API_VERSION) : current,
     );
@@ -78,17 +80,19 @@ export function ShopifyConnectionPanel() {
         data: {
           shopDomain,
           apiVersion,
-          ...(token.trim() ? { adminToken: token.trim() } : {}),
+          ...(clientId.trim() ? { clientId: clientId.trim() } : {}),
+          ...(clientSecret.trim() ? { clientSecret: clientSecret.trim() } : {}),
         },
       }),
     onSuccess: (result) => {
-      setToken("");
+      setClientSecret("");
       setReplacing(false);
       toast.success(`Connected to ${result.shopName}`);
       refresh();
     },
     onError: (error: Error) => toast.error(error.message),
   });
+
 
   const test = useMutation({
     mutationFn: () => testFn({}),
