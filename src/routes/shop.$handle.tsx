@@ -77,9 +77,16 @@ function ProductNotFound() {
   );
 }
 
+/** Builds a basket link on the store host so payment stays with the store. */
+function cartHref(domain: string | null, variantId: string | null, quantity: number): string | null {
+  if (!domain || !variantId) return null;
+  return `https://${domain}/cart/${variantId}:${Math.max(1, Math.min(quantity, 10))}`;
+}
+
 function ProductDetail() {
   const { product } = Route.useLoaderData();
   const [activeIndex, setActiveIndex] = useState(0);
+  const [quantity, setQuantity] = useState(1);
   const gallery = useMemo(() => {
     const items = [...product.media];
     if (items.length === 0 && product.image_url) {
@@ -87,8 +94,52 @@ function ProductDetail() {
     }
     return items;
   }, [product]);
-  const activeImage = gallery[Math.min(activeIndex, Math.max(gallery.length - 1, 0))] ?? null;
+
+  const purchasable = useMemo(
+    () => product.variants.filter((variant) => variant.variant_id),
+    [product.variants],
+  );
+  const optionNames = useMemo(() => {
+    const names: string[] = [];
+    for (const variant of purchasable) {
+      for (const option of variant.selected_options) {
+        if (!names.includes(option.name)) names.push(option.name);
+      }
+    }
+    return names;
+  }, [purchasable]);
+
+  const defaultVariant = useMemo(
+    () => purchasable.find((variant) => variant.available_for_sale !== false) ?? purchasable[0] ?? null,
+    [purchasable],
+  );
+  const [selection, setSelection] = useState<Record<string, string>>(() => {
+    const initial: Record<string, string> = {};
+    for (const option of defaultVariant?.selected_options ?? []) initial[option.name] = option.value;
+    return initial;
+  });
+
+  const selectedVariant = useMemo(() => {
+    if (optionNames.length === 0) return defaultVariant;
+    return (
+      purchasable.find((variant) =>
+        optionNames.every(
+          (name) =>
+            variant.selected_options.find((option) => option.name === name)?.value ===
+            selection[name],
+        ),
+      ) ?? null
+    );
+  }, [purchasable, optionNames, selection, defaultVariant]);
+
+  const activeImage =
+    (selectedVariant?.image_url
+      ? { url: selectedVariant.image_url, alt: product.title, width: null, height: null }
+      : null) ?? gallery[Math.min(activeIndex, Math.max(gallery.length - 1, 0))] ?? null;
   const storeHref = product.store_url ?? BRAND.storeUrl;
+  const buyHref = cartHref(product.checkout_domain, selectedVariant?.variant_id ?? null, quantity);
+  const soldOut = selectedVariant ? selectedVariant.available_for_sale === false : false;
+
   const price = formatPrice(product.price_min, product.price_max, product.currency);
   const url = `${BRAND.siteUrl}/shop/${product.handle}`;
 
