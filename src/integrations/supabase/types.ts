@@ -394,6 +394,48 @@ export type Database = {
         }
         Relationships: []
       }
+      automation_runs: {
+        Row: {
+          created_at: string
+          details: Json
+          entity_id: string | null
+          finished_at: string | null
+          id: string
+          job_key: string
+          message: string | null
+          run_key: string
+          started_at: string
+          status: Database["public"]["Enums"]["run_status"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          details?: Json
+          entity_id?: string | null
+          finished_at?: string | null
+          id?: string
+          job_key: string
+          message?: string | null
+          run_key: string
+          started_at?: string
+          status?: Database["public"]["Enums"]["run_status"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          details?: Json
+          entity_id?: string | null
+          finished_at?: string | null
+          id?: string
+          job_key?: string
+          message?: string | null
+          run_key?: string
+          started_at?: string
+          status?: Database["public"]["Enums"]["run_status"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       contact_enquiries: {
         Row: {
           category: string
@@ -486,6 +528,74 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      editorial_plan_items: {
+        Row: {
+          angle: string | null
+          article_id: string | null
+          attempts: number
+          audience: string | null
+          created_at: string
+          failure_reason: string | null
+          id: string
+          keywords: string[]
+          plan_month: string
+          planned_for: string
+          related_handles: string[]
+          search_intent: string | null
+          slug_hint: string | null
+          status: string
+          target_query: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          angle?: string | null
+          article_id?: string | null
+          attempts?: number
+          audience?: string | null
+          created_at?: string
+          failure_reason?: string | null
+          id?: string
+          keywords?: string[]
+          plan_month: string
+          planned_for: string
+          related_handles?: string[]
+          search_intent?: string | null
+          slug_hint?: string | null
+          status?: string
+          target_query?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          angle?: string | null
+          article_id?: string | null
+          attempts?: number
+          audience?: string | null
+          created_at?: string
+          failure_reason?: string | null
+          id?: string
+          keywords?: string[]
+          plan_month?: string
+          planned_for?: string
+          related_handles?: string[]
+          search_intent?: string | null
+          slug_hint?: string | null
+          status?: string
+          target_query?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "editorial_plan_items_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       integration_events: {
         Row: {

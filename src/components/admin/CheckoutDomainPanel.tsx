@@ -45,14 +45,15 @@ export function CheckoutDomainPanel() {
   });
 
   const effective = setting.data?.checkoutDomain ?? setting.data?.shopDomain ?? null;
+  const ready = setting.data?.ready ?? false;
 
   return (
     <SectionCard
       title="Checkout domain"
       description="Product pages send shoppers to a basket on this host. Payment, delivery and order tracking stay with the store."
       actions={
-        <StatusPill tone={effective ? "positive" : "neutral"}>
-          {effective ? "Set" : "Not set"}
+        <StatusPill tone={ready ? "positive" : effective ? "warning" : "neutral"}>
+          {ready ? "Working" : effective ? "Not answering" : "Not set"}
         </StatusPill>
       }
     >
@@ -62,6 +63,14 @@ export function CheckoutDomainPanel() {
         In that case set a dedicated checkout host, for example shop.nurgoods.com, add it to the
         store as a domain and enter it here.
       </p>
+
+      {effective && !ready ? (
+        <p className="mb-4 rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-xs leading-relaxed text-foreground">
+          Basket links on {effective} are not answering as the store, so Buy now is disabled on
+          product pages instead of sending shoppers to a dead end. Add a dedicated checkout host in
+          the store admin, set it as the primary domain there and enter it above.
+        </p>
+      ) : null}
 
       <form
         className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end"

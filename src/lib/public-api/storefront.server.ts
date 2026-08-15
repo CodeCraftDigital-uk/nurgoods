@@ -297,6 +297,8 @@ export interface StorefrontProductDetail extends StorefrontProductCard {
   store_url: string | null;
   /** Host that owns the basket and payment pages, when the store is paired. */
   checkout_domain: string | null;
+  /** True when that host genuinely answers as the store basket. */
+  checkout_ready: boolean;
   options: { name: string; values: string[] }[];
   media: StorefrontMedia[];
   variants: StorefrontVariant[];
@@ -352,6 +354,35 @@ export async function getCheckoutDomain(): Promise<string | null> {
   }
   checkoutDomainCache = { value, expires: Date.now() + 60_000 };
   return value;
+}
+
+let checkoutHealthCache: { ready: boolean; expires: number } | null = null;
+
+/**
+ * Confirms the basket host genuinely answers as the store rather than looping
+ * back to this site. A store whose primary domain points here will redirect
+ * basket links away, so the product page must not offer a link that dead ends.
+ */
+export async function isCheckoutReady(domain: string | null): Promise<boolean> {
+  if (!domain) return false;
+  if (checkoutHealthCache && checkoutHealthCache.expires > Date.now()) {
+    return checkoutHealthCache.ready;
+  }
+  let ready = false;
+  try {
+    const response = await fetch(`https://${domain}/cart`, {
+      method: "GET",
+      redirect: "follow",
+      headers: { "user-agent": "NURGOODS-storefront/1.0" },
+    });
+    // Store served pages carry a store identifier header. Anything else means
+    // the basket link has been redirected somewhere that cannot take payment.
+    ready = response.ok && Boolean(response.headers.get("x-shopid"));
+  } catch {
+    ready = false;
+  }
+  checkoutHealthCache = { ready, expires: Date.now() + 600_000 };
+  return ready;
 }
 
 
@@ -507,6 +538,8 @@ export async function getStorefrontProduct(handle: string): Promise<StorefrontPr
     available_for_sale: v.available_for_sale ?? null,
   }));
 
+  const checkoutDomain = await getCheckoutDomain();
+
   const options = Array.isArray(row.options)
     ? (row.options as any[]).flatMap((o) =>
         o && typeof o.name === "string" && Array.isArray(o.values)
@@ -522,7 +555,8 @@ export async function getStorefrontProduct(handle: string): Promise<StorefrontPr
     seo_title: row.seo_title ?? null,
     seo_description: row.seo_description ?? null,
     store_url: row.online_store_url ?? null,
-    checkout_domain: await getCheckoutDomain(),
+    checkout_domain: checkoutDomain,
+    checkout_ready: await isCheckoutReady(checkoutDomain),
     options,
     media,
     variants,

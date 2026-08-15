@@ -18,18 +18,76 @@ export type JobKey =
   | "seo_audit"
   | "topic_discovery"
   | "publish_scheduler"
-  | "article_drafting";
+  | "article_drafting"
+  | "monthly_editorial_plan"
+  | "daily_article_publish";
 
 export interface JobRunResult {
   jobKey: string;
-  status: "succeeded" | "skipped";
+  status: "succeeded" | "skipped" | "failed";
   message: string;
   details: Record<string, number | string>;
 }
 
 interface RunContext {
   supabase: Db;
-  userId: string;
+  userId: string | null;
+}
+
+/**
+ * Claims a run key so a duplicate invocation of a scheduled job cannot do the
+ * work twice. Returns null when the key is already taken.
+ */
+async function claimRun(
+  ctx: RunContext,
+  jobKey: string,
+  runKey: string,
+): Promise<string | null> {
+  const { data, error } = await ctx.supabase
+    .from("automation_runs")
+    .insert({ job_key: jobKey, run_key: runKey, status: "running" } as never)
+    .select("id")
+    .maybeSingle();
+  if (!error) return (data as any)?.id ?? null;
+
+  // The key is taken. A previous attempt that failed or was cancelled may be
+  // retried, but work that succeeded or is still running is left alone.
+  const { data: existing } = await ctx.supabase
+    .from("automation_runs")
+    .select("id,status,started_at")
+    .eq("run_key", runKey)
+    .maybeSingle();
+  const status = (existing as any)?.status;
+  const stale =
+    status === "running" &&
+    Date.now() - new Date((existing as any)?.started_at ?? 0).getTime() > 30 * 60_000;
+  if (!existing || (status !== "failed" && status !== "cancelled" && !stale)) return null;
+
+  const { data: retaken } = await ctx.supabase
+    .from("automation_runs")
+    .update({ status: "running", message: null, started_at: new Date().toISOString(), finished_at: null })
+    .eq("id", (existing as any).id)
+    .select("id")
+    .maybeSingle();
+  return (retaken as any)?.id ?? null;
+}
+
+async function closeRun(
+  ctx: RunContext,
+  runId: string,
+  status: "succeeded" | "failed" | "cancelled",
+  message: string,
+  details: Record<string, unknown> = {},
+): Promise<void> {
+  await ctx.supabase
+    .from("automation_runs")
+    .update({
+      status,
+      message,
+      details: details as never,
+      finished_at: new Date().toISOString(),
+    })
+    .eq("id", runId);
 }
 
 export async function runAutomationJob(
@@ -43,6 +101,14 @@ export async function runAutomationJob(
     .maybeSingle();
   if (error) throw new Error(error.message);
   if (!job) throw new Error("That automation job does not exist");
+  if (job.enabled === false) {
+    return {
+      jobKey,
+      status: "skipped",
+      message: "This job is paused. Resume it to let it run again.",
+      details: {},
+    };
+  }
 
   const startedAt = new Date().toISOString();
   try {
@@ -51,7 +117,12 @@ export async function runAutomationJob(
       .from("automation_jobs")
       .update({
         last_run_at: startedAt,
-        last_status: result.status === "skipped" ? "cancelled" : "succeeded",
+        last_status:
+          result.status === "skipped"
+            ? "cancelled"
+            : result.status === "failed"
+              ? "failed"
+              : "succeeded",
         last_result: { message: result.message, ...result.details },
       })
       .eq("id", job.id);
@@ -80,16 +151,91 @@ async function execute(ctx: RunContext, jobKey: string): Promise<JobRunResult> {
       return runTopicDiscovery(ctx);
     case "publish_scheduler":
       return runPublishScheduler(ctx);
+    case "monthly_editorial_plan":
+      return runMonthlyPlan(ctx);
+    case "daily_article_publish":
+      return runDailyPublish(ctx);
     case "article_drafting":
       return {
         jobKey,
         status: "skipped",
         message:
-          "Drafting stays under editor control. Open an article in the Journal workspace and run the draft stage there so the output is reviewed before it moves on.",
+          "Automatic drafting now runs on the daily Journal job. Use that job, or open an article in the Journal workspace to run a single stage by hand.",
         details: {},
       };
     default:
       throw new Error("That job has no runner yet");
+  }
+}
+
+/* ------------------------- automated journal ------------------------- */
+
+/** Builds the forward topic plan for the current month, once per month. */
+async function runMonthlyPlan(ctx: RunContext): Promise<JobRunResult> {
+  const jobKey = "monthly_editorial_plan";
+  const runKey = `${jobKey}:${new Date().toISOString().slice(0, 7)}`;
+  const runId = await claimRun(ctx, jobKey, runKey);
+  if (!runId) {
+    return {
+      jobKey,
+      status: "skipped",
+      message: "The plan for this month has already been built.",
+      details: {},
+    };
+  }
+
+  try {
+    const { planMonthlyEditorial } = await import("./editorial.server");
+    const result = await planMonthlyEditorial(ctx.supabase, { userId: ctx.userId });
+    const message = `Planned ${result.created} topics for ${result.month}.`;
+    await closeRun(ctx, runId, "succeeded", message, { ...result });
+    return { jobKey, status: "succeeded", message, details: { created: result.created } };
+  } catch (cause) {
+    const message = cause instanceof Error ? cause.message : "The planner failed";
+    await closeRun(ctx, runId, "failed", message);
+    throw new Error(message);
+  }
+}
+
+/** Writes, checks and publishes the next planned article, once per day. */
+async function runDailyPublish(ctx: RunContext): Promise<JobRunResult> {
+  const jobKey = "daily_article_publish";
+  const runKey = `${jobKey}:${new Date().toISOString().slice(0, 10)}`;
+  const runId = await claimRun(ctx, jobKey, runKey);
+  if (!runId) {
+    return {
+      jobKey,
+      status: "skipped",
+      message: "Today's Journal run has already happened.",
+      details: {},
+    };
+  }
+
+  try {
+    const { runDailyArticle } = await import("./editorial.server");
+    const result = await runDailyArticle(ctx.supabase, { userId: ctx.userId });
+    await closeRun(
+      ctx,
+      runId,
+      result.status === "published" ? "succeeded" : result.status === "skipped" ? "cancelled" : "failed",
+      result.message,
+      { articleId: result.articleId ?? null, slug: result.slug ?? null },
+    );
+    return {
+      jobKey,
+      status:
+        result.status === "published"
+          ? "succeeded"
+          : result.status === "skipped"
+            ? "skipped"
+            : "failed",
+      message: result.message,
+      details: result.slug ? { slug: result.slug } : {},
+    };
+  } catch (cause) {
+    const message = cause instanceof Error ? cause.message : "The daily Journal run failed";
+    await closeRun(ctx, runId, "failed", message);
+    throw new Error(message);
   }
 }
 

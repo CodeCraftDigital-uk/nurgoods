@@ -248,11 +248,18 @@ export const runShopifyLegalSync = createServerFn({ method: "POST" })
 /** Reads the configured checkout host used for basket links. */
 export const getCheckoutDomainFn = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }): Promise<{ checkoutDomain: string | null; shopDomain: string | null }> => {
-    await assertAdmin(context);
-    const { getCheckoutDomainSetting } = await import("./shopify.server");
-    return getCheckoutDomainSetting();
-  });
+  .handler(
+    async ({
+      context,
+    }): Promise<{ checkoutDomain: string | null; shopDomain: string | null; ready: boolean }> => {
+      await assertAdmin(context);
+      const { getCheckoutDomainSetting } = await import("./shopify.server");
+      const { isCheckoutReady } = await import("@/lib/public-api/storefront.server");
+      const current = await getCheckoutDomainSetting();
+      const effective = current.checkoutDomain ?? current.shopDomain ?? null;
+      return { ...current, ready: await isCheckoutReady(effective) };
+    },
+  );
 
 /** Sets or clears the checkout host used for basket links. */
 export const setCheckoutDomainFn = createServerFn({ method: "POST" })
