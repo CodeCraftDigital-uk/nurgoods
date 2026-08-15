@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { BrandLogo } from "@/components/admin/BrandLogo";
 
 export const Route = createFileRoute("/auth")({
+  ssr: false,
   head: () => ({
     meta: [
       { title: "Sign in | NUR GOODS Platform" },
@@ -32,7 +33,6 @@ export const Route = createFileRoute("/auth")({
 
 function AuthPage() {
   const navigate = useNavigate();
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -47,25 +47,17 @@ function AuthPage() {
     event.preventDefault();
     setBusy(true);
     try {
-      if (mode === "signin") {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-        navigate({ to: "/admin" });
-      } else {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: { emailRedirectTo: `${window.location.origin}/admin` },
-        });
-        if (error) throw error;
-        toast.success("Account created. Check your inbox if confirmation is required.");
-      }
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      navigate({ to: "/admin" });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Authentication failed");
     } finally {
       setBusy(false);
     }
   }
+
+
 
   async function handleGoogle() {
     const result = await lovable.auth.signInWithOAuth("google", {
@@ -84,7 +76,7 @@ function AuthPage() {
       <Card className="w-full max-w-sm">
         <CardHeader className="items-center text-center">
           <BrandLogo size={44} className="mb-3" />
-          <CardTitle>{mode === "signin" ? "Sign in" : "Create account"}</CardTitle>
+          <CardTitle>Sign in</CardTitle>
           <CardDescription>Internal access to the NUR GOODS platform console.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -111,19 +103,16 @@ function AuthPage() {
               />
             </div>
             <Button type="submit" className="w-full" disabled={busy}>
-              {mode === "signin" ? "Sign in" : "Sign up"}
+              Sign in
             </Button>
           </form>
           <Button variant="outline" className="w-full" onClick={handleGoogle}>
             Continue with Google
           </Button>
-          <button
-            type="button"
-            className="w-full text-sm text-muted-foreground underline-offset-4 hover:underline"
-            onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
-          >
-            {mode === "signin" ? "Need an account? Sign up" : "Already have an account? Sign in"}
-          </button>
+          <p className="text-center text-xs text-muted-foreground">
+            Access is limited to approved NUR GOODS team accounts. Contact support@nurgoods.com if
+            you need access.
+          </p>
         </CardContent>
       </Card>
     </main>
