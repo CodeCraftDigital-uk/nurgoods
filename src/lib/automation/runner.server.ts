@@ -245,6 +245,8 @@ async function runTopicDiscovery(ctx: RunContext): Promise<JobRunResult> {
 
   const adapter = resolveAdapter();
   const completion = await adapter.complete({
+    stage: "topic_discovery",
+    promptVersionKey: "topic_discovery.v1",
     messages: [
       { role: "system", content: TOPIC_RULES },
       {
