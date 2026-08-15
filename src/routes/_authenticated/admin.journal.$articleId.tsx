@@ -645,7 +645,49 @@ function ArticleEditor() {
           </SectionCard>
 
           <SectionCard
+            title="Live research"
+            description="Searches the configured research provider and stores every result as an unverified source record. Nothing is written into the article body and nothing is approved. A person opens each source, checks it and marks it verified in the Sources tab."
+          >
+            {aiStatus.data?.researchConfigured ? (
+              <p className="text-xs text-muted-foreground">
+                Research provider {aiStatus.data.researchProviderId ?? "tavily"} is configured.
+              </p>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Research is blocked until this server secret is added:{" "}
+                {(aiStatus.data?.researchMissing ?? [AI_SECRET_NAMES.researchApiKey]).join(", ")}.
+                Set RESEARCH_PROVIDER_ID as well if you are not using the default provider.
+              </p>
+            )}
+            <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
+              <div className="flex-1 space-y-2">
+                <Label htmlFor="researchQuery">Search query</Label>
+                <Input
+                  id="researchQuery"
+                  value={researchQuery}
+                  placeholder="Leave empty to use the brief target query or the article title"
+                  onChange={(e) => setResearchQuery(e.target.value)}
+                  disabled={!aiStatus.data?.researchConfigured}
+                />
+              </div>
+              <Button
+                variant="outline"
+                disabled={!aiStatus.data?.researchConfigured || research.isPending}
+                onClick={() => research.mutate()}
+              >
+                <Search className="h-4 w-4" aria-hidden="true" />
+                {research.isPending ? "Researching" : "Run research"}
+              </Button>
+            </div>
+            <p className="mt-3 text-xs text-muted-foreground">
+              Results arrive unverified. Claims may only rely on a source after a person verifies
+              it.
+            </p>
+          </SectionCard>
+
+          <SectionCard
             title="Assisted generation"
+
             description="Runs one stage at a time against the brief, the article body and the stored sources. Every run is recorded with provider, model and outcome. Research, verification, approval and scheduling stay with a person."
           >
             {aiStatus.data?.configured ? (
