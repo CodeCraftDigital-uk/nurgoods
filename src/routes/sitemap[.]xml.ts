@@ -10,7 +10,7 @@ export const Route = createFileRoute("/sitemap.xml")({
           "@/lib/services/public-content.functions"
         );
 
-        const entries: { loc: string; lastmod?: string; priority: string }[] = [
+        const entries: { loc: string; lastmod?: string | undefined; priority: string }[] = [
           { loc: `${BRAND.siteUrl}/`, priority: "0.9" },
           { loc: `${BRAND.siteUrl}/journal`, priority: "0.8" },
           { loc: `${BRAND.siteUrl}/reviews`, priority: "0.6" },
