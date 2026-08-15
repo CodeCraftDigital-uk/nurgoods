@@ -62,7 +62,7 @@ export function PublicShell({ children }: { children: ReactNode }) {
             </Link>
           ))}
         </nav>
-
+      </header>
 
       <main className="flex-1">{children}</main>
 
