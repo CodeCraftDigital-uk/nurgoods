@@ -94,6 +94,7 @@ function ArticlePage() {
   const article = Route.useLoaderData();
   const canonical = article.canonical_url ?? `${BRAND.siteUrl}/journal/${article.slug}`;
   const faqs = article.faqs ?? [];
+  const related = useRelatedArticles(article.slug, article.tags);
 
   const graph: Record<string, unknown>[] = [
     {
@@ -235,23 +236,66 @@ function ArticlePage() {
         ) : null}
 
         {article.links.length > 0 ? (
-          <section className="mt-14" aria-labelledby="related-heading">
-            <h2 id="related-heading" className="font-display text-2xl text-foreground">
-              Keep reading
+          <section className="mt-14" aria-labelledby="links-heading">
+            <h2 id="links-heading" className="font-display text-2xl text-foreground">
+              Explore next
             </h2>
             <ul className="mt-4 space-y-2 text-sm">
               {article.links.map((link) => (
                 <li key={link.id}>
-                  <a
-                    href={
-                      link.target_type === "article"
-                        ? `/journal/${link.target_reference}`
-                        : `${BRAND.storeUrl}/${link.target_type === "collection" ? "collections" : "products"}/${link.target_reference}`
-                    }
-                    className="text-foreground underline decoration-gold underline-offset-4"
+                  {link.target_type === "article" ? (
+                    <Link
+                      to="/journal/$slug"
+                      params={{ slug: link.target_reference }}
+                      className="text-foreground underline decoration-gold underline-offset-4"
+                    >
+                      {link.anchor_text}
+                    </Link>
+                  ) : link.target_type === "collection" ? (
+                    <Link
+                      to="/collections/$handle"
+                      params={{ handle: link.target_reference }}
+                      className="text-foreground underline decoration-gold underline-offset-4"
+                    >
+                      {link.anchor_text}
+                    </Link>
+                  ) : (
+                    <Link
+                      to="/shop/$handle"
+                      params={{ handle: link.target_reference }}
+                      className="text-foreground underline decoration-gold underline-offset-4"
+                    >
+                      {link.anchor_text}
+                    </Link>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
+        {related.length > 0 ? (
+          <section className="mt-14" aria-labelledby="related-heading">
+            <h2 id="related-heading" className="font-display text-2xl text-foreground">
+              Keep reading
+            </h2>
+            <ul className="mt-5 grid gap-4 sm:grid-cols-3">
+              {related.map((item) => (
+                <li key={item.id}>
+                  <Link
+                    to="/journal/$slug"
+                    params={{ slug: item.slug }}
+                    className="flex h-full flex-col rounded-xl border border-border/70 p-5 transition-colors hover:border-gold"
                   >
-                    {link.anchor_text}
-                  </a>
+                    <h3 className="font-display text-base leading-snug text-foreground">
+                      {item.title}
+                    </h3>
+                    {item.excerpt ? (
+                      <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-muted-foreground">
+                        {item.excerpt}
+                      </p>
+                    ) : null}
+                  </Link>
                 </li>
               ))}
             </ul>
