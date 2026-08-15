@@ -1149,7 +1149,6 @@ export type Database = {
         }
         Returns: boolean
       }
-      seo_record_is_public: { Args: { _record_id: string }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "staff" | "viewer"
