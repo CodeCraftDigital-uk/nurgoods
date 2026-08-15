@@ -493,6 +493,7 @@ export async function getStorefrontProduct(handle: string): Promise<StorefrontPr
 
   const variants: StorefrontVariant[] = ((variantRows ?? []) as any[]).map((v) => ({
     id: v.id,
+    variant_id: numericId(v.shopify_variant_id),
     title: v.title,
     price: v.price ?? null,
     compare_at_price: v.compare_at_price ?? null,
