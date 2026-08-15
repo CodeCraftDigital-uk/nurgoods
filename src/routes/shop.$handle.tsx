@@ -361,12 +361,23 @@ function ProductDetail() {
               </select>
 
               {canBuy ? (
-                <a
-                  href={buyHref!}
-                  className="inline-flex min-h-12 flex-1 items-center justify-center rounded-lg bg-primary px-6 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 sm:flex-none"
-                >
-                  Buy now
-                </a>
+                headlessReady ? (
+                  <button
+                    type="button"
+                    onClick={() => void beginCheckout()}
+                    disabled={starting}
+                    className="inline-flex min-h-12 flex-1 items-center justify-center rounded-lg bg-primary px-6 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-70 sm:flex-none"
+                  >
+                    {starting ? "Opening checkout" : "Buy now"}
+                  </button>
+                ) : (
+                  <a
+                    href={buyHref!}
+                    className="inline-flex min-h-12 flex-1 items-center justify-center rounded-lg bg-primary px-6 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 sm:flex-none"
+                  >
+                    Buy now
+                  </a>
+                )
               ) : (
                 <button
                   type="button"
