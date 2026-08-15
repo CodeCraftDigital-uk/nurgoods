@@ -505,8 +505,8 @@ function ArticleEditor() {
               ))}
               {(links.data ?? []).length === 0 ? (
                 <li className="py-4 text-sm text-muted-foreground">
-                  No suggestions yet. The internal links stage produces these once the article has a
-                  connected.
+                  No suggestions yet. The internal links stage produces these from the article body
+                  and the synced catalogue.
                 </li>
               ) : null}
             </ul>
