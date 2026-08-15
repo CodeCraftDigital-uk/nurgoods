@@ -141,8 +141,12 @@ export interface DeliveryOutcome {
  * Mail abstraction. A sender domain has to be verified for this brand before
  * anything can actually leave the platform, so until then an enquiry is stored
  * and reported honestly as awaiting email setup rather than claimed as sent.
+ * When the sender domain is live, the delivery call is wired in here and the
+ * rest of the flow, including the stored record and admin inbox, is unchanged.
  */
-export async function deliverSupportEmail(input: ContactInput & { id: string }): Promise<DeliveryOutcome> {
+export async function deliverSupportEmail(
+  input: ContactInput & { id: string },
+): Promise<DeliveryOutcome> {
   const senderDomain = process.env["SUPPORT_SENDER_DOMAIN"];
   const apiKey = process.env["LOVABLE_API_KEY"];
   if (!senderDomain || !apiKey) {
@@ -152,33 +156,28 @@ export async function deliverSupportEmail(input: ContactInput & { id: string }):
     };
   }
 
-  try {
-    const { sendLovableEmail } = await import("@lovable.dev/email-js");
-    const body = [
-      `Category: ${CATEGORY_LABEL[input.category] ?? input.category}`,
-      input.orderNumber ? `Order number: ${input.orderNumber}` : null,
-      `From: ${input.name} <${input.email}>`,
-      "",
-      input.message,
-    ]
-      .filter(Boolean)
-      .join("\n");
+  // Composed here so the message body and headers are already safe by the time
+  // a delivery provider is connected.
+  const subject = headerSafe(
+    `[${CATEGORY_LABEL[input.category] ?? "Enquiry"}] ${input.subject}`,
+    180,
+  );
+  const body = [
+    `Category: ${CATEGORY_LABEL[input.category] ?? input.category}`,
+    input.orderNumber ? `Order number: ${input.orderNumber}` : null,
+    `From: ${input.name} <${input.email}>`,
+    `Reference: ${input.id}`,
+    "",
+    input.message,
+  ]
+    .filter(Boolean)
+    .join("\n");
+  void subject;
+  void body;
 
-    await (sendLovableEmail as any)({
-      apiKey,
-      senderDomain,
-      from: `NUR GOODS <support@${senderDomain}>`,
-      to: SUPPORT_INBOX,
-      replyTo: input.email,
-      subject: `[${CATEGORY_LABEL[input.category] ?? "Enquiry"}] ${input.subject}`,
-      text: body,
-      idempotencyKey: `contact-${input.id}`,
-    });
-    return { status: "email_sent", error: null };
-  } catch (error) {
-    return {
-      status: "email_failed",
-      error: error instanceof Error ? error.message.slice(0, 300) : "Delivery failed",
-    };
-  }
+  return {
+    status: "email_unconfigured",
+    error: "Sender domain set but no delivery provider is connected yet.",
+  };
 }
+
