@@ -119,6 +119,37 @@ function ArticleEditor() {
     });
   }, [article.data, form]);
 
+  const aiStatusFn = useServerFn(getAiProviderStatus);
+  const aiStatus = useQuery({
+    queryKey: ["ai-status"],
+    queryFn: () => aiStatusFn({}),
+    retry: false,
+  });
+
+  const runs = useQuery({
+    queryKey: ["article-runs", articleId],
+    queryFn: () => listArticleRuns(articleId),
+  });
+
+  const runStageFn = useServerFn(runArticleStage);
+  const runStage = useMutation({
+    mutationFn: (stage: WorkflowStage) => runStageFn({ data: { articleId, stage } }),
+    onSuccess: async (result) => {
+      await queryClient.invalidateQueries({ queryKey: ["article", articleId] });
+      await queryClient.invalidateQueries({ queryKey: ["article-runs", articleId] });
+      await queryClient.invalidateQueries({ queryKey: ["internal-links", articleId] });
+      setForm(null);
+      toast.success(
+        result.applied.length > 0
+          ? `Stage complete. Updated: ${result.applied.join(", ")}.`
+          : "Stage complete. Nothing needed changing.",
+      );
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+
+
   const save = useMutation({
     mutationFn: async (state: EditorState) => {
       const publishing = state.status === "published";
