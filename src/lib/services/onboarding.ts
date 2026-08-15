@@ -22,16 +22,44 @@ async function countRows(table: "shopify_products" | "articles"): Promise<number
   return count ?? 0;
 }
 
+async function countPublishedArticles(): Promise<number> {
+  const { count, error } = await supabase
+    .from("articles")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "published")
+    .not("published_at", "is", null);
+  if (error) throw error;
+  return count ?? 0;
+}
+
+async function countPublishedPolicies(): Promise<number> {
+  const { count, error } = await supabase
+    .from("legal_documents")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "published")
+    .eq("is_placeholder", false);
+  if (error) throw error;
+  return count ?? 0;
+}
+
 export async function getOnboardingState(
   aiStatus: AiProviderStatus | null,
 ): Promise<OnboardingState> {
-  const [{ data: integrations, error }, productCount, articleCount, placements] =
-    await Promise.all([
-      supabase.from("integrations").select("provider,status"),
-      countRows("shopify_products"),
-      countRows("articles"),
-      supabase.from("review_placements").select("enabled,widget_reference"),
-    ]);
+  const [
+    { data: integrations, error },
+    productCount,
+    articleCount,
+    publishedArticles,
+    publishedPolicies,
+    placements,
+  ] = await Promise.all([
+    supabase.from("integrations").select("provider,status"),
+    countRows("shopify_products"),
+    countRows("articles"),
+    countPublishedArticles(),
+    countPublishedPolicies(),
+    supabase.from("review_placements").select("enabled,widget_reference"),
+  ]);
   if (error) throw error;
 
   const byProvider = new Map((integrations ?? []).map((i) => [i.provider, i.status]));
@@ -71,10 +99,21 @@ export async function getOnboardingState(
       key: "publishing",
       label: "Publishing workflow",
       description:
-        "Create a brief, take an article through the workflow and publish it to prove the pipeline.",
-      complete: articleCount > 0,
-      blockedBy: "At least one approved article in the Journal.",
+        articleCount > 0 && publishedArticles === 0
+          ? "Articles exist in the workflow. Approve and publish one to make the Journal live."
+          : "Create a brief, take an article through the workflow and publish it to prove the pipeline.",
+      complete: publishedArticles > 0,
+      blockedBy: "At least one approved and published article in the Journal.",
       href: "/admin/journal",
+    },
+    {
+      key: "policies",
+      label: "Policy pages",
+      description:
+        "Paste the approved wording for each policy and publish it so the public policy pages appear.",
+      complete: publishedPolicies > 0,
+      blockedBy: "Owner approved wording for the trust and policy documents.",
+      href: "/admin/legal",
     },
   ];
 
