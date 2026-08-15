@@ -51,6 +51,7 @@ export const Route = createFileRoute("/journal/$slug")({
         { property: "og:title", content: title },
         { property: "og:description", content: description },
         { property: "og:type", content: "article" },
+        { property: "og:url", content: `${BRAND.siteUrl}/journal/${loaderData.slug}` },
         { name: "twitter:card", content: "summary_large_image" },
         ...(image && image.startsWith("https://")
           ? [
