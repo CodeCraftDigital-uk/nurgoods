@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
+import { BrandLogo } from "@/components/admin/BrandLogo";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -81,7 +82,8 @@ function AuthPage() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-background px-4 py-16">
       <Card className="w-full max-w-sm">
-        <CardHeader>
+        <CardHeader className="items-center text-center">
+          <BrandLogo size={44} className="mb-3" />
           <CardTitle>{mode === "signin" ? "Sign in" : "Create account"}</CardTitle>
           <CardDescription>Internal access to the NUR GOODS platform console.</CardDescription>
         </CardHeader>

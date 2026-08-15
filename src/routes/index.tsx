@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { BrandLogo } from "@/components/admin/BrandLogo";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -41,9 +42,12 @@ function Index() {
   return (
     <main className="min-h-screen bg-background">
       <div className="mx-auto max-w-4xl px-5 py-20 sm:px-8 sm:py-28">
-        <p className="text-[0.7rem] font-medium uppercase tracking-[0.28em] text-muted-foreground">
-          NUR GOODS
-        </p>
+        <div className="flex items-center gap-3">
+          <BrandLogo size={44} />
+          <p className="text-[0.7rem] font-medium uppercase tracking-[0.28em] text-muted-foreground">
+            NUR GOODS
+          </p>
+        </div>
         <h1 className="mt-5 font-display text-4xl leading-tight text-foreground sm:text-5xl">
           Good things, brought to light.
         </h1>
