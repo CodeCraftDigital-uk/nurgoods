@@ -32,5 +32,5 @@ export default defineMcp({
     getStoreInformation,
     getPolicy,
     getAnswers,
-  ] as Parameters<typeof defineMcp>[0]["tools"],
+  ] as unknown as Parameters<typeof defineMcp>[0]["tools"],
 });
