@@ -221,6 +221,9 @@ export interface PublicLegalSourceSummary {
   source_url: string | null;
   shopify_updated_at: string | null;
   last_synced_at: string;
+  /** True when a person has approved a locally edited copy of this document. */
+  locally_edited?: boolean;
+
 }
 
 export interface PublicLegalSource extends PublicLegalSourceSummary {
@@ -243,41 +246,89 @@ function toSummary(row: any): PublicLegalSourceSummary {
   };
 }
 
-/** Imported policies that are safe to render in full on this site. */
+/**
+ * Policies that are safe to render in full on this site. A published local
+ * copy always wins over the imported store wording, because it is the version
+ * a person has reviewed and approved for customers.
+ */
 export const listPublicLegalSources = createServerFn({ method: "GET" }).handler(
   async (): Promise<PublicLegalSourceSummary[]> => {
-    const supabase = await publicClient();
-    const { data, error } = await supabase
-      .from("shopify_legal_sources")
-      .select(LEGAL_SOURCE_COLUMNS)
-      .eq("public_visible", true)
-      .eq("is_published", true)
-      .order("title", { ascending: true });
-    if (error) throw new Error(error.message);
-    return (data ?? []).map(toSummary);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const [sourcesResult, overridesResult] = await Promise.all([
+      supabaseAdmin
+        .from("shopify_legal_sources")
+        .select(`id, ${LEGAL_SOURCE_COLUMNS}`)
+        .eq("is_published", true)
+        .order("title", { ascending: true }),
+      supabaseAdmin
+        .from("legal_source_overrides")
+        .select("source_id, published_title, published_summary, published_at")
+        .not("published_body_html", "is", null),
+    ]);
+    if (sourcesResult.error) throw new Error(sourcesResult.error.message);
+    const overrides = new Map<string, any>(
+      (overridesResult.data ?? []).map((row: any) => [row.source_id, row]),
+    );
+
+    const out: PublicLegalSourceSummary[] = [];
+    for (const row of (sourcesResult.data ?? []) as any[]) {
+      const override = overrides.get(row.id);
+      if (override) {
+        out.push({
+          ...toSummary(row),
+          title: override.published_title ?? row.title,
+          summary: override.published_summary ?? row.body_summary ?? null,
+          locally_edited: true,
+        });
+        continue;
+      }
+      if (row.public_visible === false) continue;
+      out.push(toSummary(row));
+    }
+    return out.sort((a, b) => a.title.localeCompare(b.title));
   },
 );
 
 export const getPublicLegalSource = createServerFn({ method: "GET" })
   .inputValidator((input: { slug: string }) => ({ slug: String(input.slug) }))
   .handler(async ({ data }): Promise<PublicLegalSource | null> => {
-    const supabase = await publicClient();
-    const { data: row, error } = await supabase
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: row, error } = await supabaseAdmin
       .from("shopify_legal_sources")
-      .select(`${LEGAL_SOURCE_COLUMNS}, body_html`)
+      .select(`id, ${LEGAL_SOURCE_COLUMNS}, body_html, public_visible`)
       .eq("slug", data.slug)
-      .eq("public_visible", true)
       .eq("is_published", true)
       .maybeSingle();
     if (error) throw new Error(error.message);
     if (!row) return null;
+
+    const { data: override } = await supabaseAdmin
+      .from("legal_source_overrides")
+      .select("published_title, published_summary, published_body_html, published_at")
+      .eq("source_id", (row as any).id)
+      .not("published_body_html", "is", null)
+      .maybeSingle();
+
     const { sanitizeStoreHtml } = await import("@/lib/legal/sanitize");
+    if (override) {
+      return {
+        ...toSummary(row),
+        title: (override as any).published_title ?? (row as any).title,
+        summary: (override as any).published_summary ?? (row as any).body_summary ?? null,
+        locally_edited: true,
+        shopify_published_at: (row as any).shopify_published_at ?? null,
+        last_synced_at: (override as any).published_at ?? (row as any).last_synced_at,
+        body_html: sanitizeStoreHtml((override as any).published_body_html ?? ""),
+      };
+    }
+    if ((row as any).public_visible === false) return null;
     return {
       ...toSummary(row),
       shopify_published_at: (row as any).shopify_published_at ?? null,
       body_html: sanitizeStoreHtml((row as any).body_html ?? ""),
     };
   });
+
 
 export interface PublicLegalReference {
   title: string;
@@ -294,13 +345,19 @@ export const listPublicLegalReferences = createServerFn({ method: "GET" }).handl
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data, error } = await supabaseAdmin
       .from("shopify_legal_sources")
-      .select("title, source_url, has_liquid, has_placeholders, is_published, public_visible")
+      .select("id, title, source_url, has_liquid, has_placeholders, is_published, public_visible")
       .eq("is_published", true)
       .eq("public_visible", false)
       .eq("has_liquid", true)
       .eq("has_placeholders", false);
     if (error) return [];
+    const { data: overrides } = await supabaseAdmin
+      .from("legal_source_overrides")
+      .select("source_id")
+      .not("published_body_html", "is", null);
+    const overridden = new Set((overrides ?? []).map((row: any) => row.source_id));
     return (data ?? [])
+      .filter((row: any) => !overridden.has(row.id))
       .filter((row: any) => typeof row.source_url === "string" && row.source_url.length > 0)
       .map((row: any) => ({ title: row.title as string, source_url: row.source_url as string }));
   },

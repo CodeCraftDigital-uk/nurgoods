@@ -394,6 +394,60 @@ export type Database = {
         }
         Relationships: []
       }
+      contact_enquiries: {
+        Row: {
+          category: string
+          content_hash: string | null
+          created_at: string
+          delivery_error: string | null
+          email: string
+          email_attempted_at: string | null
+          handled: boolean
+          id: string
+          ip_hash: string | null
+          message: string
+          name: string
+          order_number: string | null
+          status: string
+          subject: string
+          updated_at: string
+        }
+        Insert: {
+          category: string
+          content_hash?: string | null
+          created_at?: string
+          delivery_error?: string | null
+          email: string
+          email_attempted_at?: string | null
+          handled?: boolean
+          id?: string
+          ip_hash?: string | null
+          message: string
+          name: string
+          order_number?: string | null
+          status?: string
+          subject: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          content_hash?: string | null
+          created_at?: string
+          delivery_error?: string | null
+          email?: string
+          email_attempted_at?: string | null
+          handled?: boolean
+          id?: string
+          ip_hash?: string | null
+          message?: string
+          name?: string
+          order_number?: string | null
+          status?: string
+          subject?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       content_entries: {
         Row: {
           body: Json
@@ -607,6 +661,112 @@ export type Database = {
           version?: number
         }
         Relationships: []
+      }
+      legal_override_revisions: {
+        Row: {
+          action: string
+          actor: string | null
+          body_html: string | null
+          created_at: string
+          id: string
+          source_id: string
+          summary: string | null
+          title: string | null
+          upstream_fingerprint: string | null
+        }
+        Insert: {
+          action: string
+          actor?: string | null
+          body_html?: string | null
+          created_at?: string
+          id?: string
+          source_id: string
+          summary?: string | null
+          title?: string | null
+          upstream_fingerprint?: string | null
+        }
+        Update: {
+          action?: string
+          actor?: string | null
+          body_html?: string | null
+          created_at?: string
+          id?: string
+          source_id?: string
+          summary?: string | null
+          title?: string | null
+          upstream_fingerprint?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "legal_override_revisions_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "shopify_legal_sources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      legal_source_overrides: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          draft_body_html: string
+          draft_summary: string | null
+          draft_title: string
+          id: string
+          notes: string | null
+          published_at: string | null
+          published_body_html: string | null
+          published_summary: string | null
+          published_title: string | null
+          source_id: string
+          updated_at: string
+          updated_by: string | null
+          upstream_fingerprint: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          draft_body_html?: string
+          draft_summary?: string | null
+          draft_title?: string
+          id?: string
+          notes?: string | null
+          published_at?: string | null
+          published_body_html?: string | null
+          published_summary?: string | null
+          published_title?: string | null
+          source_id: string
+          updated_at?: string
+          updated_by?: string | null
+          upstream_fingerprint?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          draft_body_html?: string
+          draft_summary?: string | null
+          draft_title?: string
+          id?: string
+          notes?: string | null
+          published_at?: string | null
+          published_body_html?: string | null
+          published_summary?: string | null
+          published_title?: string | null
+          source_id?: string
+          updated_at?: string
+          updated_by?: string | null
+          upstream_fingerprint?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "legal_source_overrides_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: true
+            referencedRelation: "shopify_legal_sources"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       mcp_resources: {
         Row: {
