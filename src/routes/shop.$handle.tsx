@@ -133,9 +133,10 @@ function ProductDetail() {
   }, [purchasable, optionNames, selection, defaultVariant]);
 
   const activeImage =
+    gallery[Math.min(activeIndex, Math.max(gallery.length - 1, 0))] ??
     (selectedVariant?.image_url
       ? { url: selectedVariant.image_url, alt: product.title, width: null, height: null }
-      : null) ?? gallery[Math.min(activeIndex, Math.max(gallery.length - 1, 0))] ?? null;
+      : null);
   const storeHref = product.store_url ?? BRAND.storeUrl;
   const buyHref = cartHref(product.checkout_domain, selectedVariant?.variant_id ?? null, quantity);
   const soldOut = selectedVariant ? selectedVariant.available_for_sale === false : false;
