@@ -138,15 +138,30 @@ function ProductDetail() {
       ? { url: selectedVariant.image_url, alt: product.title, width: null, height: null }
       : null);
   const soldOut = selectedVariant ? selectedVariant.available_for_sale === false : false;
-  const buyHref = product.checkout_ready
-    ? cartHref(product.checkout_domain, selectedVariant?.variant_id ?? null, quantity)
-    : null;
-  const canBuy = Boolean(buyHref) && !soldOut;
+  const variantId = selectedVariant?.variant_id ?? null;
+  const buyHref = product.checkout_ready ? cartHref(product.checkout_domain, variantId, quantity) : null;
+  const headlessReady = product.storefront_checkout && Boolean(variantId);
+  const canBuy = (headlessReady || Boolean(buyHref)) && !soldOut;
   const unavailableReason = soldOut
     ? "Currently unavailable"
-    : !product.checkout_ready
+    : !headlessReady && !product.checkout_ready
       ? "Checkout is being set up"
       : "Currently unavailable";
+
+  const [starting, setStarting] = useState(false);
+  const startCheckout = useServerFn(createCheckoutFn);
+  const beginCheckout = async () => {
+    if (!variantId) return;
+    setStarting(true);
+    try {
+      const result = await startCheckout({ data: { variantId, quantity } });
+      window.location.href = result.checkoutUrl;
+    } catch {
+      setStarting(false);
+      if (buyHref) window.location.href = buyHref;
+    }
+  };
+
 
   const price = formatPrice(product.price_min, product.price_max, product.currency);
   const url = `${BRAND.siteUrl}/shop/${product.handle}`;
