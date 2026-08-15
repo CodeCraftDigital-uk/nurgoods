@@ -672,9 +672,10 @@ function ArticleEditor() {
               </p>
             ) : (
               <p className="text-xs text-muted-foreground">
-                Research is blocked until this server secret is added:{" "}
-                {(aiStatus.data?.researchMissing ?? ["RESEARCH_PROVIDER_API_KEY"]).join(", ")}.
-                Set RESEARCH_PROVIDER_ID as well if you are not using the default provider.
+                Live web research is the one editorial capability the managed platform does not
+                provide, so it stays optional and switched off. To enable it, add{" "}
+                {(aiStatus.data?.researchMissing ?? ["RESEARCH_PROVIDER_API_KEY"]).join(", ")} as a
+                server secret, and RESEARCH_PROVIDER_ID if you are not using the default provider.
               </p>
             )}
             <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
