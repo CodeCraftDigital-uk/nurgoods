@@ -734,6 +734,35 @@ function ArticleEditor() {
               ))}
             </div>
 
+            <div className="mt-4 rounded-lg border border-border p-4">
+              <p className="text-sm text-foreground">Hero and social preview image</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Produces a branded editorial image for the article page, the Journal index and link
+                previews. If image generation is unavailable it falls back to genuine catalogue
+                photography from a linked product or collection.
+              </p>
+              {article.data?.hero_image_url ? (
+                <img
+                  src={article.data.hero_image_url}
+                  alt={article.data.hero_image_alt ?? ""}
+                  className="mt-3 h-32 w-full rounded-md object-cover"
+                />
+              ) : (
+                <p className="mt-3 text-xs text-muted-foreground">No hero image set yet.</p>
+              )}
+              <Button
+                size="sm"
+                variant="outline"
+                className="mt-3"
+                disabled={generateHero.isPending}
+                onClick={() => generateHero.mutate()}
+              >
+                <Sparkles className="h-4 w-4" aria-hidden="true" />
+                {article.data?.hero_image_url ? "Replace hero image" : "Create hero image"}
+              </Button>
+            </div>
+
+
             <div className="mt-6 border-t border-border pt-4">
               <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
                 Recent runs
