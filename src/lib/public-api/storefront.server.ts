@@ -560,6 +560,13 @@ export async function getStorefrontProduct(handle: string): Promise<StorefrontPr
     store_url: row.online_store_url ?? null,
     checkout_domain: checkoutDomain,
     checkout_ready: await isCheckoutReady(checkoutDomain),
+    storefront_checkout: await (async () => {
+      const { isStorefrontCheckoutReady } = await import(
+        "@/lib/services/shopify-storefront.server"
+      );
+      return isStorefrontCheckoutReady();
+    })(),
+
     options,
     media,
     variants,
