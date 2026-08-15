@@ -51,11 +51,11 @@ export async function getOnboardingState(
     },
     {
       key: "ai",
-      label: "AI provider",
+      label: "Editorial AI",
       description:
-        "Add server side AI credentials so the editorial workflow can run generation stages.",
+        "Managed AI powers every generation stage. No keys or accounts are needed from you.",
       complete: Boolean(aiStatus?.configured),
-      blockedBy: "AI provider identifier, model and API key held as server secrets.",
+      blockedBy: "Managed AI availability for this workspace.",
       href: "/admin/integrations",
     },
     {

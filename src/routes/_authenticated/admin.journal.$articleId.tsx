@@ -505,7 +505,7 @@ function ArticleEditor() {
               ))}
               {(links.data ?? []).length === 0 ? (
                 <li className="py-4 text-sm text-muted-foreground">
-                  No suggestions yet. The internal links stage produces these once an AI provider is
+                  No suggestions yet. The internal links stage produces these once the article has a
                   connected.
                 </li>
               ) : null}

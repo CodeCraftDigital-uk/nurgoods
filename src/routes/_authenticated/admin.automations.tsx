@@ -50,7 +50,7 @@ function AutomationsPage() {
       />
 
       <SectionCard
-        title="AI provider"
+        title="Editorial AI"
         description="Provider agnostic. Credentials live in server side secrets and are never exposed to the browser."
       >
         <div className="flex flex-wrap items-center gap-3">
