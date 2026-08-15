@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { BrandLogo } from "@/components/admin/BrandLogo";
 
 export const Route = createFileRoute("/auth")({
+  ssr: false,
   head: () => ({
     meta: [
       { title: "Sign in | NUR GOODS Platform" },
