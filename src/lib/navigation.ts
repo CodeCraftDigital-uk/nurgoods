@@ -3,6 +3,7 @@ import {
   Boxes,
   FileText,
   Gauge,
+  Inbox,
   LayoutGrid,
   Plug,
   Scale,
@@ -71,11 +72,18 @@ export const ADMIN_NAV: NavItem[] = [
     icon: Plug,
   },
   {
+    to: "/admin/contact",
+    label: "Contact Enquiries",
+    description: "Customer support messages received from the storefront.",
+    icon: Inbox,
+  },
+  {
     to: "/admin/legal",
     label: "Legal and Trust",
     description: "Policy documents and trust content records.",
     icon: Scale,
   },
+
   {
     to: "/admin/mcp",
     label: "MCP Readiness",

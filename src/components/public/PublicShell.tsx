@@ -15,6 +15,7 @@ const PRIMARY_NAV = [
   { label: "Journal", to: "/journal" },
   { label: "Reviews", to: "/reviews" },
   { label: "Policies", to: "/legal" },
+  { label: "Contact", to: "/contact" },
 ] as const;
 
 /**
@@ -174,6 +175,14 @@ export function PublicShell({ children }: { children: ReactNode }) {
               Contact
             </h2>
             <ul className="mt-3 space-y-2.5">
+              <li>
+                <Link
+                  to="/contact"
+                  className="inline-flex min-h-8 items-center text-muted-foreground hover:text-foreground"
+                >
+                  Contact us
+                </Link>
+              </li>
               <li>
                 <a
                   href={`mailto:${BRAND.supportEmail}`}
