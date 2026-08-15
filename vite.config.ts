@@ -15,5 +15,12 @@ export default defineConfig({
   },
   vite: {
     plugins: [mcpPlugin()],
+    // Pre-bundle the React runtime up front so a mid-session dependency
+    // re-optimisation cannot swap the React module while a page is rendering,
+    // which is what produces the transient "resolveDispatcher().use" blank screen.
+    optimizeDeps: {
+      include: ["react", "react-dom", "react-dom/client", "react/jsx-runtime"],
+    },
   },
+
 });
