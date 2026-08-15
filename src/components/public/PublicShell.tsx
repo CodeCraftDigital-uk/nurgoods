@@ -20,7 +20,7 @@ export function PublicShell({ children }: { children: ReactNode }) {
         <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-2 px-4 py-3 sm:gap-4 sm:px-8">
           <Link to="/" className="flex items-center gap-2.5" aria-label={`${BRAND.name} home`}>
             <BrandLogo size={34} />
-            <span className="hidden text-[0.7rem] font-semibold uppercase tracking-[0.24em] text-foreground xs:inline sm:inline">
+            <span className="hidden text-[0.7rem] font-semibold uppercase tracking-[0.24em] text-foreground sm:inline">
               {BRAND.name}
             </span>
           </Link>
