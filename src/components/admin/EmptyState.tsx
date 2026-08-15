@@ -7,10 +7,10 @@ export function EmptyState({
   description,
   action,
 }: {
-  icon?: LucideIcon;
+  icon?: LucideIcon | undefined;
   title: string;
   description: string;
-  action?: ReactNode;
+  action?: ReactNode | undefined;
 }) {
   return (
     <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-card/60 px-6 py-12 text-center">
