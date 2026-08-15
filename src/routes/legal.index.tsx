@@ -3,7 +3,11 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { PublicShell } from "@/components/public/PublicShell";
 import { BRAND } from "@/lib/brand";
-import { listPublicLegalDocuments } from "@/lib/services/public-content.functions";
+import {
+  listPublicLegalDocuments,
+  listPublicLegalReferences,
+  listPublicLegalSources,
+} from "@/lib/services/public-content.functions";
 
 export const Route = createFileRoute("/legal/")({
   head: () => ({
@@ -22,17 +26,39 @@ export const Route = createFileRoute("/legal/")({
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
+    links: [{ rel: "canonical", href: `${BRAND.siteUrl}/legal` }],
   }),
   component: LegalIndex,
 });
 
 function LegalIndex() {
+  const fetchSources = useServerFn(listPublicLegalSources);
   const fetchDocs = useServerFn(listPublicLegalDocuments);
+  const fetchReferences = useServerFn(listPublicLegalReferences);
+
+  const sources = useQuery({
+    queryKey: ["public-legal-sources"],
+    queryFn: () => fetchSources({}),
+    retry: false,
+  });
   const documents = useQuery({
     queryKey: ["public-legal"],
     queryFn: () => fetchDocs({}),
     retry: false,
   });
+  const references = useQuery({
+    queryKey: ["public-legal-references"],
+    queryFn: () => fetchReferences({}),
+    retry: false,
+  });
+
+  const imported = sources.data ?? [];
+  const local = (documents.data ?? []).filter(
+    (doc) => !imported.some((item) => item.slug === doc.slug),
+  );
+  const external = references.data ?? [];
+  const isLoading = sources.isLoading || documents.isLoading;
+  const total = imported.length + local.length + external.length;
 
   return (
     <PublicShell>
@@ -48,48 +74,58 @@ function LegalIndex() {
           Policies and trust
         </h1>
         <p className="mt-4 text-base leading-relaxed text-muted-foreground">
-          Only policies that have been written and approved appear here. If a document you need is
-          missing, write to {BRAND.supportEmail} and we will send it to you directly.
+          These policies come straight from the NUR GOODS store, so what you read here is the same
+          wording that applies at checkout. If a document you need is missing, write to{" "}
+          {BRAND.supportEmail} and we will send it to you directly.
         </p>
 
-        <div className="mt-10">
-          {documents.isLoading ? (
-            <ul className="space-y-3">
-              {[0, 1, 2].map((i) => (
-                <li key={i} className="h-20 animate-pulse rounded-xl border border-border/70 bg-muted/40" />
-              ))}
-            </ul>
-          ) : documents.isError ? (
-            <p className="rounded-xl border border-border/70 p-6 text-sm text-muted-foreground">
-              Policies could not be loaded right now. Please try again shortly.
-            </p>
-          ) : (documents.data ?? []).length === 0 ? (
+        <div className="mt-10 space-y-3">
+          {isLoading ? (
+            [0, 1, 2].map((i) => (
+              <div
+                key={i}
+                className="h-20 animate-pulse rounded-xl border border-border/70 bg-muted/40"
+              />
+            ))
+          ) : total === 0 ? (
             <div className="rounded-xl border border-dashed border-border p-10 text-center">
               <h2 className="font-display text-xl text-foreground">No policies published yet</h2>
               <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
-                Documents are published once the wording has been finalised. For anything urgent,
-                contact {BRAND.supportEmail}.
+                Documents appear here once they have been finalised. For anything urgent, contact{" "}
+                {BRAND.supportEmail}.
               </p>
             </div>
           ) : (
-            <ul className="space-y-3">
-              {(documents.data ?? []).map((doc) => (
-                <li key={doc.id}>
-                  <Link
-                    to="/legal/$slug"
-                    params={{ slug: doc.slug }}
-                    className="block rounded-xl border border-border/70 p-5 transition-colors hover:border-gold"
-                  >
-                    <h2 className="font-display text-lg text-foreground">{doc.title}</h2>
-                    {doc.summary ? (
-                      <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
-                        {doc.summary}
-                      </p>
-                    ) : null}
-                  </Link>
-                </li>
+            <>
+              {[...imported, ...local].map((doc) => (
+                <Link
+                  key={doc.slug}
+                  to="/legal/$slug"
+                  params={{ slug: doc.slug }}
+                  className="block rounded-xl border border-border/70 p-5 transition-colors hover:border-gold"
+                >
+                  <h2 className="font-display text-lg text-foreground">{doc.title}</h2>
+                  {doc.summary ? (
+                    <p className="mt-1.5 line-clamp-2 text-sm leading-relaxed text-muted-foreground">
+                      {doc.summary}
+                    </p>
+                  ) : null}
+                </Link>
               ))}
-            </ul>
+              {external.map((item) => (
+                <a
+                  key={item.source_url}
+                  href={item.source_url}
+                  className="block rounded-xl border border-border/70 p-5 transition-colors hover:border-gold"
+                  rel="noopener"
+                >
+                  <h2 className="font-display text-lg text-foreground">{item.title}</h2>
+                  <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+                    Read the current version on the NUR GOODS store.
+                  </p>
+                </a>
+              ))}
+            </>
           )}
         </div>
       </div>
