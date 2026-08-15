@@ -34,7 +34,7 @@ const LAYERS = [
   },
   {
     title: "Integration and MCP readiness",
-    body: "Shopify Admin APIs, AI providers, Publiko reviews and a future read only MCP surface for ChatGPT and Claude all connect through one place.",
+    body: "Shopify Admin APIs, editorial AI, Publiko reviews and a future read only MCP surface for ChatGPT and Claude all connect through one place.",
   },
 ];
 

@@ -184,7 +184,7 @@ function CataloguePage() {
         <p className="text-sm text-muted-foreground">
           {(enrichment.data ?? []).length} enrichment record
           {(enrichment.data ?? []).length === 1 ? "" : "s"} stored. Enrichment is written by the AI
-          workflow once the catalogue sync and an AI provider are connected.
+          workflow once the catalogue sync is connected.
         </p>
       </SectionCard>
     </div>

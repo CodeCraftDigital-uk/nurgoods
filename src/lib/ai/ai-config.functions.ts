@@ -3,8 +3,9 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { AiProviderStatus } from "./provider";
 
 /**
- * Reports whether server side AI credentials are present. It returns booleans
- * and non secret identifiers only. Secret values are never sent to the client.
+ * Reports editorial AI availability. Generation runs on the platform managed
+ * AI service, so no owner supplied model credentials are involved. Only
+ * booleans and non secret identifiers are returned.
  */
 export const getAiProviderStatus = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -15,24 +16,20 @@ export const getAiProviderStatus = createServerFn({ method: "GET" })
     });
     if (!isAdmin) throw new Error("Forbidden");
 
-    const providerId = process.env["AI_PROVIDER_ID"]?.trim() || null;
-    const apiKey = process.env["AI_PROVIDER_API_KEY"]?.trim() || null;
-    const model = process.env["AI_PROVIDER_MODEL"]?.trim() || null;
+    const { EDITORIAL_MODEL, isManagedAiAvailable } = await import("./gateway.server");
+    const managedAvailable = isManagedAiAvailable();
+
     const researchKey = process.env["RESEARCH_PROVIDER_API_KEY"]?.trim() || null;
     const researchProviderId = process.env["RESEARCH_PROVIDER_ID"]?.trim() || null;
 
-    const missing: string[] = [];
-    if (!providerId) missing.push("AI_PROVIDER_ID");
-    if (!apiKey) missing.push("AI_PROVIDER_API_KEY");
-    if (!model) missing.push("AI_PROVIDER_MODEL");
-
     return {
-      configured: missing.length === 0,
-      providerId,
-      model,
+      configured: managedAvailable,
+      managed: true,
+      providerId: "Managed AI",
+      model: managedAvailable ? EDITORIAL_MODEL : null,
       researchConfigured: Boolean(researchKey),
       researchProviderId,
       researchMissing: researchKey ? [] : ["RESEARCH_PROVIDER_API_KEY"],
-      missing,
+      missing: managedAvailable ? [] : ["Managed AI service"],
     };
   });

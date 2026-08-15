@@ -32,7 +32,6 @@ import {
   updateArticle,
 } from "@/lib/services/journal";
 import { RUNNABLE_STAGES, WORKFLOW_PIPELINE } from "@/lib/ai/workflow";
-import { AI_SECRET_NAMES } from "@/lib/ai/provider";
 import { getAiProviderStatus } from "@/lib/ai/ai-config.functions";
 import { runArticleResearch, runArticleStage } from "@/lib/ai/generation.functions";
 import {
@@ -506,8 +505,8 @@ function ArticleEditor() {
               ))}
               {(links.data ?? []).length === 0 ? (
                 <li className="py-4 text-sm text-muted-foreground">
-                  No suggestions yet. The internal links stage produces these once an AI provider is
-                  connected.
+                  No suggestions yet. The internal links stage produces these from the article body
+                  and the synced catalogue.
                 </li>
               ) : null}
             </ul>
@@ -673,9 +672,10 @@ function ArticleEditor() {
               </p>
             ) : (
               <p className="text-xs text-muted-foreground">
-                Research is blocked until this server secret is added:{" "}
-                {(aiStatus.data?.researchMissing ?? [AI_SECRET_NAMES.researchApiKey]).join(", ")}.
-                Set RESEARCH_PROVIDER_ID as well if you are not using the default provider.
+                Live web research is the one editorial capability the managed platform does not
+                provide, so it stays optional and switched off. To enable it, add{" "}
+                {(aiStatus.data?.researchMissing ?? ["RESEARCH_PROVIDER_API_KEY"]).join(", ")} as a
+                server secret, and RESEARCH_PROVIDER_ID if you are not using the default provider.
               </p>
             )}
             <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
@@ -711,12 +711,12 @@ function ArticleEditor() {
           >
             {aiStatus.data?.configured ? (
               <p className="text-xs text-muted-foreground">
-                Provider {aiStatus.data.providerId} using {aiStatus.data.model}.
+                Managed AI is active, running {aiStatus.data.model}. No model keys are required.
               </p>
             ) : (
               <p className="text-xs text-muted-foreground">
-                Generation is blocked until these server secrets are added:{" "}
-                {(aiStatus.data?.missing ?? Object.values(AI_SECRET_NAMES)).join(", ")}.
+                Managed AI is temporarily unavailable. Generation will resume automatically, and
+                nothing is published in the meantime.
               </p>
             )}
             <div className="mt-4 flex flex-wrap gap-2">

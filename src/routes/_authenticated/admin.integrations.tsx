@@ -10,7 +10,6 @@ import {
   listIntegrations,
 } from "@/lib/services/operations";
 import { getAiProviderStatus } from "@/lib/ai/ai-config.functions";
-import { AI_SECRET_NAMES } from "@/lib/ai/provider";
 
 export const Route = createFileRoute("/_authenticated/admin/integrations")({
   component: IntegrationsPage,
@@ -25,11 +24,11 @@ const REQUIREMENTS: Record<string, string[]> = {
   ],
   zendrop: ["Confirmation of the Zendrop to Shopify link", "Any supplier feed reference"],
   ai: [
-    `Provider identifier (${AI_SECRET_NAMES.providerId})`,
-    `Model (${AI_SECRET_NAMES.model})`,
-    `API key (${AI_SECRET_NAMES.apiKey})`,
-    `Optional research key (${AI_SECRET_NAMES.researchApiKey})`,
+    "Managed AI, included with the platform",
+    "No owner supplied model keys or accounts",
+    "Optional live web research key (RESEARCH_PROVIDER_API_KEY) only if you want live research",
   ],
+
   publiko: ["Account reference", "Widget identifiers", "Embed details"],
   mcp: ["Confirmed resource scope", "Authentication decision for connecting clients"],
 };
@@ -111,13 +110,13 @@ function IntegrationsPage() {
                 <div className="mt-4 space-y-1">
                   <p className="text-xs text-muted-foreground">
                     {aiStatus.data?.configured
-                      ? `Server credentials detected for ${aiStatus.data.providerId}.`
-                      : `Missing server secrets: ${(aiStatus.data?.missing ?? Object.values(AI_SECRET_NAMES)).join(", ")}`}
+                      ? `Managed AI is active, running ${aiStatus.data.model}. No owner supplied model keys are required.`
+                      : "Managed AI is temporarily unavailable for this workspace. No action is needed from you."}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {aiStatus.data?.researchConfigured
                       ? `Live research enabled through ${aiStatus.data.researchProviderId ?? "tavily"}.`
-                      : "Live research is blocked. Add RESEARCH_PROVIDER_API_KEY, and RESEARCH_PROVIDER_ID if you are not using the default provider."}
+                      : "Live web research is the one capability the managed platform does not provide, so it stays optional and switched off. Add RESEARCH_PROVIDER_API_KEY, and RESEARCH_PROVIDER_ID if you are not using the default provider, only if you want it."}
                   </p>
                 </div>
               ) : null}
