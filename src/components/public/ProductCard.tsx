@@ -68,7 +68,16 @@ export function ProductCard({
           </p>
         ) : null}
         {price ? (
-          <p className="mt-auto pt-3 text-sm font-medium text-foreground">{price}</p>
+          <p className="mt-auto flex items-baseline gap-2 pt-3 text-sm font-medium text-foreground">
+            <span>{price}</span>
+            {product.compare_at_price_min != null &&
+            product.price_min != null &&
+            product.compare_at_price_min > product.price_min ? (
+              <span className="text-xs font-normal text-muted-foreground line-through">
+                {formatPrice(product.compare_at_price_min, null, product.currency)}
+              </span>
+            ) : null}
+          </p>
         ) : null}
       </div>
     </Link>
