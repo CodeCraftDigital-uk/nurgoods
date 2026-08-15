@@ -95,6 +95,38 @@ export async function updateReviewPlacement(
   return data;
 }
 
+export async function createReviewPlacement(input: {
+  label: string;
+  surface: ReviewPlacement["surface"];
+  placementKey: string;
+  embedSnippet: string;
+  description?: string | null;
+  notes?: string | null;
+  enabled?: boolean;
+}): Promise<ReviewPlacement> {
+  const { data, error } = await supabase
+    .from("review_placements")
+    .insert({
+      provider: "publiko",
+      label: input.label,
+      surface: input.surface,
+      placement_key: input.placementKey,
+      embed_snippet: input.embedSnippet,
+      description: input.description ?? null,
+      notes: input.notes ?? null,
+      enabled: input.enabled ?? false,
+    })
+    .select("*")
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteReviewPlacement(id: string): Promise<void> {
+  const { error } = await supabase.from("review_placements").delete().eq("id", id);
+  if (error) throw error;
+}
+
 /* ------------------------------ automations ------------------------------ */
 
 export async function listAutomationJobs(): Promise<AutomationJob[]> {

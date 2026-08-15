@@ -31,7 +31,11 @@ const REQUIREMENTS: Record<string, string[]> = {
     "Optional live web research key (RESEARCH_PROVIDER_API_KEY) only if you want live research",
   ],
 
-  publiko: ["Account reference", "Widget identifiers", "Embed details"],
+  publiko: [
+    "Embed code copied from the Publiko dashboard",
+    "A placement chosen for each widget",
+    "No API key or developer integration needed",
+  ],
   mcp: ["Confirmed resource scope", "Authentication decision for connecting clients"],
 };
 

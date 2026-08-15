@@ -58,13 +58,13 @@ export async function getOnboardingState(
     countRows("articles"),
     countPublishedArticles(),
     countPublishedPolicies(),
-    supabase.from("review_placements").select("enabled,widget_reference"),
+    supabase.from("review_placements").select("enabled,embed_snippet"),
   ]);
   if (error) throw error;
 
   const byProvider = new Map((integrations ?? []).map((i) => [i.provider, i.status]));
   const publikoConfigured = (placements.data ?? []).some(
-    (p) => p.enabled && Boolean(p.widget_reference),
+    (p) => p.enabled && Boolean(p.embed_snippet),
   );
 
   const items: ChecklistItem[] = [
@@ -90,9 +90,9 @@ export async function getOnboardingState(
       key: "publiko",
       label: "Publiko reviews",
       description:
-        "Supply the Publiko account and embed details, then enable the widget placements you need.",
+        "Paste the embed code Publiko gives you, assign it to a placement, then enable it.",
       complete: publikoConfigured,
-      blockedBy: "Publiko widget references and embed details.",
+      blockedBy: "Publiko embed code for at least one placement.",
       href: "/admin/reviews",
     },
     {

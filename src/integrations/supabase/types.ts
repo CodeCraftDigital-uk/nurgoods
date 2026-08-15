@@ -1321,6 +1321,8 @@ export type Database = {
         | "cart"
         | "article_page"
         | "reviews_page"
+        | "footer"
+        | "custom"
       run_status: "queued" | "running" | "succeeded" | "failed" | "cancelled"
       seo_target_type: "product" | "collection" | "article" | "page"
       sync_status: "pending" | "synced" | "stale" | "error"
@@ -1482,6 +1484,8 @@ export const Constants = {
         "cart",
         "article_page",
         "reviews_page",
+        "footer",
+        "custom",
       ],
       run_status: ["queued", "running", "succeeded", "failed", "cancelled"],
       seo_target_type: ["product", "collection", "article", "page"],
