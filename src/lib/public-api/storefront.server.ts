@@ -299,6 +299,9 @@ export interface StorefrontProductDetail extends StorefrontProductCard {
   checkout_domain: string | null;
   /** True when that host genuinely answers as the store basket. */
   checkout_ready: boolean;
+  /** True when headless Storefront checkout is configured and verified. */
+  storefront_checkout: boolean;
+
   options: { name: string; values: string[] }[];
   media: StorefrontMedia[];
   variants: StorefrontVariant[];
@@ -557,6 +560,13 @@ export async function getStorefrontProduct(handle: string): Promise<StorefrontPr
     store_url: row.online_store_url ?? null,
     checkout_domain: checkoutDomain,
     checkout_ready: await isCheckoutReady(checkoutDomain),
+    storefront_checkout: await (async () => {
+      const { isStorefrontCheckoutReady } = await import(
+        "@/lib/services/shopify-storefront.server"
+      );
+      return isStorefrontCheckoutReady();
+    })(),
+
     options,
     media,
     variants,

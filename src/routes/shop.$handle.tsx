@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
+import { createCheckoutFn } from "@/lib/services/shopify-storefront.functions";
 import { PublicShell } from "@/components/public/PublicShell";
 import { Breadcrumbs } from "@/components/public/Breadcrumbs";
 import { JsonLd } from "@/components/public/JsonLd";
@@ -138,15 +140,30 @@ function ProductDetail() {
       ? { url: selectedVariant.image_url, alt: product.title, width: null, height: null }
       : null);
   const soldOut = selectedVariant ? selectedVariant.available_for_sale === false : false;
-  const buyHref = product.checkout_ready
-    ? cartHref(product.checkout_domain, selectedVariant?.variant_id ?? null, quantity)
-    : null;
-  const canBuy = Boolean(buyHref) && !soldOut;
+  const variantId = selectedVariant?.variant_id ?? null;
+  const buyHref = product.checkout_ready ? cartHref(product.checkout_domain, variantId, quantity) : null;
+  const headlessReady = product.storefront_checkout && Boolean(variantId);
+  const canBuy = (headlessReady || Boolean(buyHref)) && !soldOut;
   const unavailableReason = soldOut
     ? "Currently unavailable"
-    : !product.checkout_ready
+    : !headlessReady && !product.checkout_ready
       ? "Checkout is being set up"
       : "Currently unavailable";
+
+  const [starting, setStarting] = useState(false);
+  const startCheckout = useServerFn(createCheckoutFn);
+  const beginCheckout = async () => {
+    if (!variantId) return;
+    setStarting(true);
+    try {
+      const result = await startCheckout({ data: { variantId, quantity } });
+      window.location.href = result.checkoutUrl;
+    } catch {
+      setStarting(false);
+      if (buyHref) window.location.href = buyHref;
+    }
+  };
+
 
   const price = formatPrice(product.price_min, product.price_max, product.currency);
   const url = `${BRAND.siteUrl}/shop/${product.handle}`;
@@ -344,12 +361,23 @@ function ProductDetail() {
               </select>
 
               {canBuy ? (
-                <a
-                  href={buyHref!}
-                  className="inline-flex min-h-12 flex-1 items-center justify-center rounded-lg bg-primary px-6 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 sm:flex-none"
-                >
-                  Buy now
-                </a>
+                headlessReady ? (
+                  <button
+                    type="button"
+                    onClick={() => void beginCheckout()}
+                    disabled={starting}
+                    className="inline-flex min-h-12 flex-1 items-center justify-center rounded-lg bg-primary px-6 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-70 sm:flex-none"
+                  >
+                    {starting ? "Opening checkout" : "Buy now"}
+                  </button>
+                ) : (
+                  <a
+                    href={buyHref!}
+                    className="inline-flex min-h-12 flex-1 items-center justify-center rounded-lg bg-primary px-6 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 sm:flex-none"
+                  >
+                    Buy now
+                  </a>
+                )
               ) : (
                 <button
                   type="button"
@@ -539,12 +567,23 @@ function ProductDetail() {
 
       <div className="sticky bottom-0 z-30 mt-16 border-t border-border/70 bg-background/95 px-5 py-3 backdrop-blur sm:hidden">
         {canBuy ? (
-          <a
-            href={buyHref!}
-            className="flex min-h-12 items-center justify-center rounded-lg bg-primary px-5 text-sm font-medium text-primary-foreground"
-          >
-            Buy now
-          </a>
+          headlessReady ? (
+            <button
+              type="button"
+              onClick={() => void beginCheckout()}
+              disabled={starting}
+              className="flex w-full min-h-12 items-center justify-center rounded-lg bg-primary px-5 text-sm font-medium text-primary-foreground disabled:opacity-70"
+            >
+              {starting ? "Opening checkout" : "Buy now"}
+            </button>
+          ) : (
+            <a
+              href={buyHref!}
+              className="flex min-h-12 items-center justify-center rounded-lg bg-primary px-5 text-sm font-medium text-primary-foreground"
+            >
+              Buy now
+            </a>
+          )
         ) : (
           <button
             type="button"
