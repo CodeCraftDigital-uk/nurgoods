@@ -13,6 +13,18 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
+import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
+import { Route as AuthenticatedAdminAutomationsRouteImport } from './routes/_authenticated/admin.automations'
+import { Route as AuthenticatedAdminCatalogueRouteImport } from './routes/_authenticated/admin.catalogue'
+import { Route as AuthenticatedAdminIntegrationsRouteImport } from './routes/_authenticated/admin.integrations'
+import { Route as AuthenticatedAdminJournalRouteImport } from './routes/_authenticated/admin.journal'
+import { Route as AuthenticatedAdminLegalRouteImport } from './routes/_authenticated/admin.legal'
+import { Route as AuthenticatedAdminMcpRouteImport } from './routes/_authenticated/admin.mcp'
+import { Route as AuthenticatedAdminReviewsRouteImport } from './routes/_authenticated/admin.reviews'
+import { Route as AuthenticatedAdminSeoRouteImport } from './routes/_authenticated/admin.seo'
+import { Route as AuthenticatedAdminJournalIndexRouteImport } from './routes/_authenticated/admin.journal.index'
+import { Route as AuthenticatedAdminJournalArticleIdRouteImport } from './routes/_authenticated/admin.journal.$articleId'
+import { Route as AuthenticatedAdminJournalNewRouteImport } from './routes/_authenticated/admin.journal.new'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -33,30 +45,177 @@ const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AuthenticatedAdminRoute,
+} as any)
+const AuthenticatedAdminAutomationsRoute =
+  AuthenticatedAdminAutomationsRouteImport.update({
+    id: '/automations',
+    path: '/automations',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminCatalogueRoute =
+  AuthenticatedAdminCatalogueRouteImport.update({
+    id: '/catalogue',
+    path: '/catalogue',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminIntegrationsRoute =
+  AuthenticatedAdminIntegrationsRouteImport.update({
+    id: '/integrations',
+    path: '/integrations',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminJournalRoute =
+  AuthenticatedAdminJournalRouteImport.update({
+    id: '/journal',
+    path: '/journal',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminLegalRoute = AuthenticatedAdminLegalRouteImport.update({
+  id: '/legal',
+  path: '/legal',
+  getParentRoute: () => AuthenticatedAdminRoute,
+} as any)
+const AuthenticatedAdminMcpRoute = AuthenticatedAdminMcpRouteImport.update({
+  id: '/mcp',
+  path: '/mcp',
+  getParentRoute: () => AuthenticatedAdminRoute,
+} as any)
+const AuthenticatedAdminReviewsRoute =
+  AuthenticatedAdminReviewsRouteImport.update({
+    id: '/reviews',
+    path: '/reviews',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminSeoRoute = AuthenticatedAdminSeoRouteImport.update({
+  id: '/seo',
+  path: '/seo',
+  getParentRoute: () => AuthenticatedAdminRoute,
+} as any)
+const AuthenticatedAdminJournalIndexRoute =
+  AuthenticatedAdminJournalIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedAdminJournalRoute,
+  } as any)
+const AuthenticatedAdminJournalArticleIdRoute =
+  AuthenticatedAdminJournalArticleIdRouteImport.update({
+    id: '/$articleId',
+    path: '/$articleId',
+    getParentRoute: () => AuthenticatedAdminJournalRoute,
+  } as any)
+const AuthenticatedAdminJournalNewRoute =
+  AuthenticatedAdminJournalNewRouteImport.update({
+    id: '/new',
+    path: '/new',
+    getParentRoute: () => AuthenticatedAdminJournalRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
-  '/admin': typeof AuthenticatedAdminRoute
+  '/admin': typeof AuthenticatedAdminRouteWithChildren
+  '/admin/automations': typeof AuthenticatedAdminAutomationsRoute
+  '/admin/catalogue': typeof AuthenticatedAdminCatalogueRoute
+  '/admin/integrations': typeof AuthenticatedAdminIntegrationsRoute
+  '/admin/journal': typeof AuthenticatedAdminJournalRouteWithChildren
+  '/admin/legal': typeof AuthenticatedAdminLegalRoute
+  '/admin/mcp': typeof AuthenticatedAdminMcpRoute
+  '/admin/reviews': typeof AuthenticatedAdminReviewsRoute
+  '/admin/seo': typeof AuthenticatedAdminSeoRoute
+  '/admin/': typeof AuthenticatedAdminIndexRoute
+  '/admin/journal/$articleId': typeof AuthenticatedAdminJournalArticleIdRoute
+  '/admin/journal/new': typeof AuthenticatedAdminJournalNewRoute
+  '/admin/journal/': typeof AuthenticatedAdminJournalIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
-  '/admin': typeof AuthenticatedAdminRoute
+  '/admin/automations': typeof AuthenticatedAdminAutomationsRoute
+  '/admin/catalogue': typeof AuthenticatedAdminCatalogueRoute
+  '/admin/integrations': typeof AuthenticatedAdminIntegrationsRoute
+  '/admin/legal': typeof AuthenticatedAdminLegalRoute
+  '/admin/mcp': typeof AuthenticatedAdminMcpRoute
+  '/admin/reviews': typeof AuthenticatedAdminReviewsRoute
+  '/admin/seo': typeof AuthenticatedAdminSeoRoute
+  '/admin': typeof AuthenticatedAdminIndexRoute
+  '/admin/journal/$articleId': typeof AuthenticatedAdminJournalArticleIdRoute
+  '/admin/journal/new': typeof AuthenticatedAdminJournalNewRoute
+  '/admin/journal': typeof AuthenticatedAdminJournalIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
-  '/_authenticated/admin': typeof AuthenticatedAdminRoute
+  '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
+  '/_authenticated/admin/automations': typeof AuthenticatedAdminAutomationsRoute
+  '/_authenticated/admin/catalogue': typeof AuthenticatedAdminCatalogueRoute
+  '/_authenticated/admin/integrations': typeof AuthenticatedAdminIntegrationsRoute
+  '/_authenticated/admin/journal': typeof AuthenticatedAdminJournalRouteWithChildren
+  '/_authenticated/admin/legal': typeof AuthenticatedAdminLegalRoute
+  '/_authenticated/admin/mcp': typeof AuthenticatedAdminMcpRoute
+  '/_authenticated/admin/reviews': typeof AuthenticatedAdminReviewsRoute
+  '/_authenticated/admin/seo': typeof AuthenticatedAdminSeoRoute
+  '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
+  '/_authenticated/admin/journal/$articleId': typeof AuthenticatedAdminJournalArticleIdRoute
+  '/_authenticated/admin/journal/new': typeof AuthenticatedAdminJournalNewRoute
+  '/_authenticated/admin/journal/': typeof AuthenticatedAdminJournalIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/admin'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/admin'
+    | '/admin/automations'
+    | '/admin/catalogue'
+    | '/admin/integrations'
+    | '/admin/journal'
+    | '/admin/legal'
+    | '/admin/mcp'
+    | '/admin/reviews'
+    | '/admin/seo'
+    | '/admin/'
+    | '/admin/journal/$articleId'
+    | '/admin/journal/new'
+    | '/admin/journal/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/admin'
-  id: '__root__' | '/' | '/_authenticated' | '/auth' | '/_authenticated/admin'
+  to:
+    | '/'
+    | '/auth'
+    | '/admin/automations'
+    | '/admin/catalogue'
+    | '/admin/integrations'
+    | '/admin/legal'
+    | '/admin/mcp'
+    | '/admin/reviews'
+    | '/admin/seo'
+    | '/admin'
+    | '/admin/journal/$articleId'
+    | '/admin/journal/new'
+    | '/admin/journal'
+  id:
+    | '__root__'
+    | '/'
+    | '/_authenticated'
+    | '/auth'
+    | '/_authenticated/admin'
+    | '/_authenticated/admin/automations'
+    | '/_authenticated/admin/catalogue'
+    | '/_authenticated/admin/integrations'
+    | '/_authenticated/admin/journal'
+    | '/_authenticated/admin/legal'
+    | '/_authenticated/admin/mcp'
+    | '/_authenticated/admin/reviews'
+    | '/_authenticated/admin/seo'
+    | '/_authenticated/admin/'
+    | '/_authenticated/admin/journal/$articleId'
+    | '/_authenticated/admin/journal/new'
+    | '/_authenticated/admin/journal/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -95,15 +254,145 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/admin/': {
+      id: '/_authenticated/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AuthenticatedAdminIndexRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/automations': {
+      id: '/_authenticated/admin/automations'
+      path: '/automations'
+      fullPath: '/admin/automations'
+      preLoaderRoute: typeof AuthenticatedAdminAutomationsRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/catalogue': {
+      id: '/_authenticated/admin/catalogue'
+      path: '/catalogue'
+      fullPath: '/admin/catalogue'
+      preLoaderRoute: typeof AuthenticatedAdminCatalogueRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/integrations': {
+      id: '/_authenticated/admin/integrations'
+      path: '/integrations'
+      fullPath: '/admin/integrations'
+      preLoaderRoute: typeof AuthenticatedAdminIntegrationsRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/journal': {
+      id: '/_authenticated/admin/journal'
+      path: '/journal'
+      fullPath: '/admin/journal'
+      preLoaderRoute: typeof AuthenticatedAdminJournalRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/legal': {
+      id: '/_authenticated/admin/legal'
+      path: '/legal'
+      fullPath: '/admin/legal'
+      preLoaderRoute: typeof AuthenticatedAdminLegalRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/mcp': {
+      id: '/_authenticated/admin/mcp'
+      path: '/mcp'
+      fullPath: '/admin/mcp'
+      preLoaderRoute: typeof AuthenticatedAdminMcpRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/reviews': {
+      id: '/_authenticated/admin/reviews'
+      path: '/reviews'
+      fullPath: '/admin/reviews'
+      preLoaderRoute: typeof AuthenticatedAdminReviewsRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/seo': {
+      id: '/_authenticated/admin/seo'
+      path: '/seo'
+      fullPath: '/admin/seo'
+      preLoaderRoute: typeof AuthenticatedAdminSeoRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/journal/': {
+      id: '/_authenticated/admin/journal/'
+      path: '/'
+      fullPath: '/admin/journal/'
+      preLoaderRoute: typeof AuthenticatedAdminJournalIndexRouteImport
+      parentRoute: typeof AuthenticatedAdminJournalRoute
+    }
+    '/_authenticated/admin/journal/$articleId': {
+      id: '/_authenticated/admin/journal/$articleId'
+      path: '/$articleId'
+      fullPath: '/admin/journal/$articleId'
+      preLoaderRoute: typeof AuthenticatedAdminJournalArticleIdRouteImport
+      parentRoute: typeof AuthenticatedAdminJournalRoute
+    }
+    '/_authenticated/admin/journal/new': {
+      id: '/_authenticated/admin/journal/new'
+      path: '/new'
+      fullPath: '/admin/journal/new'
+      preLoaderRoute: typeof AuthenticatedAdminJournalNewRouteImport
+      parentRoute: typeof AuthenticatedAdminJournalRoute
+    }
   }
 }
 
+interface AuthenticatedAdminJournalRouteChildren {
+  AuthenticatedAdminJournalArticleIdRoute: typeof AuthenticatedAdminJournalArticleIdRoute
+  AuthenticatedAdminJournalNewRoute: typeof AuthenticatedAdminJournalNewRoute
+  AuthenticatedAdminJournalIndexRoute: typeof AuthenticatedAdminJournalIndexRoute
+}
+
+const AuthenticatedAdminJournalRouteChildren: AuthenticatedAdminJournalRouteChildren =
+  {
+    AuthenticatedAdminJournalArticleIdRoute:
+      AuthenticatedAdminJournalArticleIdRoute,
+    AuthenticatedAdminJournalNewRoute: AuthenticatedAdminJournalNewRoute,
+    AuthenticatedAdminJournalIndexRoute: AuthenticatedAdminJournalIndexRoute,
+  }
+
+const AuthenticatedAdminJournalRouteWithChildren =
+  AuthenticatedAdminJournalRoute._addFileChildren(
+    AuthenticatedAdminJournalRouteChildren,
+  )
+
+interface AuthenticatedAdminRouteChildren {
+  AuthenticatedAdminAutomationsRoute: typeof AuthenticatedAdminAutomationsRoute
+  AuthenticatedAdminCatalogueRoute: typeof AuthenticatedAdminCatalogueRoute
+  AuthenticatedAdminIntegrationsRoute: typeof AuthenticatedAdminIntegrationsRoute
+  AuthenticatedAdminJournalRoute: typeof AuthenticatedAdminJournalRouteWithChildren
+  AuthenticatedAdminLegalRoute: typeof AuthenticatedAdminLegalRoute
+  AuthenticatedAdminMcpRoute: typeof AuthenticatedAdminMcpRoute
+  AuthenticatedAdminReviewsRoute: typeof AuthenticatedAdminReviewsRoute
+  AuthenticatedAdminSeoRoute: typeof AuthenticatedAdminSeoRoute
+  AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
+}
+
+const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
+  AuthenticatedAdminAutomationsRoute: AuthenticatedAdminAutomationsRoute,
+  AuthenticatedAdminCatalogueRoute: AuthenticatedAdminCatalogueRoute,
+  AuthenticatedAdminIntegrationsRoute: AuthenticatedAdminIntegrationsRoute,
+  AuthenticatedAdminJournalRoute: AuthenticatedAdminJournalRouteWithChildren,
+  AuthenticatedAdminLegalRoute: AuthenticatedAdminLegalRoute,
+  AuthenticatedAdminMcpRoute: AuthenticatedAdminMcpRoute,
+  AuthenticatedAdminReviewsRoute: AuthenticatedAdminReviewsRoute,
+  AuthenticatedAdminSeoRoute: AuthenticatedAdminSeoRoute,
+  AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
+}
+
+const AuthenticatedAdminRouteWithChildren =
+  AuthenticatedAdminRoute._addFileChildren(AuthenticatedAdminRouteChildren)
+
 interface AuthenticatedRouteRouteChildren {
-  AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
+  AuthenticatedAdminRoute: typeof AuthenticatedAdminRouteWithChildren
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
-  AuthenticatedAdminRoute: AuthenticatedAdminRoute,
+  AuthenticatedAdminRoute: AuthenticatedAdminRouteWithChildren,
 }
 
 const AuthenticatedRouteRouteWithChildren =

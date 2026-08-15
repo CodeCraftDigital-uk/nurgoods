@@ -3,17 +3,17 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "NUR GOODS Platform Foundation" },
+      { title: "NUR GOODS Intelligence Platform" },
       {
         name: "description",
         content:
-          "Technical foundation for the NUR GOODS ecommerce intelligence, content automation and integration layer. Shopify remains the commerce source of truth.",
+          "Commerce intelligence, content automation and integration layer for NUR GOODS. Shopify remains the source of truth for products, orders and checkout.",
       },
-      { property: "og:title", content: "NUR GOODS Platform Foundation" },
+      { property: "og:title", content: "NUR GOODS Intelligence Platform" },
       {
         property: "og:description",
         content:
-          "Companion intelligence and automation layer for the NUR GOODS Shopify store.",
+          "Catalogue intelligence, Journal automation, reviews, SEO and MCP readiness alongside the NUR GOODS Shopify store.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -24,54 +24,56 @@ export const Route = createFileRoute("/")({
 
 const LAYERS = [
   {
-    title: "Commerce source of truth",
-    body: "Shopify owns products, variants, inventory, customers, orders, checkout and payments. Zendrop handles fulfilment.",
+    title: "Commerce stays on Shopify",
+    body: "Products, variants, inventory, customers, orders, checkout and payments remain in Shopify, with Zendrop handling fulfilment. This platform never replaces them.",
   },
   {
-    title: "Intelligence & automation layer",
-    body: "This application stores structured content, automation records and integration state alongside the store.",
+    title: "Intelligence and content automation",
+    body: "Catalogue enrichment, the Journal editorial workflow, SEO records and review placements live here, with full provenance on every generated piece.",
   },
   {
-    title: "Integration surface",
-    body: "Reserved for Shopify Admin APIs, AI services, Publiko reviews and an MCP connector for ChatGPT and Claude.",
+    title: "Integration and MCP readiness",
+    body: "Shopify Admin APIs, AI providers, Publiko reviews and a future read only MCP surface for ChatGPT and Claude all connect through one place.",
   },
 ];
 
 function Index() {
   return (
     <main className="min-h-screen bg-background">
-      <div className="mx-auto max-w-3xl px-6 py-24">
-        <p className="text-xs uppercase tracking-[0.25em] text-muted-foreground">NUR GOODS</p>
-        <h1 className="mt-4 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-          Platform foundation
+      <div className="mx-auto max-w-4xl px-5 py-20 sm:px-8 sm:py-28">
+        <p className="text-[0.7rem] font-medium uppercase tracking-[0.28em] text-muted-foreground">
+          NUR GOODS
+        </p>
+        <h1 className="mt-5 font-display text-4xl leading-tight text-foreground sm:text-5xl">
+          Good things, brought to light.
         </h1>
-        <p className="mt-4 max-w-xl text-muted-foreground">
-          Scaffolding for the ecommerce intelligence, content automation and integration layer. No
-          storefront, branding or business data has been created.
+        <p className="mt-5 max-w-xl text-base leading-relaxed text-muted-foreground">
+          The commerce intelligence and content platform behind the NUR GOODS store. Sign in to
+          reach the admin console.
         </p>
 
-        <div className="mt-12 space-y-6">
-          {LAYERS.map((layer) => (
-            <section key={layer.title} className="border-l-2 border-border pl-5">
-              <h2 className="text-sm font-medium text-foreground">{layer.title}</h2>
-              <p className="mt-1 text-sm text-muted-foreground">{layer.body}</p>
-            </section>
-          ))}
-        </div>
-
-        <div className="mt-12 flex gap-3">
+        <div className="mt-10 flex flex-wrap gap-3">
           <Link
             to="/admin"
-            className="inline-flex items-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            className="inline-flex min-h-11 items-center rounded-lg bg-primary px-5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
             Open admin console
           </Link>
           <Link
             to="/auth"
-            className="inline-flex items-center rounded-md border border-input px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+            className="inline-flex min-h-11 items-center rounded-lg border border-input px-5 text-sm font-medium text-foreground transition-colors hover:bg-accent"
           >
             Sign in
           </Link>
+        </div>
+
+        <div className="mt-16 grid gap-6 sm:grid-cols-3">
+          {LAYERS.map((layer) => (
+            <section key={layer.title} className="border-t-2 border-gold pt-5">
+              <h2 className="text-sm font-semibold text-foreground">{layer.title}</h2>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{layer.body}</p>
+            </section>
+          ))}
         </div>
       </div>
     </main>
