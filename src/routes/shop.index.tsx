@@ -7,13 +7,15 @@ import { Breadcrumbs } from "@/components/public/Breadcrumbs";
 import { ProductCard, ProductCardSkeleton } from "@/components/public/ProductCard";
 import { BRAND } from "@/lib/brand";
 import {
+  listStorefrontCollectionsFn,
   listStorefrontFacetsFn,
   listStorefrontProductsFn,
 } from "@/lib/services/storefront.functions";
 
 interface ShopSearch {
   q?: string | undefined;
-  type?: string | undefined;
+  collection?: string | undefined;
+  tag?: string | undefined;
   sort?: string | undefined;
 }
 
@@ -28,10 +30,12 @@ const SORT_OPTIONS = [
 export const Route = createFileRoute("/shop/")({
   validateSearch: (search: Record<string, unknown>): ShopSearch => ({
     q: typeof search["q"] === "string" && search["q"] ? search["q"].slice(0, 120) : undefined,
-    type:
-      typeof search["type"] === "string" && search["type"]
-        ? search["type"].slice(0, 120)
+    collection:
+      typeof search["collection"] === "string" && search["collection"]
+        ? search["collection"].slice(0, 120)
         : undefined,
+    tag:
+      typeof search["tag"] === "string" && search["tag"] ? search["tag"].slice(0, 120) : undefined,
     sort: typeof search["sort"] === "string" && search["sort"] ? search["sort"] : undefined,
   }),
   head: () => ({
@@ -67,18 +71,33 @@ function ShopIndex() {
 
   const fetchProducts = useServerFn(listStorefrontProductsFn);
   const fetchFacets = useServerFn(listStorefrontFacetsFn);
+  const fetchCollections = useServerFn(listStorefrontCollectionsFn);
 
   const products = useQuery({
-    queryKey: ["storefront-products", search.q ?? "", search.type ?? "", search.sort ?? "featured"],
+    queryKey: [
+      "storefront-products",
+      search.q ?? "",
+      search.collection ?? "",
+      search.tag ?? "",
+      search.sort ?? "featured",
+    ],
     queryFn: () =>
       fetchProducts({
         data: {
           query: search.q,
-          productType: search.type,
+          collectionHandle: search.collection,
+          tag: search.tag,
           sort: search.sort,
           limit: 48,
         },
       }),
+    retry: false,
+  });
+
+  const collections = useQuery({
+    queryKey: ["storefront-collection-filters"],
+    queryFn: () => fetchCollections({ data: { withProductsOnly: true } }),
+    staleTime: 5 * 60 * 1000,
     retry: false,
   });
 
@@ -95,7 +114,8 @@ function ShopIndex() {
         const merged = { ...prev, ...next };
         return {
           q: merged.q || undefined,
-          type: merged.type || undefined,
+          collection: merged.collection || undefined,
+          tag: merged.tag || undefined,
           sort: merged.sort && merged.sort !== "featured" ? merged.sort : undefined,
         };
       }) as never,
@@ -104,8 +124,11 @@ function ShopIndex() {
   };
 
   const items = products.data?.items ?? [];
-  const types = facets.data?.product_types ?? [];
-  const filtered = Boolean(search.q || search.type);
+  const tags = facets.data?.tags ?? [];
+  const collectionItems = [...(collections.data ?? [])].sort(
+    (a, b) => b.product_count - a.product_count || a.title.localeCompare(b.title),
+  );
+  const filtered = Boolean(search.q || search.collection || search.tag);
 
   return (
     <PublicShell>
@@ -167,35 +190,77 @@ function ShopIndex() {
           </div>
         </form>
 
-        {types.length > 0 ? (
-          <div className="mt-5 flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => setSearch({ type: undefined })}
-              aria-pressed={!search.type}
-              className={`inline-flex min-h-9 items-center rounded-full border px-3.5 text-xs transition-colors ${
-                search.type
-                  ? "border-border text-muted-foreground hover:text-foreground"
-                  : "border-gold text-foreground"
-              }`}
-            >
-              All
-            </button>
-            {types.map((type) => (
+        {collectionItems.length > 0 ? (
+          <div className="mt-6">
+            <h2 className="text-[0.65rem] uppercase tracking-[0.2em] text-muted-foreground">
+              Categories
+            </h2>
+            <div className="mt-3 flex flex-wrap gap-2">
               <button
-                key={type}
                 type="button"
-                onClick={() => setSearch({ type })}
-                aria-pressed={search.type === type}
+                onClick={() => setSearch({ collection: undefined })}
+                aria-pressed={!search.collection}
                 className={`inline-flex min-h-9 items-center rounded-full border px-3.5 text-xs transition-colors ${
-                  search.type === type
-                    ? "border-gold text-foreground"
-                    : "border-border text-muted-foreground hover:text-foreground"
+                  search.collection
+                    ? "border-border text-muted-foreground hover:text-foreground"
+                    : "border-gold text-foreground"
                 }`}
               >
-                {type}
+                All
               </button>
-            ))}
+              {collectionItems.map((collection) => (
+                <button
+                  key={collection.handle}
+                  type="button"
+                  onClick={() => setSearch({ collection: collection.handle })}
+                  aria-pressed={search.collection === collection.handle}
+                  className={`inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3.5 text-xs transition-colors ${
+                    search.collection === collection.handle
+                      ? "border-gold text-foreground"
+                      : "border-border text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {collection.title}
+                  <span className="text-[0.65rem] text-muted-foreground">
+                    {collection.product_count}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        {tags.length > 0 ? (
+          <div className="mt-5">
+            <h2 className="text-[0.65rem] uppercase tracking-[0.2em] text-muted-foreground">
+              Popular tags
+            </h2>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {search.tag ? (
+                <button
+                  type="button"
+                  onClick={() => setSearch({ tag: undefined })}
+                  className="inline-flex min-h-9 items-center rounded-full border border-gold px-3.5 text-xs text-foreground"
+                >
+                  Clear tag
+                </button>
+              ) : null}
+              {tags.map((tag) => (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={() => setSearch({ tag: search.tag === tag ? undefined : tag })}
+                  aria-pressed={search.tag === tag}
+                  className={`inline-flex min-h-9 items-center rounded-full border px-3.5 text-xs transition-colors ${
+                    search.tag === tag
+                      ? "border-gold text-foreground"
+                      : "border-border text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {tag}
+                </button>
+              ))}
+            </div>
           </div>
         ) : null}
       </div>
@@ -237,7 +302,9 @@ function ShopIndex() {
               {filtered ? (
                 <button
                   type="button"
-                  onClick={() => setSearch({ q: undefined, type: undefined })}
+                  onClick={() =>
+                    setSearch({ q: undefined, collection: undefined, tag: undefined })
+                  }
                   className="inline-flex min-h-11 items-center rounded-lg border border-input px-5 text-sm font-medium text-foreground transition-colors hover:bg-accent"
                 >
                   Clear filters

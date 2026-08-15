@@ -109,6 +109,11 @@ function ProductDetail() {
               price: product.price_min,
               priceCurrency: product.currency ?? "GBP",
               url,
+              ...(product.available_for_sale === true
+                ? { availability: "https://schema.org/InStock" }
+                : product.available_for_sale === false
+                  ? { availability: "https://schema.org/OutOfStock" }
+                  : {}),
             },
           }
         : {}),
@@ -145,7 +150,7 @@ function ProductDetail() {
                   width={activeImage.width ?? 1200}
                   height={activeImage.height ?? 1200}
                   decoding="async"
-                  className="aspect-square w-full object-cover"
+                  className="aspect-square w-full bg-background object-contain"
                 />
               ) : (
                 <div className="aspect-square w-full">
@@ -201,6 +206,12 @@ function ProductDetail() {
                     {formatPrice(product.compare_at_price_min, null, product.currency)}
                   </span>
                 ) : null}
+              </p>
+            ) : null}
+            {product.available_for_sale != null ? (
+              <p className="mt-3 text-sm text-muted-foreground">
+                {product.available_for_sale ? "Available to order" : "Currently unavailable"}
+                {product.variant_count > 1 ? ` in ${product.variant_count} options` : ""}
               </p>
             ) : null}
             {product.summary ? (
@@ -278,7 +289,7 @@ function ProductDetail() {
 
         {product.description_html ? (
           <section className="mt-16 max-w-3xl">
-            <h2 className="font-display text-2xl text-foreground">Description</h2>
+            <h2 className="font-display text-2xl text-foreground">Product details</h2>
             <div
               className="prose prose-sm mt-4 max-w-none text-muted-foreground prose-headings:font-display prose-headings:text-foreground prose-strong:text-foreground prose-a:text-foreground"
               dangerouslySetInnerHTML={{ __html: product.description_html }}

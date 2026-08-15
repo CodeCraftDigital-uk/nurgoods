@@ -19,6 +19,7 @@ export interface StorefrontListInput {
   query?: string | undefined;
   productType?: string | undefined;
   collectionHandle?: string | undefined;
+  tag?: string | undefined;
   sort?: string | undefined;
   limit?: number | undefined;
   offset?: number | undefined;
@@ -36,6 +37,7 @@ export const listStorefrontProductsFn = createServerFn({ method: "GET" })
       collectionHandle: value.collectionHandle
         ? String(value.collectionHandle).slice(0, 120)
         : undefined,
+      tag: value.tag ? String(value.tag).slice(0, 120) : undefined,
       sort,
       limit: value.limit ? Number(value.limit) : undefined,
       offset: value.offset ? Number(value.offset) : undefined,
@@ -57,12 +59,14 @@ export const listStorefrontFacetsFn = createServerFn({ method: "GET" }).handler(
   },
 );
 
-export const listStorefrontCollectionsFn = createServerFn({ method: "GET" }).handler(
-  async (): Promise<StorefrontCollection[]> => {
+export const listStorefrontCollectionsFn = createServerFn({ method: "GET" })
+  .inputValidator((input: { withProductsOnly?: boolean } | undefined) => ({
+    withProductsOnly: Boolean(input?.withProductsOnly),
+  }))
+  .handler(async ({ data }): Promise<StorefrontCollection[]> => {
     const { listStorefrontCollections } = await import("@/lib/public-api/storefront.server");
-    return listStorefrontCollections();
-  },
-);
+    return listStorefrontCollections({ withProductsOnly: data.withProductsOnly });
+  });
 
 export const getStorefrontCollectionFn = createServerFn({ method: "GET" })
   .inputValidator((input: { handle: string }) => ({ handle: String(input.handle).slice(0, 120) }))

@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { PublicShell } from "@/components/public/PublicShell";
 import { Breadcrumbs } from "@/components/public/Breadcrumbs";
+import { CollectionTile, CollectionTileSkeleton } from "@/components/public/CollectionTile";
 import { BRAND } from "@/lib/brand";
 import { listStorefrontCollectionsFn } from "@/lib/services/storefront.functions";
 
@@ -33,11 +34,13 @@ function CollectionsIndex() {
   const fetchCollections = useServerFn(listStorefrontCollectionsFn);
   const collections = useQuery({
     queryKey: ["storefront-collections"],
-    queryFn: () => fetchCollections({}),
+    queryFn: () => fetchCollections({ data: { withProductsOnly: true } }),
     retry: false,
   });
 
-  const items = collections.data ?? [];
+  const items = [...(collections.data ?? [])].sort(
+    (a, b) => b.product_count - a.product_count || a.title.localeCompare(b.title),
+  );
 
   return (
     <PublicShell>
@@ -52,9 +55,11 @@ function CollectionsIndex() {
         </p>
 
         {collections.isLoading ? (
-          <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {[0, 1, 2, 3, 4, 5].map((index) => (
-              <li key={index} className="h-40 animate-pulse rounded-xl bg-muted/50" />
+          <ul className="mt-10 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+            {[0, 1, 2, 3, 4, 5, 6, 7].map((index) => (
+              <li key={index}>
+                <CollectionTileSkeleton />
+              </li>
             ))}
           </ul>
         ) : collections.isError ? (
@@ -79,34 +84,10 @@ function CollectionsIndex() {
             </a>
           </div>
         ) : (
-          <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {items.map((collection) => (
+          <ul className="mt-10 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+            {items.map((collection, index) => (
               <li key={collection.id}>
-                <Link
-                  to="/collections/$handle"
-                  params={{ handle: collection.handle }}
-                  className="flex h-full flex-col overflow-hidden rounded-xl border border-border/70 transition-colors hover:border-gold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-                >
-                  {collection.image_url ? (
-                    <img
-                      src={collection.image_url}
-                      alt={collection.title}
-                      width={800}
-                      height={450}
-                      loading="lazy"
-                      decoding="async"
-                      className="aspect-[16/9] w-full object-cover"
-                    />
-                  ) : null}
-                  <div className="p-5">
-                    <h2 className="font-display text-lg text-foreground">{collection.title}</h2>
-                    {collection.description ? (
-                      <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-muted-foreground">
-                        {collection.description}
-                      </p>
-                    ) : null}
-                  </div>
-                </Link>
+                <CollectionTile collection={collection} eager={index < 4} />
               </li>
             ))}
           </ul>
