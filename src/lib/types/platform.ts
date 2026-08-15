@@ -90,6 +90,8 @@ export const PLACEMENT_SURFACE_LABEL: Record<PlacementSurface, string> = {
   cart: "Cart",
   article_page: "Article page",
   reviews_page: "Reviews page",
+  footer: "Footer",
+  custom: "Custom placement",
 };
 
 export function parseFaqs(value: unknown): FaqItem[] {

@@ -1,21 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { listPublicPlacements } from "@/lib/services/public-content.functions";
+import { PublikoEmbed } from "@/components/public/PublikoEmbed";
+import { listPublicPlacements, type PublicPlacement } from "@/lib/services/public-content.functions";
 
-/**
- * Renders the review widget slot configured for a surface. The container and
- * placement key are stable so the review provider script can attach to them
- * once the account and embed details are supplied. Nothing renders when the
- * placement is disabled or has no widget reference, so no empty promises or
- * fabricated review content ever reach a visitor.
- */
-export function ReviewPlacementSlot({
-  surface,
-  className,
-}: {
-  surface: string;
-  className?: string;
-}) {
+/** Shared read of enabled placements. One query serves every slot on the page. */
+export function useReviewPlacement(surface: string): {
+  placement: PublicPlacement | null;
+  isLoading: boolean;
+} {
   const fetchPlacements = useServerFn(listPublicPlacements);
   const placements = useQuery({
     queryKey: ["public-placements"],
@@ -24,25 +16,59 @@ export function ReviewPlacementSlot({
     retry: false,
   });
 
-  const placement = (placements.data ?? []).find(
-    (item) => item.surface === surface && Boolean(item.widget_reference),
-  );
-  if (!placement) return null;
+  const placement =
+    (placements.data ?? []).find(
+      (item) => item.surface === surface && Boolean(item.embed_snippet?.trim()),
+    ) ?? null;
 
+  return { placement, isLoading: placements.isLoading };
+}
+
+/**
+ * Renders the review widget assigned to one surface. Each widget renders only
+ * in the placement it was assigned to, and nothing at all renders when no
+ * widget is configured, so no rating or testimonial is ever implied.
+ */
+export function ReviewPlacementSlot({
+  surface,
+  className,
+  bare = false,
+  headingLevel = "h2",
+}: {
+  surface: string;
+  className?: string;
+  bare?: boolean;
+  headingLevel?: "h2" | "h3";
+}) {
+  const { placement } = useReviewPlacement(surface);
+  if (!placement?.embed_snippet) return null;
+
+  if (bare) {
+    return (
+      <div
+        className={className}
+        aria-label={placement.label}
+        data-review-placement={placement.placement_key}
+      >
+        <PublikoEmbed html={placement.embed_snippet} />
+      </div>
+    );
+  }
+
+  const Heading = headingLevel;
   return (
     <section
       className={className}
       aria-label={placement.label}
       data-review-placement={placement.placement_key}
-      data-review-widget={placement.widget_reference ?? undefined}
     >
-      <h2 className="font-display text-2xl text-foreground">{placement.label}</h2>
+      <Heading className="font-display text-2xl text-foreground">{placement.label}</Heading>
       {placement.description ? (
-        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+        <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">
           {placement.description}
         </p>
       ) : null}
-      <div className="mt-5 rounded-xl border border-border/70 p-5" />
+      <PublikoEmbed html={placement.embed_snippet} className="mt-6" />
     </section>
   );
 }

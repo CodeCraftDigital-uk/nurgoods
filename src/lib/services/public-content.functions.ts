@@ -74,6 +74,7 @@ export interface PublicPlacement {
   label: string;
   description: string | null;
   widget_reference: string | null;
+  embed_snippet: string | null;
 }
 
 const ARTICLE_SUMMARY_COLUMNS =
@@ -193,14 +194,18 @@ export const getPublicLegalDocument = createServerFn({ method: "GET" })
     return (doc ?? null) as PublicLegalDocument | null;
   });
 
-/** Enabled review widget placements, used to render the right slot per surface. */
+/**
+ * Enabled review widget placements. The embed snippet is admin authored
+ * configuration meant for the public page, so returning it here is intended.
+ */
 export const listPublicPlacements = createServerFn({ method: "GET" }).handler(
   async (): Promise<PublicPlacement[]> => {
     const supabase = await publicClient();
     const { data, error } = await supabase
       .from("review_placements")
-      .select("surface, placement_key, label, description, widget_reference")
-      .eq("enabled", true);
+      .select("surface, placement_key, label, description, widget_reference, embed_snippet")
+      .eq("enabled", true)
+      .order("created_at", { ascending: true });
     if (error) throw new Error(error.message);
     return (data ?? []) as PublicPlacement[];
   },
