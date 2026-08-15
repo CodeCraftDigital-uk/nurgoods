@@ -12,16 +12,37 @@ export const Route = createFileRoute("/sitemap.xml")({
 
         const entries: { loc: string; lastmod?: string | undefined; priority: string }[] = [
           { loc: `${BRAND.siteUrl}/`, priority: "0.9" },
+          { loc: `${BRAND.siteUrl}/shop`, priority: "0.9" },
+          { loc: `${BRAND.siteUrl}/collections`, priority: "0.7" },
           { loc: `${BRAND.siteUrl}/journal`, priority: "0.8" },
           { loc: `${BRAND.siteUrl}/reviews`, priority: "0.6" },
           { loc: `${BRAND.siteUrl}/legal`, priority: "0.4" },
         ];
 
         try {
-          const [articles, documents] = await Promise.all([
+          const { listStorefrontCollections, listStorefrontProducts } = await import(
+            "@/lib/public-api/storefront.server"
+          );
+          const [articles, documents, products, collections] = await Promise.all([
             listPublicArticles({}),
             listPublicLegalDocuments({}),
+            listStorefrontProducts({ limit: 100 }),
+            listStorefrontCollections(),
           ]);
+          for (const product of products.items) {
+            entries.push({
+              loc: `${BRAND.siteUrl}/shop/${product.handle}`,
+              lastmod: product.updated_at ?? undefined,
+              priority: "0.8",
+            });
+          }
+          for (const collection of collections) {
+            entries.push({
+              loc: `${BRAND.siteUrl}/collections/${collection.handle}`,
+              lastmod: collection.updated_at ?? undefined,
+              priority: "0.6",
+            });
+          }
           for (const article of articles) {
             entries.push({
               loc: `${BRAND.siteUrl}/journal/${article.slug}`,

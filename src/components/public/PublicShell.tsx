@@ -4,6 +4,8 @@ import { BrandLogo } from "@/components/admin/BrandLogo";
 import { BRAND } from "@/lib/brand";
 
 const PRIMARY_NAV = [
+  { label: "Shop", to: "/shop" },
+  { label: "Collections", to: "/collections" },
   { label: "Journal", to: "/journal" },
   { label: "Reviews", to: "/reviews" },
   { label: "Policies", to: "/legal" },
