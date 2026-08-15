@@ -33,8 +33,13 @@ import { Route as AuthenticatedAdminJournalIndexRouteImport } from './routes/_au
 import { Route as AuthenticatedAdminJournalArticleIdRouteImport } from './routes/_authenticated/admin.journal.$articleId'
 import { Route as AuthenticatedAdminJournalNewRouteImport } from './routes/_authenticated/admin.journal.new'
 import { Route as ApiPublicV1IndexRouteImport } from './routes/api/public/v1/index'
+import { Route as ApiPublicV1AnswersRouteImport } from './routes/api/public/v1/answers'
+import { Route as ApiPublicV1ArticlesRouteImport } from './routes/api/public/v1/articles'
 import { Route as ApiPublicV1CollectionsRouteImport } from './routes/api/public/v1/collections'
 import { Route as ApiPublicV1ProductsRouteImport } from './routes/api/public/v1/products'
+import { Route as ApiPublicV1StoreRouteImport } from './routes/api/public/v1/store'
+import { Route as ApiPublicV1ArticlesSlugRouteImport } from './routes/api/public/v1/articles.$slug'
+import { Route as ApiPublicV1PoliciesSlugRouteImport } from './routes/api/public/v1/policies.$slug'
 import { Route as ApiPublicV1ProductsHandleRouteImport } from './routes/api/public/v1/products.$handle'
 
 const IndexRoute = IndexRouteImport.update({
@@ -164,6 +169,16 @@ const ApiPublicV1IndexRoute = ApiPublicV1IndexRouteImport.update({
   path: '/api/public/v1/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicV1AnswersRoute = ApiPublicV1AnswersRouteImport.update({
+  id: '/api/public/v1/answers',
+  path: '/api/public/v1/answers',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicV1ArticlesRoute = ApiPublicV1ArticlesRouteImport.update({
+  id: '/api/public/v1/articles',
+  path: '/api/public/v1/articles',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicV1CollectionsRoute = ApiPublicV1CollectionsRouteImport.update({
   id: '/api/public/v1/collections',
   path: '/api/public/v1/collections',
@@ -172,6 +187,21 @@ const ApiPublicV1CollectionsRoute = ApiPublicV1CollectionsRouteImport.update({
 const ApiPublicV1ProductsRoute = ApiPublicV1ProductsRouteImport.update({
   id: '/api/public/v1/products',
   path: '/api/public/v1/products',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicV1StoreRoute = ApiPublicV1StoreRouteImport.update({
+  id: '/api/public/v1/store',
+  path: '/api/public/v1/store',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicV1ArticlesSlugRoute = ApiPublicV1ArticlesSlugRouteImport.update({
+  id: '/$slug',
+  path: '/$slug',
+  getParentRoute: () => ApiPublicV1ArticlesRoute,
+} as any)
+const ApiPublicV1PoliciesSlugRoute = ApiPublicV1PoliciesSlugRouteImport.update({
+  id: '/api/public/v1/policies/$slug',
+  path: '/api/public/v1/policies/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicV1ProductsHandleRoute =
@@ -203,10 +233,15 @@ export interface FileRoutesByFullPath {
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/admin/journal/$articleId': typeof AuthenticatedAdminJournalArticleIdRoute
   '/admin/journal/new': typeof AuthenticatedAdminJournalNewRoute
+  '/api/public/v1/answers': typeof ApiPublicV1AnswersRoute
+  '/api/public/v1/articles': typeof ApiPublicV1ArticlesRouteWithChildren
   '/api/public/v1/collections': typeof ApiPublicV1CollectionsRoute
   '/api/public/v1/products': typeof ApiPublicV1ProductsRouteWithChildren
+  '/api/public/v1/store': typeof ApiPublicV1StoreRoute
   '/admin/journal/': typeof AuthenticatedAdminJournalIndexRoute
   '/api/public/v1/': typeof ApiPublicV1IndexRoute
+  '/api/public/v1/articles/$slug': typeof ApiPublicV1ArticlesSlugRoute
+  '/api/public/v1/policies/$slug': typeof ApiPublicV1PoliciesSlugRoute
   '/api/public/v1/products/$handle': typeof ApiPublicV1ProductsHandleRoute
 }
 export interface FileRoutesByTo {
@@ -229,10 +264,15 @@ export interface FileRoutesByTo {
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/admin/journal/$articleId': typeof AuthenticatedAdminJournalArticleIdRoute
   '/admin/journal/new': typeof AuthenticatedAdminJournalNewRoute
+  '/api/public/v1/answers': typeof ApiPublicV1AnswersRoute
+  '/api/public/v1/articles': typeof ApiPublicV1ArticlesRouteWithChildren
   '/api/public/v1/collections': typeof ApiPublicV1CollectionsRoute
   '/api/public/v1/products': typeof ApiPublicV1ProductsRouteWithChildren
+  '/api/public/v1/store': typeof ApiPublicV1StoreRoute
   '/admin/journal': typeof AuthenticatedAdminJournalIndexRoute
   '/api/public/v1': typeof ApiPublicV1IndexRoute
+  '/api/public/v1/articles/$slug': typeof ApiPublicV1ArticlesSlugRoute
+  '/api/public/v1/policies/$slug': typeof ApiPublicV1PoliciesSlugRoute
   '/api/public/v1/products/$handle': typeof ApiPublicV1ProductsHandleRoute
 }
 export interface FileRoutesById {
@@ -259,10 +299,15 @@ export interface FileRoutesById {
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/admin/journal/$articleId': typeof AuthenticatedAdminJournalArticleIdRoute
   '/_authenticated/admin/journal/new': typeof AuthenticatedAdminJournalNewRoute
+  '/api/public/v1/answers': typeof ApiPublicV1AnswersRoute
+  '/api/public/v1/articles': typeof ApiPublicV1ArticlesRouteWithChildren
   '/api/public/v1/collections': typeof ApiPublicV1CollectionsRoute
   '/api/public/v1/products': typeof ApiPublicV1ProductsRouteWithChildren
+  '/api/public/v1/store': typeof ApiPublicV1StoreRoute
   '/_authenticated/admin/journal/': typeof AuthenticatedAdminJournalIndexRoute
   '/api/public/v1/': typeof ApiPublicV1IndexRoute
+  '/api/public/v1/articles/$slug': typeof ApiPublicV1ArticlesSlugRoute
+  '/api/public/v1/policies/$slug': typeof ApiPublicV1PoliciesSlugRoute
   '/api/public/v1/products/$handle': typeof ApiPublicV1ProductsHandleRoute
 }
 export interface FileRouteTypes {
@@ -289,10 +334,15 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/admin/journal/$articleId'
     | '/admin/journal/new'
+    | '/api/public/v1/answers'
+    | '/api/public/v1/articles'
     | '/api/public/v1/collections'
     | '/api/public/v1/products'
+    | '/api/public/v1/store'
     | '/admin/journal/'
     | '/api/public/v1/'
+    | '/api/public/v1/articles/$slug'
+    | '/api/public/v1/policies/$slug'
     | '/api/public/v1/products/$handle'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -315,10 +365,15 @@ export interface FileRouteTypes {
     | '/admin'
     | '/admin/journal/$articleId'
     | '/admin/journal/new'
+    | '/api/public/v1/answers'
+    | '/api/public/v1/articles'
     | '/api/public/v1/collections'
     | '/api/public/v1/products'
+    | '/api/public/v1/store'
     | '/admin/journal'
     | '/api/public/v1'
+    | '/api/public/v1/articles/$slug'
+    | '/api/public/v1/policies/$slug'
     | '/api/public/v1/products/$handle'
   id:
     | '__root__'
@@ -344,10 +399,15 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/'
     | '/_authenticated/admin/journal/$articleId'
     | '/_authenticated/admin/journal/new'
+    | '/api/public/v1/answers'
+    | '/api/public/v1/articles'
     | '/api/public/v1/collections'
     | '/api/public/v1/products'
+    | '/api/public/v1/store'
     | '/_authenticated/admin/journal/'
     | '/api/public/v1/'
+    | '/api/public/v1/articles/$slug'
+    | '/api/public/v1/policies/$slug'
     | '/api/public/v1/products/$handle'
   fileRoutesById: FileRoutesById
 }
@@ -362,9 +422,13 @@ export interface RootRouteChildren {
   LegalSlugRoute: typeof LegalSlugRoute
   JournalIndexRoute: typeof JournalIndexRoute
   LegalIndexRoute: typeof LegalIndexRoute
+  ApiPublicV1AnswersRoute: typeof ApiPublicV1AnswersRoute
+  ApiPublicV1ArticlesRoute: typeof ApiPublicV1ArticlesRouteWithChildren
   ApiPublicV1CollectionsRoute: typeof ApiPublicV1CollectionsRoute
   ApiPublicV1ProductsRoute: typeof ApiPublicV1ProductsRouteWithChildren
+  ApiPublicV1StoreRoute: typeof ApiPublicV1StoreRoute
   ApiPublicV1IndexRoute: typeof ApiPublicV1IndexRoute
+  ApiPublicV1PoliciesSlugRoute: typeof ApiPublicV1PoliciesSlugRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -537,6 +601,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicV1IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/v1/answers': {
+      id: '/api/public/v1/answers'
+      path: '/api/public/v1/answers'
+      fullPath: '/api/public/v1/answers'
+      preLoaderRoute: typeof ApiPublicV1AnswersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/v1/articles': {
+      id: '/api/public/v1/articles'
+      path: '/api/public/v1/articles'
+      fullPath: '/api/public/v1/articles'
+      preLoaderRoute: typeof ApiPublicV1ArticlesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/v1/collections': {
       id: '/api/public/v1/collections'
       path: '/api/public/v1/collections'
@@ -549,6 +627,27 @@ declare module '@tanstack/react-router' {
       path: '/api/public/v1/products'
       fullPath: '/api/public/v1/products'
       preLoaderRoute: typeof ApiPublicV1ProductsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/v1/store': {
+      id: '/api/public/v1/store'
+      path: '/api/public/v1/store'
+      fullPath: '/api/public/v1/store'
+      preLoaderRoute: typeof ApiPublicV1StoreRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/v1/articles/$slug': {
+      id: '/api/public/v1/articles/$slug'
+      path: '/$slug'
+      fullPath: '/api/public/v1/articles/$slug'
+      preLoaderRoute: typeof ApiPublicV1ArticlesSlugRouteImport
+      parentRoute: typeof ApiPublicV1ArticlesRoute
+    }
+    '/api/public/v1/policies/$slug': {
+      id: '/api/public/v1/policies/$slug'
+      path: '/api/public/v1/policies/$slug'
+      fullPath: '/api/public/v1/policies/$slug'
+      preLoaderRoute: typeof ApiPublicV1PoliciesSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/v1/products/$handle': {
@@ -618,6 +717,17 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
 const AuthenticatedRouteRouteWithChildren =
   AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
 
+interface ApiPublicV1ArticlesRouteChildren {
+  ApiPublicV1ArticlesSlugRoute: typeof ApiPublicV1ArticlesSlugRoute
+}
+
+const ApiPublicV1ArticlesRouteChildren: ApiPublicV1ArticlesRouteChildren = {
+  ApiPublicV1ArticlesSlugRoute: ApiPublicV1ArticlesSlugRoute,
+}
+
+const ApiPublicV1ArticlesRouteWithChildren =
+  ApiPublicV1ArticlesRoute._addFileChildren(ApiPublicV1ArticlesRouteChildren)
+
 interface ApiPublicV1ProductsRouteChildren {
   ApiPublicV1ProductsHandleRoute: typeof ApiPublicV1ProductsHandleRoute
 }
@@ -640,9 +750,13 @@ const rootRouteChildren: RootRouteChildren = {
   LegalSlugRoute: LegalSlugRoute,
   JournalIndexRoute: JournalIndexRoute,
   LegalIndexRoute: LegalIndexRoute,
+  ApiPublicV1AnswersRoute: ApiPublicV1AnswersRoute,
+  ApiPublicV1ArticlesRoute: ApiPublicV1ArticlesRouteWithChildren,
   ApiPublicV1CollectionsRoute: ApiPublicV1CollectionsRoute,
   ApiPublicV1ProductsRoute: ApiPublicV1ProductsRouteWithChildren,
+  ApiPublicV1StoreRoute: ApiPublicV1StoreRoute,
   ApiPublicV1IndexRoute: ApiPublicV1IndexRoute,
+  ApiPublicV1PoliciesSlugRoute: ApiPublicV1PoliciesSlugRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
