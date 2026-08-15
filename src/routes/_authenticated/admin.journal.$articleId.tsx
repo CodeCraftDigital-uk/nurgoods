@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Check, ExternalLink, Trash2 } from "lucide-react";
+import { Check, ExternalLink, Sparkles, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { SectionCard } from "@/components/admin/SectionCard";
 import { StatusPill, statusTone, humanise } from "@/components/admin/StatusPill";
@@ -22,6 +23,7 @@ import {
   addArticleSource,
   addInternalLink,
   getArticle,
+  listArticleRuns,
   listArticleSources,
   listInternalLinks,
   removeArticleSource,
@@ -29,7 +31,10 @@ import {
   setSourceVerified,
   updateArticle,
 } from "@/lib/services/journal";
-import { WORKFLOW_PIPELINE } from "@/lib/ai/workflow";
+import { RUNNABLE_STAGES, WORKFLOW_PIPELINE } from "@/lib/ai/workflow";
+import { AI_SECRET_NAMES } from "@/lib/ai/provider";
+import { getAiProviderStatus } from "@/lib/ai/ai-config.functions";
+import { runArticleStage } from "@/lib/ai/generation.functions";
 import {
   parseFaqs,
   WORKFLOW_STAGE_LABEL,
@@ -113,6 +118,37 @@ function ArticleEditor() {
       faqs: parseFaqs(article.data.faqs),
     });
   }, [article.data, form]);
+
+  const aiStatusFn = useServerFn(getAiProviderStatus);
+  const aiStatus = useQuery({
+    queryKey: ["ai-status"],
+    queryFn: () => aiStatusFn({}),
+    retry: false,
+  });
+
+  const runs = useQuery({
+    queryKey: ["article-runs", articleId],
+    queryFn: () => listArticleRuns(articleId),
+  });
+
+  const runStageFn = useServerFn(runArticleStage);
+  const runStage = useMutation({
+    mutationFn: (stage: WorkflowStage) => runStageFn({ data: { articleId, stage } }),
+    onSuccess: async (result) => {
+      await queryClient.invalidateQueries({ queryKey: ["article", articleId] });
+      await queryClient.invalidateQueries({ queryKey: ["article-runs", articleId] });
+      await queryClient.invalidateQueries({ queryKey: ["article-links", articleId] });
+      setForm(null);
+      toast.success(
+        result.applied.length > 0
+          ? `Stage complete. Updated: ${result.applied.join(", ")}.`
+          : "Stage complete. Nothing needed changing.",
+      );
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+
 
   const save = useMutation({
     mutationFn: async (state: EditorState) => {
@@ -608,6 +644,63 @@ function ArticleEditor() {
             </div>
           </SectionCard>
 
+          <SectionCard
+            title="Assisted generation"
+            description="Runs one stage at a time against the brief, the article body and the stored sources. Every run is recorded with provider, model and outcome. Research, verification, approval and scheduling stay with a person."
+          >
+            {aiStatus.data?.configured ? (
+              <p className="text-xs text-muted-foreground">
+                Provider {aiStatus.data.providerId} using {aiStatus.data.model}.
+              </p>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Generation is blocked until these server secrets are added:{" "}
+                {(aiStatus.data?.missing ?? Object.values(AI_SECRET_NAMES)).join(", ")}.
+              </p>
+            )}
+            <div className="mt-4 flex flex-wrap gap-2">
+              {RUNNABLE_STAGES.map((stage) => (
+                <Button
+                  key={stage}
+                  size="sm"
+                  variant="outline"
+                  disabled={!aiStatus.data?.configured || runStage.isPending}
+                  onClick={() => runStage.mutate(stage)}
+                >
+                  <Sparkles className="h-4 w-4" aria-hidden="true" />
+                  {WORKFLOW_STAGE_LABEL[stage]}
+                </Button>
+              ))}
+            </div>
+
+            <div className="mt-6 border-t border-border pt-4">
+              <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+                Recent runs
+              </p>
+              {(runs.data ?? []).length === 0 ? (
+                <p className="mt-2 text-sm text-muted-foreground">No runs recorded yet.</p>
+              ) : (
+                <ul className="mt-2 divide-y divide-border">
+                  {(runs.data ?? []).map((run) => (
+                    <li key={run.id} className="flex items-start justify-between gap-3 py-3">
+                      <div>
+                        <p className="text-sm text-foreground">
+                          {WORKFLOW_STAGE_LABEL[run.stage]}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {run.provider ?? "No provider"} {run.model ? `· ${run.model}` : ""} ·{" "}
+                          {new Date(run.created_at).toLocaleString()}
+                          {run.error_message ? ` · ${run.error_message}` : ""}
+                        </p>
+                      </div>
+                      <StatusPill tone={statusTone(run.status)}>{humanise(run.status)}</StatusPill>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </SectionCard>
+
           <SectionCard title="Pipeline">
             <ol className="space-y-3">
               {WORKFLOW_PIPELINE.map((stage) => (
@@ -635,6 +728,7 @@ function ArticleEditor() {
               ))}
             </ol>
           </SectionCard>
+
         </TabsContent>
       </Tabs>
     </div>

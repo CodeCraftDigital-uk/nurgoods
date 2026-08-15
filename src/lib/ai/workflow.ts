@@ -114,3 +114,11 @@ export function nextStage(stage: WorkflowStage): WorkflowStage | null {
   if (index < 0 || index >= WORKFLOW_PIPELINE.length - 1) return null;
   return WORKFLOW_PIPELINE[index + 1]!.stage;
 }
+
+/** Stages the assisted generation runtime can execute. All others stay human led. */
+export const RUNNABLE_STAGES: WorkflowStage[] = [
+  "draft",
+  "optimisation",
+  "internal_links",
+  "metadata_schema",
+];
