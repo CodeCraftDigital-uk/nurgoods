@@ -422,7 +422,7 @@ export async function getStorefrontProduct(handle: string): Promise<StorefrontPr
     supabase
       .from("shopify_product_variants")
       .select(
-        "id, title, price, compare_at_price, currency, image_url, selected_options, available_for_sale, position",
+        "id, shopify_variant_id, title, price, compare_at_price, currency, image_url, selected_options, available_for_sale, position",
       )
       .eq("product_id", row.id)
       .order("position", { ascending: true }),
