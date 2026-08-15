@@ -4,6 +4,8 @@ import { BrandLogo } from "@/components/admin/BrandLogo";
 import { BRAND } from "@/lib/brand";
 
 const PRIMARY_NAV = [
+  { label: "Shop", to: "/shop" },
+  { label: "Collections", to: "/collections" },
   { label: "Journal", to: "/journal" },
   { label: "Reviews", to: "/reviews" },
   { label: "Policies", to: "/legal" },
@@ -24,25 +26,42 @@ export function PublicShell({ children }: { children: ReactNode }) {
               {BRAND.name}
             </span>
           </Link>
-          <nav aria-label="Primary" className="flex items-center gap-0.5 sm:gap-2">
-            {PRIMARY_NAV.map((item) => (
-              <Link
-                key={item.to}
-                to={item.to}
-                className="inline-flex min-h-11 items-center rounded-md px-2 text-[0.82rem] text-muted-foreground transition-colors hover:text-foreground sm:px-3 sm:text-sm"
-                activeProps={{ className: "text-foreground" }}
-              >
-                {item.label}
-              </Link>
-            ))}
+          <div className="flex items-center gap-1 sm:gap-2">
+            <nav aria-label="Primary" className="hidden items-center gap-1 md:flex">
+              {PRIMARY_NAV.map((item) => (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  className="inline-flex min-h-11 items-center rounded-md px-3 text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                  activeProps={{ className: "text-foreground" }}
+                >
+                  {item.label}
+                </Link>
+              ))}
+            </nav>
             <a
               href={BRAND.storeUrl}
-              className="ml-0.5 inline-flex min-h-11 shrink-0 items-center rounded-lg bg-primary px-3 text-[0.82rem] font-medium text-primary-foreground transition-colors hover:bg-primary/90 sm:ml-1 sm:px-4 sm:text-sm"
+              className="inline-flex min-h-11 shrink-0 items-center rounded-lg bg-primary px-4 text-[0.82rem] font-medium text-primary-foreground transition-colors hover:bg-primary/90 sm:text-sm"
             >
-              Shop
+              Store
             </a>
-          </nav>
+          </div>
         </div>
+        <nav
+          aria-label="Primary mobile"
+          className="flex gap-1 overflow-x-auto border-t border-border/60 px-3 pb-1 md:hidden"
+        >
+          {PRIMARY_NAV.map((item) => (
+            <Link
+              key={item.to}
+              to={item.to}
+              className="inline-flex min-h-11 shrink-0 items-center rounded-md px-2.5 text-[0.82rem] text-muted-foreground transition-colors hover:text-foreground"
+              activeProps={{ className: "text-foreground" }}
+            >
+              {item.label}
+            </Link>
+          ))}
+        </nav>
       </header>
 
       <main className="flex-1">{children}</main>
