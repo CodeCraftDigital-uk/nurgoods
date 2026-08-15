@@ -244,6 +244,18 @@ export interface StorefrontProductDetail extends StorefrontProductCard {
   related: StorefrontProductCard[];
 }
 
+/** Store supplied HTML is trimmed to a safe subset before it reaches a page. */
+function sanitiseHtml(input: unknown): string | null {
+  if (typeof input !== "string" || !input.trim()) return null;
+  return input
+    .replace(/<\s*(script|style|iframe|object|embed|link|meta)[^>]*>[\s\S]*?<\s*\/\s*\1\s*>/gi, "")
+    .replace(/<\s*(script|style|iframe|object|embed|link|meta)[^>]*\/?\s*>/gi, "")
+    .replace(/\son[a-z]+\s*=\s*"[^"]*"/gi, "")
+    .replace(/\son[a-z]+\s*=\s*'[^']*'/gi, "")
+    .replace(/javascript:/gi, "")
+    .trim();
+}
+
 function stringList(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : [];
 }
@@ -375,7 +387,7 @@ export async function getStorefrontProduct(handle: string): Promise<StorefrontPr
   return {
     ...mapCard(row, content.summary ?? null),
     description: row.description ?? null,
-    description_html: row.description_html ?? null,
+    description_html: sanitiseHtml(row.description_html),
     seo_title: row.seo_title ?? null,
     seo_description: row.seo_description ?? null,
     store_url: row.online_store_url ?? null,
