@@ -776,14 +776,16 @@ export async function syncCatalogue(
   supabase: SupabaseClient<any, "public", any>,
 ): Promise<SyncResult> {
   const resolved = await resolveShopifyCredentials();
-  if (!resolved.shopDomain || !resolved.adminToken) {
+  if (!resolved.shopDomain || resolved.missing.length > 0) {
     throw new Error(`Store credentials missing: ${resolved.missing.join(", ")}`);
   }
+  const adminToken = await getAdminAccessToken(resolved);
   const credentials = {
     shopDomain: resolved.shopDomain,
-    adminToken: resolved.adminToken,
+    adminToken,
     apiVersion: resolved.apiVersion,
   };
+
 
   const syncedAt = new Date().toISOString();
 
