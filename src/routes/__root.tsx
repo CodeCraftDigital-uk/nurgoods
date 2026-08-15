@@ -78,18 +78,18 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "NUR GOODS Intelligence Platform" },
+      { title: "NUR GOODS | Good things, brought to light" },
       {
         name: "description",
         content:
-          "Commerce intelligence, content automation and integration layer for the NUR GOODS store.",
+          "Considered everyday goods from NUR GOODS. Good things, brought to light.",
       },
       { name: "author", content: "NUR GOODS" },
-      { property: "og:title", content: "NUR GOODS Intelligence Platform" },
+      { property: "og:title", content: "NUR GOODS | Good things, brought to light" },
       {
         property: "og:description",
         content:
-          "Commerce intelligence, content automation and integration layer for the NUR GOODS store.",
+          "Considered everyday goods from NUR GOODS. Good things, brought to light.",
       },
       { property: "og:type", content: "website" },
       { property: "og:site_name", content: "NUR GOODS" },

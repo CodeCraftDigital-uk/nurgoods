@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { MissingProductImage } from "@/components/public/MissingProductImage";
 import type { StorefrontProductCard } from "@/lib/public-api/storefront.server";
 
 /** Formats a synced price range. Returns null when the store has not supplied one. */
@@ -49,12 +50,7 @@ export function ProductCard({
             className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
           />
         ) : (
-          <div
-            aria-hidden="true"
-            className="flex h-full w-full items-center justify-center font-display text-3xl text-muted-foreground/40"
-          >
-            N
-          </div>
+          <MissingProductImage />
         )}
       </div>
       <div className="flex flex-1 flex-col p-4">

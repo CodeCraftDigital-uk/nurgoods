@@ -4,7 +4,33 @@ import { JsonLd } from "@/components/public/JsonLd";
 import { Markdown } from "@/components/public/Markdown";
 import { ReviewPlacementSlot } from "@/components/public/ReviewPlacementSlot";
 import { BRAND } from "@/lib/brand";
-import { getPublicArticle } from "@/lib/services/public-content.functions";
+import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import {
+  getPublicArticle,
+  listPublicArticles,
+  type PublicArticleSummary,
+} from "@/lib/services/public-content.functions";
+
+/** Related published articles, preferring shared tags. Real content only. */
+function useRelatedArticles(slug: string, tags: string[] | null): PublicArticleSummary[] {
+  const fetchArticles = useServerFn(listPublicArticles);
+  const query = useQuery({
+    queryKey: ["public-articles"],
+    queryFn: () => fetchArticles({}),
+    retry: false,
+    staleTime: 5 * 60 * 1000,
+  });
+  const others = (query.data ?? []).filter((item) => item.slug !== slug);
+  const tagSet = new Set(tags ?? []);
+  const scored = others
+    .map((item) => ({
+      item,
+      score: (item.tags ?? []).filter((tag) => tagSet.has(tag)).length,
+    }))
+    .sort((a, b) => b.score - a.score);
+  return scored.slice(0, 3).map((entry) => entry.item);
+}
 
 export const Route = createFileRoute("/journal/$slug")({
   loader: async ({ params }) => {
@@ -68,6 +94,7 @@ function ArticlePage() {
   const article = Route.useLoaderData();
   const canonical = article.canonical_url ?? `${BRAND.siteUrl}/journal/${article.slug}`;
   const faqs = article.faqs ?? [];
+  const related = useRelatedArticles(article.slug, article.tags);
 
   const graph: Record<string, unknown>[] = [
     {
@@ -209,23 +236,66 @@ function ArticlePage() {
         ) : null}
 
         {article.links.length > 0 ? (
-          <section className="mt-14" aria-labelledby="related-heading">
-            <h2 id="related-heading" className="font-display text-2xl text-foreground">
-              Keep reading
+          <section className="mt-14" aria-labelledby="links-heading">
+            <h2 id="links-heading" className="font-display text-2xl text-foreground">
+              Explore next
             </h2>
             <ul className="mt-4 space-y-2 text-sm">
               {article.links.map((link) => (
                 <li key={link.id}>
-                  <a
-                    href={
-                      link.target_type === "article"
-                        ? `/journal/${link.target_reference}`
-                        : `${BRAND.storeUrl}/${link.target_type === "collection" ? "collections" : "products"}/${link.target_reference}`
-                    }
-                    className="text-foreground underline decoration-gold underline-offset-4"
+                  {link.target_type === "article" ? (
+                    <Link
+                      to="/journal/$slug"
+                      params={{ slug: link.target_reference }}
+                      className="text-foreground underline decoration-gold underline-offset-4"
+                    >
+                      {link.anchor_text}
+                    </Link>
+                  ) : link.target_type === "collection" ? (
+                    <Link
+                      to="/collections/$handle"
+                      params={{ handle: link.target_reference }}
+                      className="text-foreground underline decoration-gold underline-offset-4"
+                    >
+                      {link.anchor_text}
+                    </Link>
+                  ) : (
+                    <Link
+                      to="/shop/$handle"
+                      params={{ handle: link.target_reference }}
+                      className="text-foreground underline decoration-gold underline-offset-4"
+                    >
+                      {link.anchor_text}
+                    </Link>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
+        {related.length > 0 ? (
+          <section className="mt-14" aria-labelledby="related-heading">
+            <h2 id="related-heading" className="font-display text-2xl text-foreground">
+              Keep reading
+            </h2>
+            <ul className="mt-5 grid gap-4 sm:grid-cols-3">
+              {related.map((item) => (
+                <li key={item.id}>
+                  <Link
+                    to="/journal/$slug"
+                    params={{ slug: item.slug }}
+                    className="flex h-full flex-col rounded-xl border border-border/70 p-5 transition-colors hover:border-gold"
                   >
-                    {link.anchor_text}
-                  </a>
+                    <h3 className="font-display text-base leading-snug text-foreground">
+                      {item.title}
+                    </h3>
+                    {item.excerpt ? (
+                      <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-muted-foreground">
+                        {item.excerpt}
+                      </p>
+                    ) : null}
+                  </Link>
                 </li>
               ))}
             </ul>
