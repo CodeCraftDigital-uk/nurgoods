@@ -128,7 +128,7 @@ export function ShopifyConnectionPanel() {
 
   const busy = connect.isPending || test.isPending || sync.isPending || remove.isPending;
   const data = status.data;
-  const hasToken = Boolean(data?.hasStoredToken);
+  const hasSecret = Boolean(data?.hasStoredSecret);
   const state = test.isPending || connect.isPending ? "testing" : (data?.connectionState ?? "not_connected");
 
   const tone: "positive" | "danger" | "pending" | "neutral" =
@@ -253,7 +253,7 @@ export function ShopifyConnectionPanel() {
           >
             {sync.isPending ? "Syncing" : "Sync catalogue"}
           </Button>
-          {hasToken ? (
+          {hasSecret ? (
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button type="button" variant="ghost" className="min-h-11" disabled={busy}>
@@ -264,7 +264,7 @@ export function ShopifyConnectionPanel() {
                 <AlertDialogHeader>
                   <AlertDialogTitle>Disconnect the store?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    The stored access token and connection settings are deleted. Catalogue data
+                    The stored client secret and connection settings are deleted. Catalogue data
                     already mirrored stays until the next sync. You can reconnect at any time.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
