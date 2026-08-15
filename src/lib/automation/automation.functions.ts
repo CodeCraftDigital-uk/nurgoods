@@ -39,11 +39,11 @@ export const getAutomationReadiness = createServerFn({ method: "GET" })
     });
     if (!isAdmin) throw new Error("Forbidden");
 
-    const { readShopifyCredentials } = await import("@/lib/services/shopify.server");
+    const { resolveShopifyCredentials } = await import("@/lib/services/shopify.server");
     const { isManagedAiAvailable } = await import("@/lib/ai/gateway.server");
 
     return {
-      shopify: readShopifyCredentials().missing.length === 0,
+      shopify: (await resolveShopifyCredentials()).missing.length === 0,
       managedAi: isManagedAiAvailable(),
       research: Boolean(process.env["RESEARCH_PROVIDER_API_KEY"]?.trim()),
     };
