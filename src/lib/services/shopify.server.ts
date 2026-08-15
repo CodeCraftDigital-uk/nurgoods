@@ -356,6 +356,37 @@ export async function getShopifyCredentialStatus(): Promise<ShopifyCredentialSta
   };
 }
 
+/**
+ * Checkout host used for basket links. The owner sets this when the store's own
+ * primary domain is serving something else, otherwise the paired store host is
+ * used and the store handles the redirect.
+ */
+export async function getCheckoutDomainSetting(): Promise<{
+  checkoutDomain: string | null;
+  shopDomain: string | null;
+}> {
+  const settings = await readSettings(await adminClient());
+  const resolved = await resolveShopifyCredentials();
+  return {
+    checkoutDomain: settings.get("checkout_domain") ?? null,
+    shopDomain: resolved.shopDomain,
+  };
+}
+
+export async function setCheckoutDomainSetting(value: string | null): Promise<void> {
+  const supabase = await adminClient();
+  await writeSetting(
+    supabase,
+    "checkout_domain",
+    "Checkout domain",
+    value ? normaliseShopDomain(value) : null,
+    {
+      helpText:
+        "Host that serves the basket and payment pages. Leave empty to use the paired store domain.",
+    },
+  );
+}
+
 
 /* ---------------------------- GraphQL client ---------------------------- */
 
