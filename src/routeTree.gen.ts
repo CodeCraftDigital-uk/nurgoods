@@ -32,6 +32,7 @@ import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
 import { Route as AuthenticatedAdminAutomationsRouteImport } from './routes/_authenticated/admin.automations'
 import { Route as AuthenticatedAdminCatalogueRouteImport } from './routes/_authenticated/admin.catalogue'
+import { Route as AuthenticatedAdminContactRouteImport } from './routes/_authenticated/admin.contact'
 import { Route as AuthenticatedAdminIntegrationsRouteImport } from './routes/_authenticated/admin.integrations'
 import { Route as AuthenticatedAdminJournalRouteImport } from './routes/_authenticated/admin.journal'
 import { Route as AuthenticatedAdminLegalRouteImport } from './routes/_authenticated/admin.legal'
@@ -171,6 +172,12 @@ const AuthenticatedAdminCatalogueRoute =
     path: '/catalogue',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const AuthenticatedAdminContactRoute =
+  AuthenticatedAdminContactRouteImport.update({
+    id: '/contact',
+    path: '/contact',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 const AuthenticatedAdminIntegrationsRoute =
   AuthenticatedAdminIntegrationsRouteImport.update({
     id: '/integrations',
@@ -297,6 +304,7 @@ export interface FileRoutesByFullPath {
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/admin/automations': typeof AuthenticatedAdminAutomationsRoute
   '/admin/catalogue': typeof AuthenticatedAdminCatalogueRoute
+  '/admin/contact': typeof AuthenticatedAdminContactRoute
   '/admin/integrations': typeof AuthenticatedAdminIntegrationsRoute
   '/admin/journal': typeof AuthenticatedAdminJournalRouteWithChildren
   '/admin/legal': typeof AuthenticatedAdminLegalRoute
@@ -339,6 +347,7 @@ export interface FileRoutesByTo {
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/admin/automations': typeof AuthenticatedAdminAutomationsRoute
   '/admin/catalogue': typeof AuthenticatedAdminCatalogueRoute
+  '/admin/contact': typeof AuthenticatedAdminContactRoute
   '/admin/integrations': typeof AuthenticatedAdminIntegrationsRoute
   '/admin/legal': typeof AuthenticatedAdminLegalRoute
   '/admin/mcp': typeof AuthenticatedAdminMcpRoute
@@ -383,6 +392,7 @@ export interface FileRoutesById {
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/_authenticated/admin/automations': typeof AuthenticatedAdminAutomationsRoute
   '/_authenticated/admin/catalogue': typeof AuthenticatedAdminCatalogueRoute
+  '/_authenticated/admin/contact': typeof AuthenticatedAdminContactRoute
   '/_authenticated/admin/integrations': typeof AuthenticatedAdminIntegrationsRoute
   '/_authenticated/admin/journal': typeof AuthenticatedAdminJournalRouteWithChildren
   '/_authenticated/admin/legal': typeof AuthenticatedAdminLegalRoute
@@ -428,6 +438,7 @@ export interface FileRouteTypes {
     | '/.mcp/invoke-tool/$tool'
     | '/admin/automations'
     | '/admin/catalogue'
+    | '/admin/contact'
     | '/admin/integrations'
     | '/admin/journal'
     | '/admin/legal'
@@ -470,6 +481,7 @@ export interface FileRouteTypes {
     | '/.mcp/invoke-tool/$tool'
     | '/admin/automations'
     | '/admin/catalogue'
+    | '/admin/contact'
     | '/admin/integrations'
     | '/admin/legal'
     | '/admin/mcp'
@@ -513,6 +525,7 @@ export interface FileRouteTypes {
     | '/.mcp/invoke-tool/$tool'
     | '/_authenticated/admin/automations'
     | '/_authenticated/admin/catalogue'
+    | '/_authenticated/admin/contact'
     | '/_authenticated/admin/integrations'
     | '/_authenticated/admin/journal'
     | '/_authenticated/admin/legal'
@@ -727,6 +740,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminCatalogueRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/contact': {
+      id: '/_authenticated/admin/contact'
+      path: '/contact'
+      fullPath: '/admin/contact'
+      preLoaderRoute: typeof AuthenticatedAdminContactRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/_authenticated/admin/integrations': {
       id: '/_authenticated/admin/integrations'
       path: '/integrations'
@@ -885,6 +905,7 @@ const AuthenticatedAdminJournalRouteWithChildren =
 interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminAutomationsRoute: typeof AuthenticatedAdminAutomationsRoute
   AuthenticatedAdminCatalogueRoute: typeof AuthenticatedAdminCatalogueRoute
+  AuthenticatedAdminContactRoute: typeof AuthenticatedAdminContactRoute
   AuthenticatedAdminIntegrationsRoute: typeof AuthenticatedAdminIntegrationsRoute
   AuthenticatedAdminJournalRoute: typeof AuthenticatedAdminJournalRouteWithChildren
   AuthenticatedAdminLegalRoute: typeof AuthenticatedAdminLegalRoute
@@ -898,6 +919,7 @@ interface AuthenticatedAdminRouteChildren {
 const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminAutomationsRoute: AuthenticatedAdminAutomationsRoute,
   AuthenticatedAdminCatalogueRoute: AuthenticatedAdminCatalogueRoute,
+  AuthenticatedAdminContactRoute: AuthenticatedAdminContactRoute,
   AuthenticatedAdminIntegrationsRoute: AuthenticatedAdminIntegrationsRoute,
   AuthenticatedAdminJournalRoute: AuthenticatedAdminJournalRouteWithChildren,
   AuthenticatedAdminLegalRoute: AuthenticatedAdminLegalRoute,
