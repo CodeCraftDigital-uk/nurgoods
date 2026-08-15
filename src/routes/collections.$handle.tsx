@@ -62,7 +62,7 @@ function CollectionNotFound() {
           This collection is not listed here. You can browse the full range instead.
         </p>
         <Link
-          to="/collections/"
+          to="/collections"
           className="mt-7 inline-flex min-h-11 items-center rounded-lg border border-input px-5 text-sm font-medium text-foreground hover:bg-accent"
         >
           All collections
@@ -127,7 +127,7 @@ function CollectionDetail() {
               Products appear here as soon as they are grouped into this collection on the store.
             </p>
             <Link
-              to="/shop/"
+              to="/shop"
               className="mt-6 inline-flex min-h-11 items-center rounded-lg border border-input px-5 text-sm font-medium text-foreground hover:bg-accent"
             >
               Browse the full range

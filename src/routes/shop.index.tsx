@@ -274,7 +274,7 @@ function ShopIndex() {
             in than searching.
           </p>
           <Link
-            to="/collections/"
+            to="/collections"
             className="mt-5 inline-flex min-h-11 items-center rounded-lg border border-input px-5 text-sm font-medium text-foreground transition-colors hover:bg-accent"
           >
             See collections
