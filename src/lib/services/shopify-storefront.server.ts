@@ -42,6 +42,106 @@ export function isSiteHost(value: string | null): boolean {
 
 export const CHECKOUT_HOST_CONFLICT = "CHECKOUT_HOST_CONFLICT";
 
+/**
+ * The host the store is expected to serve basket and payment pages on once the
+ * split is complete. It is recorded as the checkout host so no code change is
+ * needed later, but it is only trusted after a live probe proves the store
+ * answers there without redirecting back to this site.
+ */
+export const INTENDED_CHECKOUT_HOST = "shop.nurgoods.com";
+
+export interface CheckoutHostProbe {
+  host: string;
+  /** The host answers as the store basket. */
+  servesStore: boolean;
+  /** The store forwards this host back to the site, so it cannot take payment. */
+  redirectsToSite: boolean;
+  /** Where the request ended up, useful for admin diagnostics. */
+  finalHost: string | null;
+  checkedAt: string;
+}
+
+const probeCache = new Map<string, { probe: CheckoutHostProbe; expires: number }>();
+
+/**
+ * Follows a basket request and reports whether the host genuinely answers as
+ * the store. A store served page carries a store identifier header, and a host
+ * that forwards to this site is treated as unusable rather than ready.
+ */
+export async function probeCheckoutHost(
+  value: string | null,
+  options: { force?: boolean } = {},
+): Promise<CheckoutHostProbe | null> {
+  const host = hostOf(value);
+  if (!host) return null;
+  const cached = probeCache.get(host);
+  if (!options.force && cached && cached.expires > Date.now()) return cached.probe;
+
+  let servesStore = false;
+  let redirectsToSite = false;
+  let finalHost: string | null = null;
+  try {
+    const response = await fetch(`https://${host}/cart`, {
+      method: "GET",
+      redirect: "follow",
+      headers: { "user-agent": "NURGOODS-storefront/1.0" },
+    });
+    finalHost = hostOf(response.url) ?? host;
+    redirectsToSite = SITE_HOSTS.has(finalHost);
+    servesStore =
+      response.ok && !redirectsToSite && Boolean(response.headers.get("x-shopid"));
+  } catch {
+    servesStore = false;
+  }
+
+  const probe: CheckoutHostProbe = {
+    host,
+    servesStore,
+    redirectsToSite,
+    finalHost,
+    checkedAt: new Date().toISOString(),
+  };
+  probeCache.set(host, { probe, expires: Date.now() + (servesStore ? 600_000 : 120_000) });
+  return probe;
+}
+
+/** Reads the recorded checkout host, ignoring any value that points at this site. */
+async function readCheckoutHostOverride(): Promise<string | null> {
+  try {
+    const settings = await readSettings(await adminClient());
+    const candidate = hostOf(settings.get("checkout_domain") ?? null);
+    return candidate && !SITE_HOSTS.has(candidate) ? candidate : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Records the intended checkout host when nothing usable is stored yet. This
+ * only writes a setting, it never claims checkout is ready.
+ */
+export async function ensureIntendedCheckoutHost(): Promise<string | null> {
+  const existing = await readCheckoutHostOverride();
+  if (existing) return existing;
+  try {
+    const supabase = await adminClient();
+    await writeSetting(
+      supabase,
+      "checkout_domain",
+      "Checkout domain",
+      INTENDED_CHECKOUT_HOST,
+      {
+        helpText:
+          "Host the store serves basket and payment pages on. Used only once it answers as the store.",
+      },
+    );
+    return INTENDED_CHECKOUT_HOST;
+  } catch {
+    return null;
+  }
+}
+
+
 export interface StorefrontApiStatus {
   configured: boolean;
   domain: string | null;
