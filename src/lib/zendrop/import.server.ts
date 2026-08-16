@@ -578,26 +578,60 @@ export async function reconcileImportedCandidates(): Promise<number> {
   const supabase = await zendropAdminClient();
   const { data: rows } = await supabase
     .from("zendrop_import_candidates")
-    .select("id, title, zendrop_product_id, state")
+    .select("id, title, zendrop_product_id, state, write_response, calculated_price")
     .in("state", ["imported", "linked"])
     .limit(50);
 
   let matched = 0;
   for (const raw of (rows ?? []) as any[]) {
-    const { data: product } = await supabase
-      .from("shopify_products")
-      .select("id, shopify_product_id")
-      .ilike("title", raw.title)
-      .limit(1)
-      .maybeSingle();
+    const storeProductId = raw?.write_response?.operation?.store_product_id
+      ? String(raw.write_response.operation.store_product_id)
+      : null;
+
+    let product: any = null;
+    if (storeProductId) {
+      const { data: byId } = await supabase
+        .from("shopify_products")
+        .select("id, shopify_product_id")
+        .or(
+          `shopify_product_id.eq.${storeProductId},shopify_product_id.eq.gid://shopify/Product/${storeProductId}`,
+        )
+        .limit(1)
+        .maybeSingle();
+      product = byId;
+    }
+    if (!product) {
+      const { data: byTitle } = await supabase
+        .from("shopify_products")
+        .select("id, shopify_product_id")
+        .ilike("title", raw.title)
+        .limit(1)
+        .maybeSingle();
+      product = byTitle;
+    }
     if (!product) continue;
+
+    // The supplier import cannot carry a price, so the approved retail price
+    // is applied to the store product once, right after linkage.
+    let pricingNote = "Pricing was not applied";
+    try {
+      const { applyCalculatedPriceToStore } = await import("./store-pricing.server");
+      const result = await applyCalculatedPriceToStore({
+        shopifyProductId: String(product.shopify_product_id),
+        price: raw.calculated_price === null ? null : Number(raw.calculated_price),
+      });
+      pricingNote = result.message;
+    } catch (cause) {
+      pricingNote = cause instanceof Error ? cause.message : "The store price could not be set";
+    }
+
     await supabase
       .from("zendrop_import_candidates")
       .update({
         state: "detected_in_store",
         previous_state: raw.state,
-        product_id: (product as any).id,
-        shopify_product_id: (product as any).shopify_product_id,
+        product_id: product.id,
+        shopify_product_id: product.shopify_product_id,
         linked_at: new Date().toISOString(),
       } as never)
       .eq("id", raw.id);
@@ -608,9 +642,11 @@ export async function reconcileImportedCandidates(): Promise<number> {
       raw.state,
       "detected_in_store",
       "store_detected",
-      "The existing store sync has picked the product up",
+      `The store product is linked. ${pricingNote}`,
+      { shopify_product_id: product.shopify_product_id },
     );
   }
+
 
   // Anything the intake pipeline has published becomes live.
   const { data: detected } = await supabase
