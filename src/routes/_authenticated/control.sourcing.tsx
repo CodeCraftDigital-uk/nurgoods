@@ -415,6 +415,129 @@ function SourcingPage() {
       </SectionCard>
 
       <SectionCard
+        title="Intelligent sourcing screen"
+        description="Pre-screens supplier products against the sourcing rules and the margin formula. Screening reads only and never imports. Queueing a screened batch stays locked until the controlled one product test has passed."
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            <Input
+              className="w-40"
+              value={screenQuery}
+              onChange={(event) => setScreenQuery(event.target.value)}
+              placeholder="Optional keyword"
+            />
+            <select
+              className="rounded-md border border-border bg-background px-2 py-1 text-sm"
+              value={screenTarget}
+              onChange={(event) => setScreenTarget(Number(event.target.value))}
+            >
+              {[25, 50, 100, 250, 500].map((size) => (
+                <option key={size} value={size}>
+                  {size} products
+                </option>
+              ))}
+            </select>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={!connection?.configured || screen.isPending}
+              onClick={() => screen.mutate()}
+            >
+              {screen.isPending ? "Screening" : "Run screen"}
+            </Button>
+            <Button
+              size="sm"
+              disabled={massLocked || screened.length === 0 || batch.isPending}
+              onClick={() =>
+                batch.mutate(
+                  screened
+                    .filter((row) => row.score >= (rules?.min_suitability_score ?? 60))
+                    .map((row) => row.productId),
+                )
+              }
+            >
+              Queue recommended batch
+            </Button>
+          </div>
+        }
+      >
+        {screen.data ? (
+          <div className="mb-4 grid gap-2 sm:grid-cols-3 lg:grid-cols-5">
+            {(
+              [
+                ["Screened", screen.data.funnel.queried],
+                ["Restricted", screen.data.funnel.restricted],
+                ["Category excluded", screen.data.funnel.categoryExcluded],
+                ["Quality failed", screen.data.funnel.qualityFailed],
+                ["Delivery unsuitable", screen.data.funnel.ukUnsuitable],
+                ["Pricing failed", screen.data.funnel.pricingFailed],
+                ["Duplicate excluded", screen.data.funnel.duplicateExcluded],
+                ["Eligible", screen.data.funnel.eligible],
+                ["Recommended", screen.data.funnel.recommended],
+              ] as const
+            ).map(([label, value]) => (
+              <div key={label} className="rounded-lg border border-border bg-card/60 px-3 py-2">
+                <p className="text-[0.65rem] uppercase tracking-[0.16em] text-muted-foreground">
+                  {label}
+                </p>
+                <p className="text-lg font-semibold text-foreground">{value}</p>
+              </div>
+            ))}
+          </div>
+        ) : null}
+        {screened.length === 0 ? (
+          <EmptyState
+            title="No screened products yet"
+            description={
+              screen.data?.message ??
+              "Run a screen to score live supplier products against the sourcing rules."
+            }
+          />
+        ) : (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Product</TableHead>
+                  <TableHead>Category</TableHead>
+                  <TableHead>Score</TableHead>
+                  <TableHead>Landed</TableHead>
+                  <TableHead>Price</TableHead>
+                  <TableHead>Margin</TableHead>
+                  <TableHead>Reasons</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {screened.map((row) => (
+                  <TableRow key={row.productId}>
+                    <TableCell className="text-sm text-foreground">{row.title}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {row.category ?? "Not stated"}
+                    </TableCell>
+                    <TableCell>
+                      <StatusPill
+                        tone={row.score >= (rules?.min_suitability_score ?? 60) ? "positive" : "warning"}
+                      >
+                        {row.score}
+                      </StatusPill>
+                    </TableCell>
+                    <TableCell>{formatMoney(row.landedCost, pricing?.currency)}</TableCell>
+                    <TableCell>{formatMoney(row.price, pricing?.currency)}</TableCell>
+                    <TableCell>{formatPercent(row.grossMargin)}</TableCell>
+                    <TableCell className="max-w-[280px] text-xs text-muted-foreground">
+                      {row.reasons
+                        .filter((reason) => reason.outcome !== "pass")
+                        .map((reason) => reason.detail)
+                        .join(" · ") || "Meets every rule"}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </SectionCard>
+
+      <SectionCard
         title="One product test"
         description="Authenticate, retrieve, price, import through the supplier, confirm supplier products state, then confirm the existing store sync sees it. No order or fulfilment request is placed."
         actions={
