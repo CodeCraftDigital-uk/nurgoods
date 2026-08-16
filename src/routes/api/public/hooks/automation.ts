@@ -39,6 +39,9 @@ export const Route = createFileRoute("/api/public/hooks/automation")({
           "catalogue_quality_audit",
           "catalogue_intelligence_worker",
           "catalogue_duplicate_identity",
+          "product_intake_delta_sync",
+          "product_intake_worker",
+
         ]);
         if (!allowed.has(jobKey)) {
           return Response.json({ error: "Unknown job" }, { status: 400 });

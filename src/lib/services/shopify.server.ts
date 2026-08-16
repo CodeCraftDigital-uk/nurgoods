@@ -600,7 +600,100 @@ export async function disconnectShopify(): Promise<void> {
 
 /* ------------------------------ catalogue ------------------------------ */
 
+const PRODUCT_FIELDS = /* GraphQL */ `
+  fragment NurGoodsProductFields on Product {
+    id
+    title
+    handle
+    status
+    vendor
+    productType
+    tags
+    description
+    descriptionHtml
+    onlineStoreUrl
+    totalInventory
+    createdAt
+    updatedAt
+    seo {
+      title
+      description
+    }
+    options {
+      name
+      values
+    }
+    featuredMedia {
+      preview {
+        image {
+          url
+        }
+      }
+    }
+    media(first: 12) {
+      nodes {
+        id
+        mediaContentType
+        alt
+        preview {
+          image {
+            url
+            width
+            height
+          }
+        }
+      }
+    }
+    priceRangeV2 {
+      minVariantPrice {
+        amount
+        currencyCode
+      }
+      maxVariantPrice {
+        amount
+      }
+    }
+    compareAtPriceRange {
+      minVariantCompareAtPrice {
+        amount
+      }
+      maxVariantCompareAtPrice {
+        amount
+      }
+    }
+    variantsCount {
+      count
+    }
+    variants(first: 50) {
+      nodes {
+        id
+        title
+        sku
+        barcode
+        price
+        compareAtPrice
+        availableForSale
+        inventoryQuantity
+        updatedAt
+        selectedOptions {
+          name
+          value
+        }
+        image {
+          url
+        }
+      }
+    }
+    collections(first: 20) {
+      nodes {
+        id
+      }
+    }
+  }
+`;
+
 const CATALOGUE_QUERY = /* GraphQL */ `
+  ${PRODUCT_FIELDS}
   query NurGoodsCatalogue($productCursor: String) {
     products(first: 25, after: $productCursor) {
       pageInfo {
@@ -608,96 +701,38 @@ const CATALOGUE_QUERY = /* GraphQL */ `
         endCursor
       }
       nodes {
-        id
-        title
-        handle
-        status
-        vendor
-        productType
-        tags
-        description
-        descriptionHtml
-        onlineStoreUrl
-        totalInventory
-        updatedAt
-        seo {
-          title
-          description
-        }
-        options {
-          name
-          values
-        }
-        featuredMedia {
-          preview {
-            image {
-              url
-            }
-          }
-        }
-        media(first: 12) {
-          nodes {
-            id
-            mediaContentType
-            alt
-            preview {
-              image {
-                url
-                width
-                height
-              }
-            }
-          }
-        }
-        priceRangeV2 {
-          minVariantPrice {
-            amount
-            currencyCode
-          }
-          maxVariantPrice {
-            amount
-          }
-        }
-        compareAtPriceRange {
-          minVariantCompareAtPrice {
-            amount
-          }
-          maxVariantCompareAtPrice {
-            amount
-          }
-        }
-        variantsCount {
-          count
-        }
-        variants(first: 50) {
-          nodes {
-            id
-            title
-            sku
-            barcode
-            price
-            compareAtPrice
-            availableForSale
-            inventoryQuantity
-            updatedAt
-            selectedOptions {
-              name
-              value
-            }
-            image {
-              url
-            }
-          }
-        }
-        collections(first: 20) {
-          nodes {
-            id
-          }
-        }
+        ...NurGoodsProductFields
       }
     }
   }
 `;
+
+/** A single product, used by the intake webhook. */
+const PRODUCT_BY_ID_QUERY = /* GraphQL */ `
+  ${PRODUCT_FIELDS}
+  query NurGoodsProduct($id: ID!) {
+    product(id: $id) {
+      ...NurGoodsProductFields
+    }
+  }
+`;
+
+/** Recently changed products, used by the intake delta sync. */
+const PRODUCTS_CHANGED_QUERY = /* GraphQL */ `
+  ${PRODUCT_FIELDS}
+  query NurGoodsChangedProducts($search: String!, $cursor: String) {
+    products(first: 25, after: $cursor, query: $search, sortKey: UPDATED_AT, reverse: true) {
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+      nodes {
+        ...NurGoodsProductFields
+      }
+    }
+  }
+`;
+
 
 const COLLECTIONS_QUERY = /* GraphQL */ `
   query NurGoodsCollections($cursor: String) {
@@ -740,6 +775,7 @@ type GraphQlProduct = {
   descriptionHtml: string | null;
   onlineStoreUrl: string | null;
   totalInventory: number | null;
+  createdAt?: string | null;
   updatedAt: string | null;
   seo: { title: string | null; description: string | null } | null;
   options: Array<{ name: string; values: string[] }> | null;
@@ -867,138 +903,14 @@ export async function syncCatalogue(
     }
   }
 
-  let variantCount = 0;
-  let mediaCount = 0;
-
-  if (products.length > 0) {
-    const rows = products.map((product) => ({
-      shopify_product_id: product.id,
-      title: product.title,
-      handle: product.handle,
-      status: product.status ? product.status.toLowerCase() : null,
-      vendor: product.vendor,
-      product_type: product.productType,
-      tags: product.tags ?? [],
-      description: product.description,
-      description_html: product.descriptionHtml,
-      seo_title: product.seo?.title ?? null,
-      seo_description: product.seo?.description ?? null,
-      online_store_url: product.onlineStoreUrl,
-      total_inventory: product.totalInventory ?? null,
-      available_for_sale: (product.variants?.nodes ?? []).some((v) => v.availableForSale === true),
-      options: (product.options ?? []) as unknown as Record<string, unknown>,
-      featured_image_url:
-        product.featuredMedia?.preview?.image?.url ??
-        product.media?.nodes?.[0]?.preview?.image?.url ??
-        null,
-      currency: product.priceRangeV2?.minVariantPrice?.currencyCode ?? null,
-      price_min: toNumber(product.priceRangeV2?.minVariantPrice?.amount),
-      price_max: toNumber(product.priceRangeV2?.maxVariantPrice?.amount),
-      compare_at_price_min: toNumber(
-        product.compareAtPriceRange?.minVariantCompareAtPrice?.amount,
-      ),
-      compare_at_price_max: toNumber(
-        product.compareAtPriceRange?.maxVariantCompareAtPrice?.amount,
-      ),
-      variant_count: product.variantsCount?.count ?? product.variants?.nodes?.length ?? 0,
-      shopify_updated_at: product.updatedAt,
-      sync_status: "synced" as const,
-      last_synced_at: syncedAt,
-      raw: product as unknown as Record<string, unknown>,
-    }));
-
-    const { data, error } = await supabase
-      .from("shopify_products")
-      .upsert(rows, { onConflict: "shopify_product_id" })
-      .select("id, shopify_product_id");
-    if (error) throw new Error(error.message);
-
-    const productIdByShopifyId = new Map<string, string>();
-    for (const row of (data ?? []) as any[]) {
-      productIdByShopifyId.set(row.shopify_product_id, row.id);
-    }
-
-    const mediaRows: any[] = [];
-    const variantRows: any[] = [];
-    const joinRows: any[] = [];
-
-    for (const product of products) {
-      const productId = productIdByShopifyId.get(product.id);
-      if (!productId) continue;
-
-      (product.media?.nodes ?? []).forEach((node, index) => {
-        const image = node.preview?.image;
-        if (!image?.url) return;
-        mediaRows.push({
-          product_id: productId,
-          shopify_media_id: node.id,
-          position: index,
-          media_type: node.mediaContentType,
-          url: image.url,
-          alt_text: node.alt,
-          width: image.width ?? null,
-          height: image.height ?? null,
-        });
-      });
-
-      (product.variants?.nodes ?? []).forEach((variant, index) => {
-        variantRows.push({
-          product_id: productId,
-          shopify_variant_id: variant.id,
-          title: variant.title,
-          position: index,
-          price: toNumber(variant.price),
-          compare_at_price: toNumber(variant.compareAtPrice),
-          currency: product.priceRangeV2?.minVariantPrice?.currencyCode ?? null,
-          sku: variant.sku,
-          barcode: variant.barcode ?? null,
-          image_url: variant.image?.url ?? null,
-          selected_options: variant.selectedOptions ?? [],
-          available_for_sale: variant.availableForSale,
-          inventory_quantity: variant.inventoryQuantity ?? null,
-          shopify_updated_at: variant.updatedAt,
-          last_synced_at: syncedAt,
-        });
-      });
-
-      for (const node of product.collections?.nodes ?? []) {
-        const collectionId = collectionIdByShopifyId.get(node.id);
-        if (collectionId) joinRows.push({ product_id: productId, collection_id: collectionId });
-      }
-    }
-
-    if (mediaRows.length > 0) {
-      const { error: mediaError } = await supabase
-        .from("shopify_product_media")
-        .upsert(mediaRows, { onConflict: "product_id,shopify_media_id" });
-      if (mediaError) throw new Error(mediaError.message);
-      mediaCount = mediaRows.length;
-    }
-    if (variantRows.length > 0) {
-      const { error: variantError } = await supabase
-        .from("shopify_product_variants")
-        .upsert(variantRows, { onConflict: "shopify_variant_id" });
-      if (variantError) throw new Error(variantError.message);
-      variantCount = variantRows.length;
-    }
-    if (joinRows.length > 0) {
-      await supabase
-        .from("shopify_product_collections")
-        .upsert(joinRows, { onConflict: "product_id,collection_id" });
-    }
-
-    // The store stays authoritative for the record itself. The canonical
-    // category and search intelligence are worked out here, so every mirrored
-    // product is checked for a material change and queued when one is found.
-    // Price and stock only changes are filtered out inside planWork.
-    try {
-      const { planWork } = await import("@/lib/intelligence/queue.server");
-      await planWork(supabase as never, [...productIdByShopifyId.values()], "Catalogue sync");
-    } catch {
-      // Intelligence planning must never fail a catalogue sync. The daily
-      // maintenance job picks up anything missed here.
-    }
-  }
+  const upserted = await upsertShopifyProducts(
+    supabase,
+    products,
+    syncedAt,
+    collectionIdByShopifyId,
+  );
+  const variantCount = upserted.variants;
+  const mediaCount = upserted.media;
 
   return {
     products: products.length,
@@ -1032,3 +944,333 @@ export async function recordSyncEvent(
   });
 }
 
+
+/**
+ * Mirrors a set of Shopify products into the read only catalogue tables. The
+ * supplier record itself is never written back: this only refreshes the NUR
+ * GOODS mirror and queues intelligence work.
+ */
+export async function upsertShopifyProducts(
+  supabase: SupabaseClient<any, "public", any>,
+  products: GraphQlProduct[],
+  syncedAt: string,
+  collectionIdByShopifyId: Map<string, string>,
+  planReason = "Catalogue sync",
+): Promise<{ variants: number; media: number; productIdByShopifyId: Map<string, string> }> {
+  let variantCount = 0;
+  let mediaCount = 0;
+  const productIdByShopifyId = new Map<string, string>();
+  if (products.length === 0) return { variants: 0, media: 0, productIdByShopifyId };
+
+  const rows = products.map((product) => ({
+    shopify_product_id: product.id,
+    title: product.title,
+    handle: product.handle,
+    status: product.status ? product.status.toLowerCase() : null,
+    vendor: product.vendor,
+    product_type: product.productType,
+    tags: product.tags ?? [],
+    description: product.description,
+    description_html: product.descriptionHtml,
+    seo_title: product.seo?.title ?? null,
+    seo_description: product.seo?.description ?? null,
+    online_store_url: product.onlineStoreUrl,
+    total_inventory: product.totalInventory ?? null,
+    available_for_sale: (product.variants?.nodes ?? []).some((v) => v.availableForSale === true),
+    options: (product.options ?? []) as unknown as Record<string, unknown>,
+    featured_image_url:
+      product.featuredMedia?.preview?.image?.url ??
+      product.media?.nodes?.[0]?.preview?.image?.url ??
+      null,
+    currency: product.priceRangeV2?.minVariantPrice?.currencyCode ?? null,
+    price_min: toNumber(product.priceRangeV2?.minVariantPrice?.amount),
+    price_max: toNumber(product.priceRangeV2?.maxVariantPrice?.amount),
+    compare_at_price_min: toNumber(
+      product.compareAtPriceRange?.minVariantCompareAtPrice?.amount,
+    ),
+    compare_at_price_max: toNumber(
+      product.compareAtPriceRange?.maxVariantCompareAtPrice?.amount,
+    ),
+    variant_count: product.variantsCount?.count ?? product.variants?.nodes?.length ?? 0,
+    shopify_updated_at: product.updatedAt,
+    sync_status: "synced" as const,
+    last_synced_at: syncedAt,
+    raw: product as unknown as Record<string, unknown>,
+  }));
+
+  const { data, error } = await supabase
+    .from("shopify_products")
+    .upsert(rows, { onConflict: "shopify_product_id" })
+    .select("id, shopify_product_id");
+  if (error) throw new Error(error.message);
+
+  for (const row of (data ?? []) as any[]) {
+    productIdByShopifyId.set(row.shopify_product_id, row.id);
+  }
+
+  const mediaRows: any[] = [];
+  const variantRows: any[] = [];
+  const joinRows: any[] = [];
+
+  for (const product of products) {
+    const productId = productIdByShopifyId.get(product.id);
+    if (!productId) continue;
+
+    (product.media?.nodes ?? []).forEach((node, index) => {
+      const image = node.preview?.image;
+      if (!image?.url) return;
+      mediaRows.push({
+        product_id: productId,
+        shopify_media_id: node.id,
+        position: index,
+        media_type: node.mediaContentType,
+        url: image.url,
+        alt_text: node.alt,
+        width: image.width ?? null,
+        height: image.height ?? null,
+      });
+    });
+
+    (product.variants?.nodes ?? []).forEach((variant, index) => {
+      variantRows.push({
+        product_id: productId,
+        shopify_variant_id: variant.id,
+        title: variant.title,
+        position: index,
+        price: toNumber(variant.price),
+        compare_at_price: toNumber(variant.compareAtPrice),
+        currency: product.priceRangeV2?.minVariantPrice?.currencyCode ?? null,
+        sku: variant.sku,
+        barcode: variant.barcode ?? null,
+        image_url: variant.image?.url ?? null,
+        selected_options: variant.selectedOptions ?? [],
+        available_for_sale: variant.availableForSale,
+        inventory_quantity: variant.inventoryQuantity ?? null,
+        shopify_updated_at: variant.updatedAt,
+        last_synced_at: syncedAt,
+      });
+    });
+
+    for (const node of product.collections?.nodes ?? []) {
+      const collectionId = collectionIdByShopifyId.get(node.id);
+      if (collectionId) joinRows.push({ product_id: productId, collection_id: collectionId });
+    }
+  }
+
+  if (mediaRows.length > 0) {
+    const { error: mediaError } = await supabase
+      .from("shopify_product_media")
+      .upsert(mediaRows, { onConflict: "product_id,shopify_media_id" });
+    if (mediaError) throw new Error(mediaError.message);
+    mediaCount = mediaRows.length;
+  }
+  if (variantRows.length > 0) {
+    const { error: variantError } = await supabase
+      .from("shopify_product_variants")
+      .upsert(variantRows, { onConflict: "shopify_variant_id" });
+    if (variantError) throw new Error(variantError.message);
+    variantCount = variantRows.length;
+  }
+  if (joinRows.length > 0) {
+    await supabase
+      .from("shopify_product_collections")
+      .upsert(joinRows, { onConflict: "product_id,collection_id" });
+  }
+
+  // The store stays authoritative for the record itself. The canonical
+  // category and search intelligence are worked out here, so every mirrored
+  // product is checked for a material change and queued when one is found.
+  // Price and stock only changes are filtered out inside planWork.
+  try {
+    const { planWork } = await import("@/lib/intelligence/queue.server");
+    await planWork(supabase as never, [...productIdByShopifyId.values()], planReason);
+  } catch {
+    // Intelligence planning must never fail a catalogue sync. The daily
+    // maintenance job picks up anything missed here.
+  }
+
+  return { variants: variantCount, media: mediaCount, productIdByShopifyId };
+}
+
+
+/* --------------------------- intake fetchers --------------------------- */
+
+async function intakeCredentials(): Promise<{
+  shopDomain: string;
+  adminToken: string;
+  apiVersion: string;
+}> {
+  const resolved = await resolveShopifyCredentials();
+  if (!resolved.shopDomain || resolved.missing.length > 0) {
+    throw new Error(`Store credentials missing: ${resolved.missing.join(", ")}`);
+  }
+  return {
+    shopDomain: resolved.shopDomain,
+    adminToken: await getAdminAccessToken(resolved),
+    apiVersion: resolved.apiVersion,
+  };
+}
+
+/** Reads one product straight from the store. Nothing is written back. */
+export async function fetchShopifyProductById(
+  shopifyProductId: string,
+): Promise<GraphQlProduct | null> {
+  const credentials = await intakeCredentials();
+  const data: any = await shopifyGraphql(credentials, PRODUCT_BY_ID_QUERY, {
+    id: shopifyProductId,
+  });
+  return (data?.product as GraphQlProduct | null) ?? null;
+}
+
+/** Products changed since a timestamp, newest first. Used by the delta sync. */
+export async function fetchShopifyProductsUpdatedSince(
+  since: string,
+  maxPages = 4,
+): Promise<GraphQlProduct[]> {
+  const credentials = await intakeCredentials();
+  const search = `updated_at:>'${since.replace(/'/g, "")}'`;
+  const out: GraphQlProduct[] = [];
+  let cursor: string | null = null;
+  for (let page = 0; page < maxPages; page += 1) {
+    const data: any = await shopifyGraphql(credentials, PRODUCTS_CHANGED_QUERY, {
+      search,
+      cursor,
+    });
+    out.push(...((data?.products?.nodes ?? []) as GraphQlProduct[]));
+    if (!data?.products?.pageInfo?.hasNextPage) break;
+    cursor = data.products.pageInfo.endCursor;
+  }
+  return out;
+}
+
+/**
+ * Mirrors a small set of products without touching the rest of the catalogue.
+ * Collection links are resolved against collections already mirrored here.
+ */
+export async function mirrorShopifyProducts(
+  supabase: SupabaseClient<any, "public", any>,
+  products: GraphQlProduct[],
+  reason: string,
+): Promise<Map<string, string>> {
+  if (products.length === 0) return new Map();
+  const { data: collections } = await supabase
+    .from("shopify_collections")
+    .select("id, shopify_collection_id")
+    .limit(1000);
+  const map = new Map<string, string>(
+    ((collections ?? []) as any[]).map((row) => [row.shopify_collection_id as string, row.id as string]),
+  );
+  const result = await upsertShopifyProducts(
+    supabase,
+    products,
+    new Date().toISOString(),
+    map,
+    reason,
+  );
+  return result.productIdByShopifyId;
+}
+
+/** The signing secret Shopify uses for webhook payloads. */
+export async function getWebhookSigningSecret(): Promise<string | null> {
+  const explicit = process.env["SHOPIFY_WEBHOOK_SECRET"]?.trim();
+  if (explicit) return explicit;
+  const resolved = await resolveShopifyCredentials();
+  return resolved.clientSecret ?? null;
+}
+
+export const INTAKE_WEBHOOK_TOPICS = ["PRODUCTS_CREATE", "PRODUCTS_UPDATE"] as const;
+
+export interface WebhookSubscriptionState {
+  supported: boolean;
+  registered: string[];
+  missing: string[];
+  callbackUrl: string;
+  error: string | null;
+}
+
+const WEBHOOK_LIST_QUERY = /* GraphQL */ `
+  query NurGoodsWebhooks {
+    webhookSubscriptions(first: 50) {
+      nodes {
+        id
+        topic
+        endpoint {
+          __typename
+          ... on WebhookHttpEndpoint {
+            callbackUrl
+          }
+        }
+      }
+    }
+  }
+`;
+
+const WEBHOOK_CREATE_MUTATION = /* GraphQL */ `
+  mutation NurGoodsWebhookCreate($topic: WebhookSubscriptionTopic!, $callbackUrl: URL!) {
+    webhookSubscriptionCreate(
+      topic: $topic
+      webhookSubscription: { callbackUrl: $callbackUrl, format: JSON }
+    ) {
+      webhookSubscription {
+        id
+        topic
+      }
+      userErrors {
+        field
+        message
+      }
+    }
+  }
+`;
+
+/** Reports which product intake webhooks the store already sends here. */
+export async function getWebhookSubscriptionState(
+  callbackUrl: string,
+): Promise<WebhookSubscriptionState> {
+  try {
+    const credentials = await intakeCredentials();
+    const data: any = await shopifyGraphql(credentials, WEBHOOK_LIST_QUERY, {});
+    const nodes = (data?.webhookSubscriptions?.nodes ?? []) as any[];
+    const registered = nodes
+      .filter((node) => node?.endpoint?.callbackUrl === callbackUrl)
+      .map((node) => String(node.topic));
+    return {
+      supported: true,
+      registered,
+      missing: INTAKE_WEBHOOK_TOPICS.filter((topic) => !registered.includes(topic)),
+      callbackUrl,
+      error: null,
+    };
+  } catch (cause) {
+    return {
+      supported: false,
+      registered: [],
+      missing: [...INTAKE_WEBHOOK_TOPICS],
+      callbackUrl,
+      error: cause instanceof Error ? cause.message : "The store could not be reached",
+    };
+  }
+}
+
+/** Registers the product create and update webhooks when scopes allow it. */
+export async function registerIntakeWebhooks(
+  callbackUrl: string,
+): Promise<WebhookSubscriptionState> {
+  const before = await getWebhookSubscriptionState(callbackUrl);
+  if (!before.supported) return before;
+  const credentials = await intakeCredentials();
+  for (const topic of before.missing) {
+    const data: any = await shopifyGraphql(credentials, WEBHOOK_CREATE_MUTATION, {
+      topic,
+      callbackUrl,
+    });
+    const errors = data?.webhookSubscriptionCreate?.userErrors ?? [];
+    if (errors.length > 0) {
+      return {
+        ...before,
+        error: errors.map((item: any) => item.message).join(", "),
+      };
+    }
+  }
+  return getWebhookSubscriptionState(callbackUrl);
+}

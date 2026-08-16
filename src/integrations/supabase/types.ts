@@ -1466,6 +1466,202 @@ export type Database = {
           },
         ]
       }
+      product_intake_events: {
+        Row: {
+          created_at: string
+          detail: Json
+          from_state: string | null
+          id: string
+          intake_id: string
+          message: string | null
+          reason_code: string | null
+          shopify_product_id: string | null
+          to_state: string
+        }
+        Insert: {
+          created_at?: string
+          detail?: Json
+          from_state?: string | null
+          id?: string
+          intake_id: string
+          message?: string | null
+          reason_code?: string | null
+          shopify_product_id?: string | null
+          to_state: string
+        }
+        Update: {
+          created_at?: string
+          detail?: Json
+          from_state?: string | null
+          id?: string
+          intake_id?: string
+          message?: string | null
+          reason_code?: string | null
+          shopify_product_id?: string | null
+          to_state?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_intake_events_intake_id_fkey"
+            columns: ["intake_id"]
+            isOneToOne: false
+            referencedRelation: "product_intake_records"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_intake_policy: {
+        Row: {
+          automatic_processing: boolean
+          automatic_storefront_exposure: boolean
+          catalogue_classification: boolean
+          created_at: string
+          duplicate_protection: boolean
+          id: string
+          require_description: boolean
+          require_image: boolean
+          require_purchasable_variant: boolean
+          require_valid_price: boolean
+          seo_intelligence: boolean
+          updated_at: string
+        }
+        Insert: {
+          automatic_processing?: boolean
+          automatic_storefront_exposure?: boolean
+          catalogue_classification?: boolean
+          created_at?: string
+          duplicate_protection?: boolean
+          id?: string
+          require_description?: boolean
+          require_image?: boolean
+          require_purchasable_variant?: boolean
+          require_valid_price?: boolean
+          seo_intelligence?: boolean
+          updated_at?: string
+        }
+        Update: {
+          automatic_processing?: boolean
+          automatic_storefront_exposure?: boolean
+          catalogue_classification?: boolean
+          created_at?: string
+          duplicate_protection?: boolean
+          id?: string
+          require_description?: boolean
+          require_image?: boolean
+          require_purchasable_variant?: boolean
+          require_valid_price?: boolean
+          seo_intelligence?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      product_intake_records: {
+        Row: {
+          approved_at: string | null
+          attempts: number
+          classified_at: string | null
+          created_at: string
+          detected_at: string
+          failed_at: string | null
+          handle: string | null
+          id: string
+          identity_at: string | null
+          last_transition_at: string
+          lock_token: string | null
+          locked_at: string | null
+          metrics: Json
+          previous_state: string | null
+          processed_fingerprint: string | null
+          product_id: string | null
+          published_at: string | null
+          quarantined_at: string | null
+          reason: string | null
+          reason_code: string | null
+          rejected_at: string | null
+          seo_at: string | null
+          shopify_product_id: string
+          source: string
+          state: string
+          title: string | null
+          updated_at: string
+          validated_at: string | null
+          validation: Json
+          version_fingerprint: string | null
+        }
+        Insert: {
+          approved_at?: string | null
+          attempts?: number
+          classified_at?: string | null
+          created_at?: string
+          detected_at?: string
+          failed_at?: string | null
+          handle?: string | null
+          id?: string
+          identity_at?: string | null
+          last_transition_at?: string
+          lock_token?: string | null
+          locked_at?: string | null
+          metrics?: Json
+          previous_state?: string | null
+          processed_fingerprint?: string | null
+          product_id?: string | null
+          published_at?: string | null
+          quarantined_at?: string | null
+          reason?: string | null
+          reason_code?: string | null
+          rejected_at?: string | null
+          seo_at?: string | null
+          shopify_product_id: string
+          source?: string
+          state?: string
+          title?: string | null
+          updated_at?: string
+          validated_at?: string | null
+          validation?: Json
+          version_fingerprint?: string | null
+        }
+        Update: {
+          approved_at?: string | null
+          attempts?: number
+          classified_at?: string | null
+          created_at?: string
+          detected_at?: string
+          failed_at?: string | null
+          handle?: string | null
+          id?: string
+          identity_at?: string | null
+          last_transition_at?: string
+          lock_token?: string | null
+          locked_at?: string | null
+          metrics?: Json
+          previous_state?: string | null
+          processed_fingerprint?: string | null
+          product_id?: string | null
+          published_at?: string | null
+          quarantined_at?: string | null
+          reason?: string | null
+          reason_code?: string | null
+          rejected_at?: string | null
+          seo_at?: string | null
+          shopify_product_id?: string
+          source?: string
+          state?: string
+          title?: string | null
+          updated_at?: string
+          validated_at?: string | null
+          validation?: Json
+          version_fingerprint?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_intake_records_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "shopify_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_seo_intelligence: {
         Row: {
           auto_published: boolean
@@ -2231,6 +2427,12 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      hidden_intake_product_ids: {
+        Args: never
+        Returns: {
+          product_id: string
+        }[]
       }
       set_integration_secret: {
         Args: { _name: string; _secret: string }

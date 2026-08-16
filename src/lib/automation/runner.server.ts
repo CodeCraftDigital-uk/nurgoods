@@ -170,6 +170,10 @@ async function execute(ctx: RunContext, jobKey: string): Promise<JobRunResult> {
       return runIntelligenceJob(ctx, jobKey, `${jobKey}:${Date.now()}`);
     case "catalogue_duplicate_identity":
       return runIntelligenceJob(ctx, jobKey, `${jobKey}:${Date.now()}`);
+    case "product_intake_delta_sync":
+    case "product_intake_worker":
+      return runIntakeJob(ctx, jobKey);
+
     case "article_drafting":
       return {
         jobKey,
@@ -563,4 +567,50 @@ async function runTopicDiscovery(ctx: RunContext): Promise<JobRunResult> {
     message: `${fresh.length} new brief${fresh.length === 1 ? "" : "s"} added for review. Nothing is drafted or published automatically.`,
     details: { created: fresh.length, suggested: topics.length },
   };
+}
+
+/* --------------------------- product intake --------------------------- */
+
+/**
+ * Runs an intake job under a claimed run key. The delta sync claims a dated
+ * key so a repeated scheduler call cannot re-pull the same window, while the
+ * worker claims a fresh key because it is designed to be called repeatedly
+ * until the queue drains.
+ */
+async function runIntakeJob(ctx: RunContext, jobKey: string): Promise<JobRunResult> {
+  const runKey =
+    jobKey === "product_intake_delta_sync"
+      ? `${jobKey}:${new Date().toISOString().slice(0, 13)}`
+      : `${jobKey}:${Date.now()}`;
+  const runId = await claimRun(ctx, jobKey, runKey);
+  if (!runId) {
+    return {
+      jobKey,
+      status: "skipped",
+      message: "This intake run has already happened for this period.",
+      details: {},
+    };
+  }
+
+  try {
+    const { runIntakeDeltaSync, runIntakeWorker } = await import("@/lib/intake/jobs.server");
+    const { data: job } = await ctx.supabase
+      .from("automation_jobs")
+      .select("config")
+      .eq("job_key", jobKey)
+      .maybeSingle();
+    const batchSize = Number((job as any)?.config?.batch_size) || undefined;
+
+    const summary =
+      jobKey === "product_intake_delta_sync"
+        ? await runIntakeDeltaSync(ctx.supabase)
+        : await runIntakeWorker(ctx.supabase, batchSize ?? 6);
+
+    await closeRun(ctx, runId, "succeeded", summary.message, summary.details);
+    return { jobKey, status: "succeeded", message: summary.message, details: summary.details };
+  } catch (cause) {
+    const message = cause instanceof Error ? cause.message : "The intake job failed";
+    await closeRun(ctx, runId, "failed", message);
+    throw new Error(message);
+  }
 }

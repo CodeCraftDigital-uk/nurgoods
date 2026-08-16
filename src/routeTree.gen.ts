@@ -47,6 +47,7 @@ import { Route as AuthenticatedControlJournalIndexRouteImport } from './routes/_
 import { Route as AuthenticatedControlJournalArticleIdRouteImport } from './routes/_authenticated/control.journal.$articleId'
 import { Route as AuthenticatedControlJournalNewRouteImport } from './routes/_authenticated/control.journal.new'
 import { Route as ApiPublicHooksAutomationRouteImport } from './routes/api/public/hooks/automation'
+import { Route as ApiPublicHooksShopifyIntakeRouteImport } from './routes/api/public/hooks/shopify-intake'
 import { Route as ApiPublicJournalMediaSplatRouteImport } from './routes/api/public/journal-media.$'
 import { Route as ApiPublicV1IndexRouteImport } from './routes/api/public/v1/index'
 import { Route as ApiPublicV1AnswersRouteImport } from './routes/api/public/v1/answers'
@@ -263,6 +264,12 @@ const ApiPublicHooksAutomationRoute =
     path: '/api/public/hooks/automation',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicHooksShopifyIntakeRoute =
+  ApiPublicHooksShopifyIntakeRouteImport.update({
+    id: '/api/public/hooks/shopify-intake',
+    path: '/api/public/hooks/shopify-intake',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicJournalMediaSplatRoute =
   ApiPublicJournalMediaSplatRouteImport.update({
     id: '/api/public/journal-media/$',
@@ -353,6 +360,7 @@ export interface FileRoutesByFullPath {
   '/control/journal/$articleId': typeof AuthenticatedControlJournalArticleIdRoute
   '/control/journal/new': typeof AuthenticatedControlJournalNewRoute
   '/api/public/hooks/automation': typeof ApiPublicHooksAutomationRoute
+  '/api/public/hooks/shopify-intake': typeof ApiPublicHooksShopifyIntakeRoute
   '/api/public/journal-media/$': typeof ApiPublicJournalMediaSplatRoute
   '/api/public/v1/answers': typeof ApiPublicV1AnswersRoute
   '/api/public/v1/articles': typeof ApiPublicV1ArticlesRouteWithChildren
@@ -400,6 +408,7 @@ export interface FileRoutesByTo {
   '/control/journal/$articleId': typeof AuthenticatedControlJournalArticleIdRoute
   '/control/journal/new': typeof AuthenticatedControlJournalNewRoute
   '/api/public/hooks/automation': typeof ApiPublicHooksAutomationRoute
+  '/api/public/hooks/shopify-intake': typeof ApiPublicHooksShopifyIntakeRoute
   '/api/public/journal-media/$': typeof ApiPublicJournalMediaSplatRoute
   '/api/public/v1/answers': typeof ApiPublicV1AnswersRoute
   '/api/public/v1/articles': typeof ApiPublicV1ArticlesRouteWithChildren
@@ -451,6 +460,7 @@ export interface FileRoutesById {
   '/_authenticated/control/journal/$articleId': typeof AuthenticatedControlJournalArticleIdRoute
   '/_authenticated/control/journal/new': typeof AuthenticatedControlJournalNewRoute
   '/api/public/hooks/automation': typeof ApiPublicHooksAutomationRoute
+  '/api/public/hooks/shopify-intake': typeof ApiPublicHooksShopifyIntakeRoute
   '/api/public/journal-media/$': typeof ApiPublicJournalMediaSplatRoute
   '/api/public/v1/answers': typeof ApiPublicV1AnswersRoute
   '/api/public/v1/articles': typeof ApiPublicV1ArticlesRouteWithChildren
@@ -502,6 +512,7 @@ export interface FileRouteTypes {
     | '/control/journal/$articleId'
     | '/control/journal/new'
     | '/api/public/hooks/automation'
+    | '/api/public/hooks/shopify-intake'
     | '/api/public/journal-media/$'
     | '/api/public/v1/answers'
     | '/api/public/v1/articles'
@@ -549,6 +560,7 @@ export interface FileRouteTypes {
     | '/control/journal/$articleId'
     | '/control/journal/new'
     | '/api/public/hooks/automation'
+    | '/api/public/hooks/shopify-intake'
     | '/api/public/journal-media/$'
     | '/api/public/v1/answers'
     | '/api/public/v1/articles'
@@ -599,6 +611,7 @@ export interface FileRouteTypes {
     | '/_authenticated/control/journal/$articleId'
     | '/_authenticated/control/journal/new'
     | '/api/public/hooks/automation'
+    | '/api/public/hooks/shopify-intake'
     | '/api/public/journal-media/$'
     | '/api/public/v1/answers'
     | '/api/public/v1/articles'
@@ -635,6 +648,7 @@ export interface RootRouteChildren {
   StoreIndexRoute: typeof StoreIndexRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
   ApiPublicHooksAutomationRoute: typeof ApiPublicHooksAutomationRoute
+  ApiPublicHooksShopifyIntakeRoute: typeof ApiPublicHooksShopifyIntakeRoute
   ApiPublicJournalMediaSplatRoute: typeof ApiPublicJournalMediaSplatRoute
   ApiPublicV1AnswersRoute: typeof ApiPublicV1AnswersRoute
   ApiPublicV1ArticlesRoute: typeof ApiPublicV1ArticlesRouteWithChildren
@@ -913,6 +927,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksAutomationRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/shopify-intake': {
+      id: '/api/public/hooks/shopify-intake'
+      path: '/api/public/hooks/shopify-intake'
+      fullPath: '/api/public/hooks/shopify-intake'
+      preLoaderRoute: typeof ApiPublicHooksShopifyIntakeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/journal-media/$': {
       id: '/api/public/journal-media/$'
       path: '/api/public/journal-media/$'
@@ -1105,6 +1126,7 @@ const rootRouteChildren: RootRouteChildren = {
   StoreIndexRoute: StoreIndexRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
   ApiPublicHooksAutomationRoute: ApiPublicHooksAutomationRoute,
+  ApiPublicHooksShopifyIntakeRoute: ApiPublicHooksShopifyIntakeRoute,
   ApiPublicJournalMediaSplatRoute: ApiPublicJournalMediaSplatRoute,
   ApiPublicV1AnswersRoute: ApiPublicV1AnswersRoute,
   ApiPublicV1ArticlesRoute: ApiPublicV1ArticlesRouteWithChildren,
