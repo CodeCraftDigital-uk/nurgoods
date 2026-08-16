@@ -20,7 +20,7 @@ import { PUBLIKO_PLACEMENTS, embedOrigins, looksLikeEmbedCode, toPlacementKey } 
 import { PLACEMENT_SURFACE_LABEL } from "@/lib/types/platform";
 import type { PlacementSurface, ReviewPlacement } from "@/lib/types/platform";
 
-export const Route = createFileRoute("/_authenticated/admin/reviews")({
+export const Route = createFileRoute("/_authenticated/control/reviews")({
   component: ReviewsAdminPage,
 });
 

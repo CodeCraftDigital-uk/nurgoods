@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { createArticle } from "@/lib/services/journal";
 import { slugify } from "@/lib/types/platform";
 
-export const Route = createFileRoute("/_authenticated/admin/journal/new")({
+export const Route = createFileRoute("/_authenticated/control/journal/new")({
   component: NewArticlePage,
 });
 

@@ -21,7 +21,7 @@ import { getAutomationReadiness, runAutomation } from "@/lib/automation/automati
 import { WORKFLOW_PIPELINE } from "@/lib/ai/workflow";
 import type { AutomationJob } from "@/lib/types/platform";
 
-export const Route = createFileRoute("/_authenticated/admin/automations")({
+export const Route = createFileRoute("/_authenticated/control/automations")({
   component: AutomationsPage,
 });
 

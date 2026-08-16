@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { listArticles, listBriefs } from "@/lib/services/journal";
 import { WORKFLOW_PIPELINE } from "@/lib/ai/workflow";
 
-export const Route = createFileRoute("/_authenticated/admin/journal/")({
+export const Route = createFileRoute("/_authenticated/control/journal/")({
   component: JournalIndex,
 });
 

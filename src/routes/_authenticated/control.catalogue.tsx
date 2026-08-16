@@ -22,7 +22,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-export const Route = createFileRoute("/_authenticated/admin/catalogue")({
+export const Route = createFileRoute("/_authenticated/control/catalogue")({
   component: CataloguePage,
 });
 

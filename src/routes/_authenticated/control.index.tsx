@@ -13,7 +13,7 @@ import { listIntegrations, listIntegrationEvents } from "@/lib/services/operatio
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 
-export const Route = createFileRoute("/_authenticated/admin/")({
+export const Route = createFileRoute("/_authenticated/control/")({
   component: DashboardPage,
 });
 

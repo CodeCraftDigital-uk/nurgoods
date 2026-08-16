@@ -48,7 +48,7 @@ import {
   type WorkflowStatus,
 } from "@/lib/types/platform";
 
-export const Route = createFileRoute("/_authenticated/admin/journal/$articleId")({
+export const Route = createFileRoute("/_authenticated/control/journal/$articleId")({
   component: ArticleEditor,
 });
 

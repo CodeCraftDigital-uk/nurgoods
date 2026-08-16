@@ -14,7 +14,7 @@ import { ShopifyConnectionPanel } from "@/components/admin/ShopifyConnectionPane
 import { StorefrontApiPanel } from "@/components/admin/StorefrontApiPanel";
 import { CheckoutDomainPanel } from "@/components/admin/CheckoutDomainPanel";
 
-export const Route = createFileRoute("/_authenticated/admin/integrations")({
+export const Route = createFileRoute("/_authenticated/control/integrations")({
   component: IntegrationsPage,
 });
 

@@ -75,7 +75,7 @@ export async function getOnboardingState(
         "Connect the Shopify Admin API so products and collections can be mirrored read only.",
       complete: byProvider.get("shopify") === "connected" && productCount > 0,
       blockedBy: "Shopify Admin API credentials and store domain.",
-      href: "/admin/integrations",
+      href: "/control/integrations",
     },
     {
       key: "ai",
@@ -84,7 +84,7 @@ export async function getOnboardingState(
         "Managed AI powers every generation stage. No keys or accounts are needed from you.",
       complete: Boolean(aiStatus?.configured),
       blockedBy: "Managed AI availability for this workspace.",
-      href: "/admin/integrations",
+      href: "/control/integrations",
     },
     {
       key: "publiko",
@@ -93,7 +93,7 @@ export async function getOnboardingState(
         "Paste the embed code Publiko gives you, assign it to a placement, then enable it.",
       complete: publikoConfigured,
       blockedBy: "Publiko embed code for at least one placement.",
-      href: "/admin/reviews",
+      href: "/control/reviews",
     },
     {
       key: "publishing",
@@ -104,7 +104,7 @@ export async function getOnboardingState(
           : "Create a brief, take an article through the workflow and publish it to prove the pipeline.",
       complete: publishedArticles > 0,
       blockedBy: "At least one approved and published article in the Journal.",
-      href: "/admin/journal",
+      href: "/control/journal",
     },
     {
       key: "policies",
@@ -113,7 +113,7 @@ export async function getOnboardingState(
         "Paste the approved wording for each policy and publish it so the public policy pages appear.",
       complete: publishedPolicies > 0,
       blockedBy: "Owner approved wording for the trust and policy documents.",
-      href: "/admin/legal",
+      href: "/control/legal",
     },
   ];
 

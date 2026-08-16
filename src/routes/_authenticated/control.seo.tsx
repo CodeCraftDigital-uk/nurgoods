@@ -37,7 +37,7 @@ import {
   type SeoTargetType,
 } from "@/lib/types/platform";
 
-export const Route = createFileRoute("/_authenticated/admin/seo")({
+export const Route = createFileRoute("/_authenticated/control/seo")({
   component: SeoPage,
 });
 

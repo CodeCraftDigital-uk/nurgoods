@@ -15,7 +15,7 @@ import {
 } from "@/lib/contact/contact.functions";
 import { CATEGORY_LABEL, ENQUIRY_STATUS_LABEL } from "@/lib/contact/contact";
 
-export const Route = createFileRoute("/_authenticated/admin/contact")({
+export const Route = createFileRoute("/_authenticated/control/contact")({
   component: ContactEnquiriesPage,
 });
 

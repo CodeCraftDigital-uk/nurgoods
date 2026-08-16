@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { listLegalDocuments, updateLegalDocument } from "@/lib/services/operations";
 import { LegalSourcesPanel } from "@/components/admin/LegalSourcesPanel";
 
-export const Route = createFileRoute("/_authenticated/admin/legal")({
+export const Route = createFileRoute("/_authenticated/control/legal")({
   component: LegalPage,
 });
 

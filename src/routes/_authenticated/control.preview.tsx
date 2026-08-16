@@ -8,7 +8,7 @@ import { ProductCard, ProductCardSkeleton } from "@/components/public/ProductCar
 import { listStorefrontProductsFn } from "@/lib/services/storefront.functions";
 import type { StorefrontProductCard } from "@/lib/public-api/storefront.server";
 
-export const Route = createFileRoute("/_authenticated/admin/preview")({
+export const Route = createFileRoute("/_authenticated/control/preview")({
   component: StorefrontPreviewPage,
 });
 
