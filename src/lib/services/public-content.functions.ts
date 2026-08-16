@@ -268,7 +268,7 @@ function toSummary(row: any): PublicLegalSourceSummary {
  */
 export const listPublicLegalSources = createServerFn({ method: "GET" }).handler(
   async (): Promise<PublicLegalSourceSummary[]> => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const supabaseAdmin = await adminClient();
     const [sourcesResult, overridesResult] = await Promise.all([
       supabaseAdmin
         .from("shopify_legal_sources")
@@ -307,7 +307,7 @@ export const listPublicLegalSources = createServerFn({ method: "GET" }).handler(
 export const getPublicLegalSource = createServerFn({ method: "GET" })
   .inputValidator((input: { slug: string }) => ({ slug: String(input.slug) }))
   .handler(async ({ data }): Promise<PublicLegalSource | null> => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const supabaseAdmin = await adminClient();
     const { data: row, error } = await supabaseAdmin
       .from("shopify_legal_sources")
       .select(`id, ${LEGAL_SOURCE_COLUMNS}, body_html, public_visible`)
@@ -357,7 +357,7 @@ export interface PublicLegalReference {
  */
 export const listPublicLegalReferences = createServerFn({ method: "GET" }).handler(
   async (): Promise<PublicLegalReference[]> => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const supabaseAdmin = await adminClient();
     const { data, error } = await supabaseAdmin
       .from("shopify_legal_sources")
       .select("id, title, source_url, has_liquid, has_placeholders, is_published, public_visible")
@@ -385,7 +385,7 @@ export const listPublicLegalReferences = createServerFn({ method: "GET" }).handl
 export const getPublicLegalReference = createServerFn({ method: "GET" })
   .inputValidator((input: { slug: string }) => ({ slug: String(input.slug) }))
   .handler(async ({ data }): Promise<PublicLegalReference | null> => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const supabaseAdmin = await adminClient();
     const { data: row, error } = await supabaseAdmin
       .from("shopify_legal_sources")
       .select("title, source_url, has_liquid, has_placeholders, is_published, public_visible")
