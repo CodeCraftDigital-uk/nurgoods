@@ -93,6 +93,12 @@ export const ADMIN_NAV: NavItem[] = [
     icon: ShoppingBag,
   },
   {
+    to: "/control/pricing",
+    label: "Catalogue Pricing",
+    description: "Audit and reprice existing listings against the target margin formula.",
+    icon: ShoppingBag,
+  },
+  {
     to: "/control/intake",
     label: "Product Intake",
     description: "Automated validation, identity, classification and publishing of new products.",

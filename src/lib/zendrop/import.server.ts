@@ -8,6 +8,7 @@
  * unless the adapter has confirmed a real supported import operation.
  */
 import { computePricing, DEFAULT_PRICING } from "./pricing";
+import { screenCandidate } from "./screening";
 import type {
   CandidateState,
   CatalogueItem,
@@ -37,6 +38,12 @@ export const DEFAULT_RULES: SourcingRules = {
   min_landed_cost: null,
   max_landed_cost: null,
   max_retail_price: null,
+  min_retail_price: null,
+  min_suitability_score: 60,
+  restricted_keywords: [],
+  max_variant_count: null,
+  continuous_sourcing: false,
+  target_catalogue_size: null,
   daily_import_cap: 25,
   batch_size: 10,
 };
@@ -82,6 +89,21 @@ export async function loadSourcingRules(): Promise<SourcingRules> {
     min_landed_cost: row.min_landed_cost === null ? null : Number(row.min_landed_cost),
     max_landed_cost: row.max_landed_cost === null ? null : Number(row.max_landed_cost),
     max_retail_price: row.max_retail_price === null ? null : Number(row.max_retail_price),
+    min_retail_price:
+      row.min_retail_price === null || row.min_retail_price === undefined
+        ? null
+        : Number(row.min_retail_price),
+    min_suitability_score: Number(row.min_suitability_score ?? DEFAULT_RULES.min_suitability_score),
+    restricted_keywords: row.restricted_keywords ?? [],
+    max_variant_count:
+      row.max_variant_count === null || row.max_variant_count === undefined
+        ? null
+        : Number(row.max_variant_count),
+    continuous_sourcing: Boolean(row.continuous_sourcing),
+    target_catalogue_size:
+      row.target_catalogue_size === null || row.target_catalogue_size === undefined
+        ? null
+        : Number(row.target_catalogue_size),
     daily_import_cap: Number(row.daily_import_cap ?? DEFAULT_RULES.daily_import_cap),
     batch_size: Number(row.batch_size ?? DEFAULT_RULES.batch_size),
   };
@@ -178,7 +200,7 @@ export async function selectCandidates(input: {
   const supabase = await zendropAdminClient();
   const rules = await loadSourcingRules();
   const settings = await loadPricingSettings();
-  const cap = Math.max(1, Math.min(rules.batch_size, 50));
+  const cap = Math.max(1, Math.min(rules.batch_size, 500));
   const ids = input.productIds.slice(0, input.test ? 1 : cap);
 
   const result: SelectionResult = {
@@ -239,39 +261,30 @@ export async function selectCandidates(input: {
     };
 
 
-    let state: CandidateState = "validated";
+    // Deterministic pre-screen and suitability score. Every accept, hold or
+    // reject carries the reason that produced it.
+    const duplicateReason = rules.duplicate_precheck ? await duplicatePrecheck(item) : null;
+    const screen = screenCandidate({
+      item,
+      rules,
+      settings,
+      supplierCost: convertAmount(item.cost, fx.rate),
+      shippingCost: convertAmount(item.shippingCost, fx.rate),
+      suggestedRetail: convertAmount(item.suggestedRetail, fx.rate),
+      duplicateReason,
+    });
+
+    let state: CandidateState = "duplicate_checked";
     let hold: string | null = null;
     if (!validation.ok) {
       state = "held";
       hold = validation.reason;
-    } else if (!pricing.complete) {
+    } else if (screen.outcome === "held" || screen.outcome === "rejected") {
       state = "held";
-      hold = pricing.reason;
-    } else {
-      state = "priced";
-      if (rules.min_landed_cost !== null && (pricing.landedCost ?? 0) < rules.min_landed_cost) {
-        state = "held";
-        hold = "Landed cost is below the configured minimum";
-      } else if (
-        rules.max_landed_cost !== null &&
-        (pricing.landedCost ?? 0) > rules.max_landed_cost
-      ) {
-        state = "held";
-        hold = "Landed cost is above the configured maximum";
-      } else if (rules.max_retail_price !== null && (pricing.price ?? 0) > rules.max_retail_price) {
-        state = "held";
-        hold = "The calculated retail price is above the configured maximum";
-      } else if (rules.duplicate_precheck) {
-        const duplicate = await duplicatePrecheck(item);
-        if (duplicate) {
-          state = "held";
-          hold = duplicate;
-        } else {
-          state = "duplicate_checked";
-        }
-      } else {
-        state = "duplicate_checked";
-      }
+      hold = screen.blockingReason ?? "The product did not pass the sourcing screen";
+    } else if (screen.score < rules.min_suitability_score) {
+      state = "held";
+      hold = `Suitability score ${screen.score} is below the configured minimum of ${rules.min_suitability_score}`;
     }
 
     const { data: inserted, error } = await supabase
@@ -296,6 +309,16 @@ export async function selectCandidates(input: {
         pricing_complete: pricing.complete,
         pricing_snapshot: pricing as unknown as Record<string, unknown>,
         supplier_payload: item as unknown as Record<string, unknown>,
+        suitability_score: screen.score,
+        score_reasons: screen.reasons as unknown as Record<string, unknown>[],
+        screening: {
+          outcome: screen.outcome,
+          threshold: rules.min_suitability_score,
+          landed_cost: screen.landedCost,
+          price: screen.price,
+          gross_margin: screen.grossMargin,
+          promo_within_floor: screen.promoWithinFloor,
+        } as Record<string, unknown>,
         created_by: input.userId,
       } as never)
       .select("id")
@@ -845,5 +868,164 @@ export async function loadCounters(): Promise<SourcingCounters> {
     importedToday: rows.filter((r) => r.imported_at && Date.parse(r.imported_at) >= since).length,
     failedOrHeld: rows.filter((r) => r.state === "failed" || r.state === "held").length,
     live: rows.filter((r) => r.state === "live").length,
+  };
+}
+
+/* --------------------------- intelligent sourcing -------------------------- */
+
+export interface FunnelCounts {
+  queried: number;
+  restricted: number;
+  categoryExcluded: number;
+  qualityFailed: number;
+  ukUnsuitable: number;
+  pricingFailed: number;
+  duplicateExcluded: number;
+  eligible: number;
+  recommended: number;
+}
+
+export interface ScreenedProduct {
+  productId: string;
+  title: string;
+  imageUrl: string | null;
+  category: string | null;
+  score: number;
+  outcome: string;
+  landedCost: number | null;
+  price: number | null;
+  grossMargin: number | null;
+  blockingReason: string | null;
+  reasons: { code: string; label: string; outcome: string; detail: string }[];
+}
+
+export interface SourcingScreenResult {
+  funnel: FunnelCounts;
+  products: ScreenedProduct[];
+  pagesRead: number;
+  catalogueTotal: number | null;
+  message: string;
+}
+
+/**
+ * Reads and pre-screens supplier catalogue pages without writing anything.
+ * Catalogue cardinality is only reported when the supplier actually returns
+ * it, so the funnel never states a total it cannot evidence.
+ */
+export async function runSourcingScreen(input: {
+  query?: string | undefined;
+  category?: string | undefined;
+  target: number;
+}): Promise<SourcingScreenResult> {
+  const { searchZendropCatalogue } = await import("./catalogue.server");
+  const rules = await loadSourcingRules();
+  const settings = await loadPricingSettings();
+
+  const funnel: FunnelCounts = {
+    queried: 0,
+    restricted: 0,
+    categoryExcluded: 0,
+    qualityFailed: 0,
+    ukUnsuitable: 0,
+    pricingFailed: 0,
+    duplicateExcluded: 0,
+    eligible: 0,
+    recommended: 0,
+  };
+  const products: ScreenedProduct[] = [];
+  const target = Math.max(1, Math.min(input.target, 500));
+  const pageSize = 50;
+  const maxPages = Math.max(1, Math.min(Math.ceil((target * 3) / pageSize), 20));
+
+  let fx: FxQuote | null = null;
+  let catalogueTotal: number | null = null;
+  let pagesRead = 0;
+
+  for (let page = 1; page <= maxPages; page += 1) {
+    const batch = await searchZendropCatalogue({
+      query: input.query,
+      category: input.category,
+      page,
+      limit: pageSize,
+    });
+    pagesRead += 1;
+    if (batch.total !== null) catalogueTotal = batch.total;
+    if (!batch.available || batch.items.length === 0) break;
+
+    for (const item of batch.items) {
+      funnel.queried += 1;
+      if (!fx) {
+        try {
+          fx = await getFxRate(item.currency, settings.currency);
+        } catch {
+          return {
+            funnel,
+            products,
+            pagesRead,
+            catalogueTotal,
+            message: "A live currency rate could not be read, so screening stopped rather than guessing.",
+          };
+        }
+      }
+
+      const duplicateReason = rules.duplicate_precheck ? await duplicatePrecheck(item) : null;
+      const screen = screenCandidate({
+        item,
+        rules,
+        settings,
+        supplierCost: convertAmount(item.cost, fx.rate),
+        shippingCost: convertAmount(item.shippingCost, fx.rate),
+        suggestedRetail: convertAmount(item.suggestedRetail, fx.rate),
+        duplicateReason,
+      });
+
+      for (const reason of screen.reasons) {
+        if (reason.outcome !== "fail") continue;
+        if (reason.code === "restricted") funnel.restricted += 1;
+        else if (reason.code.startsWith("category")) funnel.categoryExcluded += 1;
+        else if (reason.code === "imagery" || reason.code === "stock" || reason.code === "variants") {
+          funnel.qualityFailed += 1;
+        } else if (reason.code === "uk_delivery") funnel.ukUnsuitable += 1;
+        else if (reason.code === "duplicate") funnel.duplicateExcluded += 1;
+        else funnel.pricingFailed += 1;
+      }
+
+      if (screen.outcome === "held" || screen.outcome === "rejected") continue;
+      funnel.eligible += 1;
+      if (screen.score >= rules.min_suitability_score) funnel.recommended += 1;
+
+      products.push({
+        productId: item.id,
+        title: item.title,
+        imageUrl: item.imageUrl,
+        category: item.category,
+        score: screen.score,
+        outcome: screen.outcome,
+        landedCost: screen.landedCost,
+        price: screen.price,
+        grossMargin: screen.grossMargin,
+        blockingReason: screen.blockingReason,
+        reasons: screen.reasons.map((reason) => ({
+          code: reason.code,
+          label: reason.label,
+          outcome: reason.outcome,
+          detail: reason.detail,
+        })),
+      });
+    }
+
+    if (products.length >= target) break;
+  }
+
+  products.sort((a, b) => b.score - a.score);
+  return {
+    funnel,
+    products: products.slice(0, target),
+    pagesRead,
+    catalogueTotal,
+    message:
+      catalogueTotal === null
+        ? `Screened ${funnel.queried} supplier products across ${pagesRead} page(s). The supplier does not report total catalogue size, so none is shown.`
+        : `Screened ${funnel.queried} of ${catalogueTotal} reported supplier products across ${pagesRead} page(s).`,
   };
 }

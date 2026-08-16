@@ -255,3 +255,55 @@ export const reconcileImportsFn = createServerFn({ method: "POST" })
     const { reconcileImportedCandidates } = await import("./import.server");
     return { matched: await reconcileImportedCandidates() };
   });
+
+/* --------------------------- intelligent sourcing -------------------------- */
+
+export const screenSupplierCatalogue = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { query?: string | undefined; category?: string | undefined; target?: number | undefined } | undefined) => ({
+    query: input?.query,
+    category: input?.category,
+    target: Math.max(1, Math.min(Number(input?.target ?? 25), 500)),
+  }))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const { getZendropStatus } = await import("./connection.server");
+    const status = await getZendropStatus();
+    if (!status.configured) throw new Error("The supplier account is not connected yet.");
+    const { runSourcingScreen } = await import("./import.server");
+    return runSourcingScreen(data);
+  });
+
+/**
+ * Queues a reviewed batch. Mass import stays locked until the controlled one
+ * product test has passed, and the daily cap still applies on top of the batch
+ * size, so a large batch can never bypass the pace controls.
+ */
+export const runSourcingBatch = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { productIds: string[]; batchSize?: number }) => {
+    if (!Array.isArray(input?.productIds) || input.productIds.length === 0) {
+      throw new Error("Select at least one screened product");
+    }
+    return input;
+  })
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const { getZendropStatus } = await import("./connection.server");
+    const status = await getZendropStatus();
+    if (!status.massImportUnlocked) {
+      throw new Error(
+        "Mass import stays locked until the one product test passes and the supplier confirms an import operation.",
+      );
+    }
+    const { queueCandidates, runImportQueue, selectCandidates } = await import("./import.server");
+    const size = Math.max(1, Math.min(Number(data.batchSize ?? 25), 500));
+    const selection = await selectCandidates({
+      productIds: data.productIds.slice(0, size),
+      userId: context.userId,
+    });
+    const ready = selection.candidateIds;
+    const queued = await queueCandidates(ready);
+    const outcome = await runImportQueue(Math.min(queued, 20));
+    return { ...selection, queued, ...outcome };
+  });

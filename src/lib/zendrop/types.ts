@@ -112,6 +112,12 @@ export interface SourcingRules {
   min_landed_cost: number | null;
   max_landed_cost: number | null;
   max_retail_price: number | null;
+  min_retail_price: number | null;
+  min_suitability_score: number;
+  restricted_keywords: string[];
+  max_variant_count: number | null;
+  continuous_sourcing: boolean;
+  target_catalogue_size: number | null;
   daily_import_cap: number;
   batch_size: number;
 }

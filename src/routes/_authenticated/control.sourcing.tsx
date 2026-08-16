@@ -26,6 +26,8 @@ import {
   queueForImport,
   reconcileImportsFn,
   runOneProductTestFn,
+  runSourcingBatch,
+  screenSupplierCatalogue,
   searchSupplierCatalogue,
   selectForImport,
   updatePricingSettings,
@@ -66,6 +68,8 @@ function SourcingPage() {
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<string[]>([]);
   const [testProductId, setTestProductId] = useState("");
+  const [screenQuery, setScreenQuery] = useState("");
+  const [screenTarget, setScreenTarget] = useState(25);
 
   const overviewFn = useServerFn(getSourcingOverview);
   const overview = useQuery({
@@ -120,6 +124,25 @@ function SourcingPage() {
     onError: (error: Error) => toast.error(error.message),
   });
 
+  const screenFn = useServerFn(screenSupplierCatalogue);
+  const screen = useMutation({
+    mutationFn: () =>
+      screenFn({ data: { query: screenQuery.trim() || undefined, target: screenTarget } }),
+    onSuccess: (result) => toast.success(result.message),
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const batchFn = useServerFn(runSourcingBatch);
+  const batch = useMutation({
+    mutationFn: (productIds: string[]) =>
+      batchFn({ data: { productIds, batchSize: screenTarget } }),
+    onSuccess: (result) => {
+      toast.success(`${result.imported} imported from ${result.queued} queued.`);
+      invalidate();
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
   const reconcileFn = useServerFn(reconcileImportsFn);
   const reconcile = useMutation({
     mutationFn: () => reconcileFn({}),
@@ -157,6 +180,8 @@ function SourcingPage() {
   const rate = overview.data?.rateLimit;
   const candidates = overview.data?.candidates ?? [];
   const massLocked = !connection?.massImportUnlocked;
+
+  const screened = screen.data?.products ?? [];
 
   const readyIds = useMemo(
     () => candidates.filter((c) => c.state === "duplicate_checked" || c.state === "priced").map((c) => c.id),
@@ -326,12 +351,65 @@ function SourcingPage() {
           </div>
           <div className="space-y-1.5">
             <Label>Batch size</Label>
+            <div className="flex flex-wrap gap-1.5">
+              {[25, 50, 100, 250, 500].map((size) => (
+                <Button
+                  key={size}
+                  type="button"
+                  size="sm"
+                  variant={rules?.batch_size === size ? "default" : "outline"}
+                  onClick={() => saveRules.mutate({ batch_size: size })}
+                >
+                  {size}
+                </Button>
+              ))}
+            </div>
             <Input
               type="number"
               min={1}
-              max={50}
-              defaultValue={rules?.batch_size ?? 10}
+              max={500}
+              defaultValue={rules?.batch_size ?? 25}
               onBlur={(event) => saveRules.mutate({ batch_size: Number(event.target.value) })}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Minimum suitability score</Label>
+            <Input
+              type="number"
+              min={0}
+              max={100}
+              defaultValue={rules?.min_suitability_score ?? 60}
+              onBlur={(event) =>
+                saveRules.mutate({ min_suitability_score: Number(event.target.value) })
+              }
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Maximum variants per product</Label>
+            <Input
+              type="number"
+              min={1}
+              defaultValue={rules?.max_variant_count ?? ""}
+              onBlur={(event) =>
+                saveRules.mutate({
+                  max_variant_count: event.target.value ? Number(event.target.value) : null,
+                })
+              }
+            />
+          </div>
+          <div className="space-y-1.5 sm:col-span-2 lg:col-span-3">
+            <Label>Restricted keywords</Label>
+            <Input
+              defaultValue={(rules?.restricted_keywords ?? []).join(", ")}
+              placeholder="Comma separated"
+              onBlur={(event) =>
+                saveRules.mutate({
+                  restricted_keywords: event.target.value
+                    .split(",")
+                    .map((value) => value.trim().toLowerCase())
+                    .filter(Boolean),
+                })
+              }
             />
           </div>
           <div className="space-y-1.5">
@@ -359,6 +437,129 @@ function SourcingPage() {
             />
           </div>
         </div>
+      </SectionCard>
+
+      <SectionCard
+        title="Intelligent sourcing screen"
+        description="Pre-screens supplier products against the sourcing rules and the margin formula. Screening reads only and never imports. Queueing a screened batch stays locked until the controlled one product test has passed."
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            <Input
+              className="w-40"
+              value={screenQuery}
+              onChange={(event) => setScreenQuery(event.target.value)}
+              placeholder="Optional keyword"
+            />
+            <select
+              className="rounded-md border border-border bg-background px-2 py-1 text-sm"
+              value={screenTarget}
+              onChange={(event) => setScreenTarget(Number(event.target.value))}
+            >
+              {[25, 50, 100, 250, 500].map((size) => (
+                <option key={size} value={size}>
+                  {size} products
+                </option>
+              ))}
+            </select>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={!connection?.configured || screen.isPending}
+              onClick={() => screen.mutate()}
+            >
+              {screen.isPending ? "Screening" : "Run screen"}
+            </Button>
+            <Button
+              size="sm"
+              disabled={massLocked || screened.length === 0 || batch.isPending}
+              onClick={() =>
+                batch.mutate(
+                  screened
+                    .filter((row) => row.score >= (rules?.min_suitability_score ?? 60))
+                    .map((row) => row.productId),
+                )
+              }
+            >
+              Queue recommended batch
+            </Button>
+          </div>
+        }
+      >
+        {screen.data ? (
+          <div className="mb-4 grid gap-2 sm:grid-cols-3 lg:grid-cols-5">
+            {(
+              [
+                ["Screened", screen.data.funnel.queried],
+                ["Restricted", screen.data.funnel.restricted],
+                ["Category excluded", screen.data.funnel.categoryExcluded],
+                ["Quality failed", screen.data.funnel.qualityFailed],
+                ["Delivery unsuitable", screen.data.funnel.ukUnsuitable],
+                ["Pricing failed", screen.data.funnel.pricingFailed],
+                ["Duplicate excluded", screen.data.funnel.duplicateExcluded],
+                ["Eligible", screen.data.funnel.eligible],
+                ["Recommended", screen.data.funnel.recommended],
+              ] as const
+            ).map(([label, value]) => (
+              <div key={label} className="rounded-lg border border-border bg-card/60 px-3 py-2">
+                <p className="text-[0.65rem] uppercase tracking-[0.16em] text-muted-foreground">
+                  {label}
+                </p>
+                <p className="text-lg font-semibold text-foreground">{value}</p>
+              </div>
+            ))}
+          </div>
+        ) : null}
+        {screened.length === 0 ? (
+          <EmptyState
+            title="No screened products yet"
+            description={
+              screen.data?.message ??
+              "Run a screen to score live supplier products against the sourcing rules."
+            }
+          />
+        ) : (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Product</TableHead>
+                  <TableHead>Category</TableHead>
+                  <TableHead>Score</TableHead>
+                  <TableHead>Landed</TableHead>
+                  <TableHead>Price</TableHead>
+                  <TableHead>Margin</TableHead>
+                  <TableHead>Reasons</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {screened.map((row) => (
+                  <TableRow key={row.productId}>
+                    <TableCell className="text-sm text-foreground">{row.title}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {row.category ?? "Not stated"}
+                    </TableCell>
+                    <TableCell>
+                      <StatusPill
+                        tone={row.score >= (rules?.min_suitability_score ?? 60) ? "positive" : "warning"}
+                      >
+                        {row.score}
+                      </StatusPill>
+                    </TableCell>
+                    <TableCell>{formatMoney(row.landedCost, pricing?.currency)}</TableCell>
+                    <TableCell>{formatMoney(row.price, pricing?.currency)}</TableCell>
+                    <TableCell>{formatPercent(row.grossMargin)}</TableCell>
+                    <TableCell className="max-w-[280px] text-xs text-muted-foreground">
+                      {row.reasons
+                        .filter((reason) => reason.outcome !== "pass")
+                        .map((reason) => reason.detail)
+                        .join(" · ") || "Meets every rule"}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
       </SectionCard>
 
       <SectionCard

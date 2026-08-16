@@ -42,6 +42,7 @@ import { Route as AuthenticatedControlJournalRouteImport } from './routes/_authe
 import { Route as AuthenticatedControlLegalRouteImport } from './routes/_authenticated/control.legal'
 import { Route as AuthenticatedControlMcpRouteImport } from './routes/_authenticated/control.mcp'
 import { Route as AuthenticatedControlPreviewRouteImport } from './routes/_authenticated/control.preview'
+import { Route as AuthenticatedControlPricingRouteImport } from './routes/_authenticated/control.pricing'
 import { Route as AuthenticatedControlReviewsRouteImport } from './routes/_authenticated/control.reviews'
 import { Route as AuthenticatedControlSeoRouteImport } from './routes/_authenticated/control.seo'
 import { Route as AuthenticatedControlSourcingRouteImport } from './routes/_authenticated/control.sourcing'
@@ -237,6 +238,12 @@ const AuthenticatedControlPreviewRoute =
     path: '/preview',
     getParentRoute: () => AuthenticatedControlRoute,
   } as any)
+const AuthenticatedControlPricingRoute =
+  AuthenticatedControlPricingRouteImport.update({
+    id: '/pricing',
+    path: '/pricing',
+    getParentRoute: () => AuthenticatedControlRoute,
+  } as any)
 const AuthenticatedControlReviewsRoute =
   AuthenticatedControlReviewsRouteImport.update({
     id: '/reviews',
@@ -369,6 +376,7 @@ export interface FileRoutesByFullPath {
   '/control/legal': typeof AuthenticatedControlLegalRoute
   '/control/mcp': typeof AuthenticatedControlMcpRoute
   '/control/preview': typeof AuthenticatedControlPreviewRoute
+  '/control/pricing': typeof AuthenticatedControlPricingRoute
   '/control/reviews': typeof AuthenticatedControlReviewsRoute
   '/control/seo': typeof AuthenticatedControlSeoRoute
   '/control/sourcing': typeof AuthenticatedControlSourcingRoute
@@ -419,6 +427,7 @@ export interface FileRoutesByTo {
   '/control/legal': typeof AuthenticatedControlLegalRoute
   '/control/mcp': typeof AuthenticatedControlMcpRoute
   '/control/preview': typeof AuthenticatedControlPreviewRoute
+  '/control/pricing': typeof AuthenticatedControlPricingRoute
   '/control/reviews': typeof AuthenticatedControlReviewsRoute
   '/control/seo': typeof AuthenticatedControlSeoRoute
   '/control/sourcing': typeof AuthenticatedControlSourcingRoute
@@ -473,6 +482,7 @@ export interface FileRoutesById {
   '/_authenticated/control/legal': typeof AuthenticatedControlLegalRoute
   '/_authenticated/control/mcp': typeof AuthenticatedControlMcpRoute
   '/_authenticated/control/preview': typeof AuthenticatedControlPreviewRoute
+  '/_authenticated/control/pricing': typeof AuthenticatedControlPricingRoute
   '/_authenticated/control/reviews': typeof AuthenticatedControlReviewsRoute
   '/_authenticated/control/seo': typeof AuthenticatedControlSeoRoute
   '/_authenticated/control/sourcing': typeof AuthenticatedControlSourcingRoute
@@ -527,6 +537,7 @@ export interface FileRouteTypes {
     | '/control/legal'
     | '/control/mcp'
     | '/control/preview'
+    | '/control/pricing'
     | '/control/reviews'
     | '/control/seo'
     | '/control/sourcing'
@@ -577,6 +588,7 @@ export interface FileRouteTypes {
     | '/control/legal'
     | '/control/mcp'
     | '/control/preview'
+    | '/control/pricing'
     | '/control/reviews'
     | '/control/seo'
     | '/control/sourcing'
@@ -630,6 +642,7 @@ export interface FileRouteTypes {
     | '/_authenticated/control/legal'
     | '/_authenticated/control/mcp'
     | '/_authenticated/control/preview'
+    | '/_authenticated/control/pricing'
     | '/_authenticated/control/reviews'
     | '/_authenticated/control/seo'
     | '/_authenticated/control/sourcing'
@@ -918,6 +931,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedControlPreviewRouteImport
       parentRoute: typeof AuthenticatedControlRoute
     }
+    '/_authenticated/control/pricing': {
+      id: '/_authenticated/control/pricing'
+      path: '/pricing'
+      fullPath: '/control/pricing'
+      preLoaderRoute: typeof AuthenticatedControlPricingRouteImport
+      parentRoute: typeof AuthenticatedControlRoute
+    }
     '/_authenticated/control/reviews': {
       id: '/_authenticated/control/reviews'
       path: '/reviews'
@@ -1077,6 +1097,7 @@ interface AuthenticatedControlRouteChildren {
   AuthenticatedControlLegalRoute: typeof AuthenticatedControlLegalRoute
   AuthenticatedControlMcpRoute: typeof AuthenticatedControlMcpRoute
   AuthenticatedControlPreviewRoute: typeof AuthenticatedControlPreviewRoute
+  AuthenticatedControlPricingRoute: typeof AuthenticatedControlPricingRoute
   AuthenticatedControlReviewsRoute: typeof AuthenticatedControlReviewsRoute
   AuthenticatedControlSeoRoute: typeof AuthenticatedControlSeoRoute
   AuthenticatedControlSourcingRoute: typeof AuthenticatedControlSourcingRoute
@@ -1094,6 +1115,7 @@ const AuthenticatedControlRouteChildren: AuthenticatedControlRouteChildren = {
   AuthenticatedControlLegalRoute: AuthenticatedControlLegalRoute,
   AuthenticatedControlMcpRoute: AuthenticatedControlMcpRoute,
   AuthenticatedControlPreviewRoute: AuthenticatedControlPreviewRoute,
+  AuthenticatedControlPricingRoute: AuthenticatedControlPricingRoute,
   AuthenticatedControlReviewsRoute: AuthenticatedControlReviewsRoute,
   AuthenticatedControlSeoRoute: AuthenticatedControlSeoRoute,
   AuthenticatedControlSourcingRoute: AuthenticatedControlSourcingRoute,
