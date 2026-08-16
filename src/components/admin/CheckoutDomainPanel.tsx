@@ -8,16 +8,41 @@ import { Label } from "@/components/ui/label";
 import { SectionCard } from "@/components/admin/SectionCard";
 import { StatusPill } from "@/components/admin/StatusPill";
 import { getCheckoutDomainFn, setCheckoutDomainFn } from "@/lib/services/shopify-sync.functions";
+import { getStorefrontApiStatusFn } from "@/lib/services/shopify-storefront.functions";
+
+const INTENDED_CHECKOUT_HOST = "shop.nurgoods.com";
+
+function Gate({ done, label, detail }: { done: boolean; label: string; detail?: string }) {
+  return (
+    <li className="flex items-start gap-3">
+      <span
+        aria-hidden
+        className={`mt-1 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full border text-[10px] ${
+          done
+            ? "border-primary bg-primary text-primary-foreground"
+            : "border-border bg-muted text-muted-foreground"
+        }`}
+      >
+        {done ? "✓" : ""}
+      </span>
+      <span className="text-sm">
+        <span className={done ? "text-foreground" : "text-muted-foreground"}>{label}</span>
+        {detail ? <span className="block text-xs text-muted-foreground">{detail}</span> : null}
+      </span>
+    </li>
+  );
+}
 
 /**
- * Basket and payment host. Product pages build a basket link on this host so
- * ordering stays with the store. If the store's own primary domain is serving
- * this site, a separate checkout host has to be set here and in the store.
+ * Basket and payment host. The public site owns nurgoods.com, so the store has
+ * to serve its basket and payment pages on a separate host. This panel records
+ * that host and reports whether the store genuinely answers there yet.
  */
 export function CheckoutDomainPanel() {
   const queryClient = useQueryClient();
   const readFn = useServerFn(getCheckoutDomainFn);
   const saveFn = useServerFn(setCheckoutDomainFn);
+  const statusFn = useServerFn(getStorefrontApiStatusFn);
 
   const setting = useQuery({
     queryKey: ["checkout-domain"],
@@ -25,10 +50,16 @@ export function CheckoutDomainPanel() {
     retry: false,
   });
 
+  const storefront = useQuery({
+    queryKey: ["storefront-api-status"],
+    queryFn: () => statusFn({}),
+    retry: false,
+  });
+
   const [value, setValue] = useState("");
   useEffect(() => {
     if (!setting.data) return;
-    setValue((current) => current || (setting.data.checkoutDomain ?? ""));
+    setValue((current) => current || (setting.data.checkoutDomain ?? INTENDED_CHECKOUT_HOST));
   }, [setting.data]);
 
   const save = useMutation({
@@ -40,37 +71,71 @@ export function CheckoutDomainPanel() {
           : "Basket links will use the paired store domain",
       );
       void queryClient.invalidateQueries({ queryKey: ["checkout-domain"] });
+      void queryClient.invalidateQueries({ queryKey: ["storefront-api-status"] });
     },
     onError: (error: Error) => toast.error(error.message),
   });
 
   const effective = setting.data?.checkoutDomain ?? setting.data?.shopDomain ?? null;
-  const ready = setting.data?.ready ?? false;
+  const readiness = storefront.data?.readiness;
+  const probe = storefront.data?.checkoutHostProbe ?? null;
+  const buyNowReady = readiness?.buyNowReady ?? false;
 
   return (
     <SectionCard
-      title="Checkout domain fallback"
-      description="Only used when Storefront API headless checkout is not connected, or to rewrite a checkout link whose host clashes with this site. When headless checkout is working, the store issued checkout link is the source of truth."
+      title="Checkout domain and Buy now readiness"
+      description="The public storefront is served on nurgoods.com by this platform, so the store must serve its basket and payment pages on a separate host. Purchases always use the checkout link issued by the store."
       actions={
-        <StatusPill tone={ready ? "positive" : effective ? "warning" : "neutral"}>
-          {ready ? "Working" : effective ? "Not answering" : "Not set"}
+        <StatusPill tone={buyNowReady ? "positive" : effective ? "warning" : "neutral"}>
+          {buyNowReady ? "Buy now live" : effective ? "Waiting on store" : "Not set"}
         </StatusPill>
       }
     >
-      <p className="mb-4 rounded-lg border border-border bg-muted/40 p-3 text-xs leading-relaxed text-muted-foreground">
-        Your store forwards its own domain to whichever domain is set as primary in the store admin.
-        If that primary domain is the same address serving this site, basket links will not resolve.
-        In that case set a dedicated checkout host, for example shop.nurgoods.com, add it to the
-        store as a domain and enter it here.
-      </p>
+      <ul className="mb-4 space-y-2 rounded-lg border border-border bg-muted/40 p-3">
+        <Gate
+          done={readiness?.storefrontConnected ?? false}
+          label="Storefront API connected"
+          detail={storefront.data?.shopName ? `Paired with ${storefront.data.shopName}` : undefined}
+        />
+        <Gate
+          done={readiness?.checkoutHostConfigured ?? false}
+          label="Checkout host configured"
+          detail={storefront.data?.checkoutHostOverride ?? "No dedicated host recorded"}
+        />
+        <Gate
+          done={readiness?.checkoutHostServesStore ?? false}
+          label="Checkout host answers as the store"
+          detail={
+            probe
+              ? probe.servesStore
+                ? `${probe.host} answers as the store`
+                : probe.redirectsToSite
+                  ? `${probe.host} still forwards to ${probe.finalHost ?? "this site"}`
+                  : `${probe.host} is not answering as the store yet`
+              : undefined
+          }
+        />
+        <Gate
+          done={buyNowReady}
+          label="Ready for live Buy now"
+          detail={
+            buyNowReady
+              ? "Shoppers are sent to the store issued checkout link"
+              : "Buy now stays disabled until every check above passes"
+          }
+        />
+      </ul>
 
-      {effective && !ready ? (
-        <p className="mb-4 rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-xs leading-relaxed text-foreground">
-          Basket links on {effective} are not answering as the store, so Buy now is disabled on
-          product pages instead of sending shoppers to a dead end. Add a dedicated checkout host in
-          the store admin, set it as the primary domain there and enter it above.
+      <div className="mb-4 rounded-lg border border-border bg-muted/40 p-3 text-xs leading-relaxed text-muted-foreground">
+        <p className="font-medium text-foreground">What has to change in the store admin</p>
+        <p className="mt-1">
+          Set {INTENDED_CHECKOUT_HOST} as the primary domain in the store, so the store stops
+          forwarding it to nurgoods.com. Shopify does not expose an Admin API mutation for changing
+          the primary online store domain or its redirect behaviour, domains are read only through
+          the API, so this one step has to be done in the store admin. Nothing here needs a code
+          change afterwards. The platform re checks the host and enables Buy now on its own.
         </p>
-      ) : null}
+      </div>
 
       <form
         className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end"
@@ -85,14 +150,14 @@ export function CheckoutDomainPanel() {
             id="checkout-domain"
             value={value}
             onChange={(event) => setValue(event.target.value)}
-            placeholder={setting.data?.shopDomain ?? "your-store.myshopify.com"}
+            placeholder={INTENDED_CHECKOUT_HOST}
             autoComplete="off"
             spellCheck={false}
             className="mt-1.5 min-h-11"
           />
           <p className="mt-1.5 text-xs text-muted-foreground">
-            Leave empty to use the paired store domain
-            {setting.data?.shopDomain ? ` (${setting.data.shopDomain})` : ""}.
+            This host is used to correct any checkout link the store issues on nurgoods.com, and
+            only once it answers as the store.
           </p>
         </div>
         <Button type="submit" disabled={save.isPending} className="min-h-11">
