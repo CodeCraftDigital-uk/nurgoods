@@ -291,7 +291,7 @@ function ShopIndex() {
               >
                 All
               </button>
-              {collectionItems.map((collection) => (
+              {collectionItems.slice(0, expanded ? collectionItems.length : 12).map((collection) => (
                 <button
                   key={collection.handle}
                   type="button"
