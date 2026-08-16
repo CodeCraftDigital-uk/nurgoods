@@ -5,6 +5,8 @@ import {
   Gauge,
   Inbox,
   LayoutGrid,
+  PackageSearch,
+
   Plug,
   Scale,
   Search,
