@@ -52,10 +52,21 @@ const hostRoutingMiddleware = createMiddleware().server(async ({ next }) => {
   }
 
   const result = await next();
-  if (result instanceof Response && (isAdminHost(host) || isAdminPath(pathname))) {
-    result.headers.set("x-robots-tag", "noindex, nofollow, noarchive");
+  if (isAdminHost(host) || isAdminPath(pathname)) {
+    const response: unknown =
+      result instanceof Response
+        ? result
+        : (result as { response?: unknown } | null)?.response;
+    if (response instanceof Response) {
+      try {
+        response.headers.set("x-robots-tag", "noindex, nofollow, noarchive");
+      } catch {
+        // Immutable headers on some runtimes; the route level meta tag still applies.
+      }
+    }
   }
   return result;
+
 });
 
 
