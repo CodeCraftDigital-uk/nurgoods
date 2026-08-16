@@ -402,8 +402,7 @@ function ShopIndex() {
         ) : (
           <>
             <p className="text-xs text-muted-foreground" aria-live="polite">
-              {products.data?.total ?? items.length} product
-              {(products.data?.total ?? items.length) === 1 ? "" : "s"}
+              Showing {items.length} of {total} product{total === 1 ? "" : "s"}
             </p>
             <ul className="mt-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
               {items.map((product, index) => (
@@ -412,8 +411,21 @@ function ShopIndex() {
                 </li>
               ))}
             </ul>
+            {hasMore ? (
+              <div className="mt-10 flex justify-center">
+                <button
+                  type="button"
+                  onClick={() => setOffset(items.length)}
+                  disabled={products.isFetching}
+                  className="inline-flex min-h-11 items-center rounded-lg border border-input px-6 text-sm font-medium text-foreground transition-colors hover:bg-accent disabled:opacity-60"
+                >
+                  {products.isFetching ? "Loading" : "Load more products"}
+                </button>
+              </div>
+            ) : null}
           </>
         )}
+
 
         <div className="mt-14 rounded-2xl border border-border/70 p-7 sm:p-9">
           <h2 className="font-display text-2xl text-foreground">Browse by collection</h2>
