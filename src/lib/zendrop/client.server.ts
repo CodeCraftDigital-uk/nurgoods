@@ -246,15 +246,32 @@ export interface DiscoveredAction {
 const ROLE_PATTERNS: Record<CapabilityRole, RegExp[]> = {
   catalogue_search: [/catalog.*(search|list|browse|products)/i, /(search|list|browse).*catalog/i],
   catalogue_product: [/catalog.*(get|product|detail)/i, /get.*catalog.*product/i],
+  catalogue_shipping: [/catalog.*ship/i, /ship.*(estimate|quote|rate)/i],
   my_products_list: [/my[_-]?products.*(list|get|search)/i, /(list|get).*my[_-]?products/i],
-  my_products_import: [
-    /my[_-]?products.*(import|add|create|publish)/i,
-    /(import|add|create|publish).*(product)/i,
-  ],
+  my_products_get: [/get[_-]?my[_-]?product$/i],
+  my_products_import: [/add[_-]?my[_-]?product/i, /my[_-]?products.*(add|create)/i],
+  my_products_push: [/import[_-]?my[_-]?product$/i, /(publish|push).*(product)/i],
+  import_operation: [/import[_-]?operation/i, /operation.*(status|get)/i],
   stores_list: [/stores?.*(list|get)/i, /(list|get).*stores?/i],
 };
 
-const WRITE_ROLES: CapabilityRole[] = ["my_products_import"];
+/**
+ * Exact operation names take priority over the loose patterns so sibling
+ * operations such as add / import / operation-status never collide.
+ */
+const PREFERRED_NAMES: Partial<Record<CapabilityRole, string[]>> = {
+  catalogue_search: ["get_catalog_products"],
+  catalogue_product: ["get_catalog_product"],
+  catalogue_shipping: ["get_catalog_shipping_estimate"],
+  my_products_list: ["get_my_products"],
+  my_products_get: ["get_my_product"],
+  my_products_import: ["add_my_product"],
+  my_products_push: ["import_my_product"],
+  import_operation: ["get_my_product_import_operation"],
+  stores_list: ["get_stores"],
+};
+
+const WRITE_ROLES: CapabilityRole[] = ["my_products_import", "my_products_push"];
 
 function classify(name: string): "read" | "write" | "unknown" {
   if (/(import|add|create|publish|update|delete|remove|set)/i.test(name)) return "write";
@@ -276,19 +293,32 @@ export async function discoverActions(): Promise<DiscoveredAction[]> {
 
 export function mapRoles(actions: DiscoveredAction[]): Record<CapabilityRole, DiscoveredAction | null> {
   const map = {} as Record<CapabilityRole, DiscoveredAction | null>;
+  const taken = new Set<string>();
   for (const role of CAPABILITY_ROLES) {
+    const exact = (PREFERRED_NAMES[role] ?? [])
+      .map((name) => actions.find((action) => action.name.toLowerCase() === name))
+      .find(Boolean);
+    if (exact) {
+      map[role] = exact;
+      taken.add(exact.name);
+    }
+  }
+  for (const role of CAPABILITY_ROLES) {
+    if (map[role]) continue;
     const patterns = ROLE_PATTERNS[role];
     const isWrite = WRITE_ROLES.includes(role);
-    const match =
+    map[role] =
       actions.find(
         (action) =>
+          !taken.has(action.name) &&
           patterns.some((pattern) => pattern.test(action.name)) &&
           (isWrite ? action.kind === "write" : action.kind !== "write"),
       ) ?? null;
-    map[role] = match;
+    if (map[role]) taken.add(map[role]!.name);
   }
   return map;
 }
+
 
 /** Persists discovery so the admin surface can report capability honestly. */
 export async function persistCapabilities(actions: DiscoveredAction[]): Promise<void> {

@@ -43,8 +43,12 @@ export const CANDIDATE_STATE_LABEL: Record<CandidateState, string> = {
 export const CAPABILITY_ROLES = [
   "catalogue_search",
   "catalogue_product",
+  "catalogue_shipping",
   "my_products_list",
+  "my_products_get",
   "my_products_import",
+  "my_products_push",
+  "import_operation",
   "stores_list",
 ] as const;
 
@@ -53,10 +57,15 @@ export type CapabilityRole = (typeof CAPABILITY_ROLES)[number];
 export const CAPABILITY_ROLE_LABEL: Record<CapabilityRole, string> = {
   catalogue_search: "Browse supplier catalogue",
   catalogue_product: "Read a supplier product",
+  catalogue_shipping: "Quote supplier shipping",
   my_products_list: "Read supplier products",
-  my_products_import: "Import into supplier products",
+  my_products_get: "Read one supplier product",
+  my_products_import: "Add to supplier products",
+  my_products_push: "Send to the connected store",
+  import_operation: "Track the supplier import",
   stores_list: "Read connected stores",
 };
+
 
 export interface CapabilityReport {
   role: CapabilityRole;
