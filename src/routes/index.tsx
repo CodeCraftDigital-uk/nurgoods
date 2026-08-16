@@ -6,7 +6,6 @@ import { JsonLd } from "@/components/public/JsonLd";
 import { ReviewPlacementSlot } from "@/components/public/ReviewPlacementSlot";
 import { ProductCard, ProductCardSkeleton } from "@/components/public/ProductCard";
 import { CollectionTile, CollectionTileSkeleton } from "@/components/public/CollectionTile";
-import { BrandWordmark } from "@/components/admin/BrandLogo";
 import { BRAND } from "@/lib/brand";
 import { listPublicArticles } from "@/lib/services/public-content.functions";
 import {
@@ -217,7 +216,7 @@ function Index() {
 
 
       {/* Categories */}
-      <section className="mx-auto mt-16 w-full max-w-6xl px-5 sm:mt-24 sm:px-8" aria-labelledby="categories">
+      <section className="mx-auto mt-16 w-full max-w-7xl px-5 sm:mt-24 sm:px-8" aria-labelledby="categories">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <h2 id="categories" className="font-display text-2xl text-foreground sm:text-3xl">
@@ -251,7 +250,7 @@ function Index() {
       </section>
 
       {/* New in */}
-      <section className="mx-auto mt-16 w-full max-w-6xl px-5 sm:mt-24 sm:px-8" aria-labelledby="new-in">
+      <section className="mx-auto mt-16 w-full max-w-7xl px-5 sm:mt-24 sm:px-8" aria-labelledby="new-in">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <h2 id="new-in" className="font-display text-2xl text-foreground sm:text-3xl">
@@ -307,7 +306,7 @@ function Index() {
       {/* A to Z of the range */}
       {browseItems.length > 0 ? (
         <section
-          className="mx-auto mt-16 w-full max-w-6xl px-5 sm:mt-24 sm:px-8"
+          className="mx-auto mt-16 w-full max-w-7xl px-5 sm:mt-24 sm:px-8"
           aria-labelledby="from-the-range"
         >
           <div className="flex flex-wrap items-end justify-between gap-3">
@@ -332,13 +331,13 @@ function Index() {
       ) : null}
 
       {/* Service cues */}
-      <section className="mx-auto mt-16 w-full max-w-6xl px-5 sm:mt-24 sm:px-8" aria-labelledby="service">
+      <section className="mx-auto mt-16 w-full max-w-7xl px-5 sm:mt-24 sm:px-8" aria-labelledby="service">
         <h2 id="service" className="sr-only">
           How ordering works
         </h2>
         <ul className="grid gap-3 sm:grid-cols-3 sm:gap-4">
           {SERVICE_CUES.map((cue) => (
-            <li key={cue.title} className="rounded-xl border border-border/70 bg-card p-6">
+            <li key={cue.title} className="glass-card rounded-2xl p-6">
               <h3 className="font-display text-lg text-foreground">{cue.title}</h3>
               <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{cue.body}</p>
             </li>
@@ -347,7 +346,7 @@ function Index() {
       </section>
 
       {/* Journal */}
-      <section className="mx-auto mt-16 w-full max-w-6xl px-5 sm:mt-24 sm:px-8" aria-labelledby="journal">
+      <section className="mx-auto mt-16 w-full max-w-7xl px-5 sm:mt-24 sm:px-8" aria-labelledby="journal">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <h2 id="journal" className="font-display text-2xl text-foreground sm:text-3xl">
             From the Journal
@@ -388,12 +387,12 @@ function Index() {
         )}
       </section>
 
-      <div className="mx-auto w-full max-w-6xl px-5 sm:px-8">
+      <div className="mx-auto w-full max-w-7xl px-5 sm:px-8">
         <ReviewPlacementSlot surface="homepage" className="mt-16 sm:mt-24" />
       </div>
 
       {/* Support */}
-      <section className="mx-auto mt-16 w-full max-w-6xl px-5 sm:mt-24 sm:px-8" aria-labelledby="support">
+      <section className="mx-auto mt-16 w-full max-w-7xl px-5 sm:mt-24 sm:px-8" aria-labelledby="support">
         <div className="rounded-2xl border border-border/70 p-8 sm:p-10">
           <h2 id="support" className="font-display text-2xl text-foreground">
             Questions before you order?

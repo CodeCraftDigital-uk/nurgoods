@@ -171,7 +171,7 @@ function ShopIndex() {
 
   return (
     <PublicShell>
-      <div className="mx-auto w-full max-w-6xl px-5 pt-12 sm:px-8 sm:pt-16">
+      <div className="mx-auto w-full max-w-7xl px-5 pt-12 sm:px-8 sm:pt-16">
         <Breadcrumbs items={[{ label: "Shop", href: "/shop" }]} />
         <h1 className="mt-4 font-display text-4xl leading-tight text-foreground sm:text-5xl">
           Shop the range
@@ -346,7 +346,7 @@ function ShopIndex() {
         ) : null}
       </div>
 
-      <div className="mx-auto w-full max-w-6xl px-5 pb-8 pt-10 sm:px-8">
+      <div className="mx-auto w-full max-w-7xl px-5 pb-8 pt-10 sm:px-8">
         {products.isLoading ? (
           <ul className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             {[0, 1, 2, 3, 4, 5, 6, 7].map((index) => (

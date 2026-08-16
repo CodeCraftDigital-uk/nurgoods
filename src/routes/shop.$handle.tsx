@@ -269,7 +269,7 @@ function ProductDetail() {
     <PublicShell>
       <JsonLd data={schema} />
 
-      <article className="mx-auto w-full max-w-6xl px-5 pt-10 sm:px-8 sm:pt-14">
+      <article className="mx-auto w-full max-w-7xl px-5 pt-10 sm:px-8 sm:pt-14">
         <Breadcrumbs
           items={[
             { label: "Shop", href: "/shop" },

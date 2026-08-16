@@ -125,7 +125,7 @@ function CollectionDetail() {
         }}
       />
 
-      <section className="mx-auto w-full max-w-6xl px-5 pt-12 sm:px-8 sm:pt-16">
+      <section className="mx-auto w-full max-w-7xl px-5 pt-12 sm:px-8 sm:pt-16">
         <Breadcrumbs
           items={[
             { label: "Collections", href: "/collections" },
