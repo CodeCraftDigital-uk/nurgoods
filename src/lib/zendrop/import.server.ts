@@ -199,7 +199,7 @@ export async function selectCandidates(input: {
   const supabase = await zendropAdminClient();
   const rules = await loadSourcingRules();
   const settings = await loadPricingSettings();
-  const cap = Math.max(1, Math.min(rules.batch_size, 50));
+  const cap = Math.max(1, Math.min(rules.batch_size, 500));
   const ids = input.productIds.slice(0, input.test ? 1 : cap);
 
   const result: SelectionResult = {
@@ -260,39 +260,30 @@ export async function selectCandidates(input: {
     };
 
 
-    let state: CandidateState = "validated";
+    // Deterministic pre-screen and suitability score. Every accept, hold or
+    // reject carries the reason that produced it.
+    const duplicateReason = rules.duplicate_precheck ? await duplicatePrecheck(item) : null;
+    const screen = screenCandidate({
+      item,
+      rules,
+      settings,
+      supplierCost: convertAmount(item.cost, fx.rate),
+      shippingCost: convertAmount(item.shippingCost, fx.rate),
+      suggestedRetail: convertAmount(item.suggestedRetail, fx.rate),
+      duplicateReason,
+    });
+
+    let state: CandidateState = "duplicate_checked";
     let hold: string | null = null;
     if (!validation.ok) {
       state = "held";
       hold = validation.reason;
-    } else if (!pricing.complete) {
+    } else if (screen.outcome === "held" || screen.outcome === "rejected") {
       state = "held";
-      hold = pricing.reason;
-    } else {
-      state = "priced";
-      if (rules.min_landed_cost !== null && (pricing.landedCost ?? 0) < rules.min_landed_cost) {
-        state = "held";
-        hold = "Landed cost is below the configured minimum";
-      } else if (
-        rules.max_landed_cost !== null &&
-        (pricing.landedCost ?? 0) > rules.max_landed_cost
-      ) {
-        state = "held";
-        hold = "Landed cost is above the configured maximum";
-      } else if (rules.max_retail_price !== null && (pricing.price ?? 0) > rules.max_retail_price) {
-        state = "held";
-        hold = "The calculated retail price is above the configured maximum";
-      } else if (rules.duplicate_precheck) {
-        const duplicate = await duplicatePrecheck(item);
-        if (duplicate) {
-          state = "held";
-          hold = duplicate;
-        } else {
-          state = "duplicate_checked";
-        }
-      } else {
-        state = "duplicate_checked";
-      }
+      hold = screen.blockingReason ?? "The product did not pass the sourcing screen";
+    } else if (screen.score < rules.min_suitability_score) {
+      state = "held";
+      hold = `Suitability score ${screen.score} is below the configured minimum of ${rules.min_suitability_score}`;
     }
 
     const { data: inserted, error } = await supabase
