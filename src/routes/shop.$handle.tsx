@@ -328,7 +328,8 @@ function ProductDetail() {
             ) : null}
           </div>
 
-          <div>
+          <div className="glass-panel h-fit rounded-3xl p-5 sm:p-7 lg:sticky lg:top-28">
+
             {product.category_name ? (
               <Link
                 to="/shop"
