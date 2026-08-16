@@ -26,6 +26,8 @@ import {
   queueForImport,
   reconcileImportsFn,
   runOneProductTestFn,
+  runSourcingBatch,
+  screenSupplierCatalogue,
   searchSupplierCatalogue,
   selectForImport,
   updatePricingSettings,
@@ -66,6 +68,8 @@ function SourcingPage() {
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<string[]>([]);
   const [testProductId, setTestProductId] = useState("");
+  const [screenQuery, setScreenQuery] = useState("");
+  const [screenTarget, setScreenTarget] = useState(25);
 
   const overviewFn = useServerFn(getSourcingOverview);
   const overview = useQuery({
@@ -120,6 +124,25 @@ function SourcingPage() {
     onError: (error: Error) => toast.error(error.message),
   });
 
+  const screenFn = useServerFn(screenSupplierCatalogue);
+  const screen = useMutation({
+    mutationFn: () =>
+      screenFn({ data: { query: screenQuery.trim() || undefined, target: screenTarget } }),
+    onSuccess: (result) => toast.success(result.message),
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const batchFn = useServerFn(runSourcingBatch);
+  const batch = useMutation({
+    mutationFn: (productIds: string[]) =>
+      batchFn({ data: { productIds, batchSize: screenTarget } }),
+    onSuccess: (result) => {
+      toast.success(`${result.imported} imported from ${result.queued} queued.`);
+      invalidate();
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
   const reconcileFn = useServerFn(reconcileImportsFn);
   const reconcile = useMutation({
     mutationFn: () => reconcileFn({}),
@@ -157,6 +180,8 @@ function SourcingPage() {
   const rate = overview.data?.rateLimit;
   const candidates = overview.data?.candidates ?? [];
   const massLocked = !connection?.massImportUnlocked;
+
+  const screened = screen.data?.products ?? [];
 
   const readyIds = useMemo(
     () => candidates.filter((c) => c.state === "duplicate_checked" || c.state === "priced").map((c) => c.id),
