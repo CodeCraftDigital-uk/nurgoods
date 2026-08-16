@@ -88,6 +88,21 @@ export async function loadSourcingRules(): Promise<SourcingRules> {
     min_landed_cost: row.min_landed_cost === null ? null : Number(row.min_landed_cost),
     max_landed_cost: row.max_landed_cost === null ? null : Number(row.max_landed_cost),
     max_retail_price: row.max_retail_price === null ? null : Number(row.max_retail_price),
+    min_retail_price:
+      row.min_retail_price === null || row.min_retail_price === undefined
+        ? null
+        : Number(row.min_retail_price),
+    min_suitability_score: Number(row.min_suitability_score ?? DEFAULT_RULES.min_suitability_score),
+    restricted_keywords: row.restricted_keywords ?? [],
+    max_variant_count:
+      row.max_variant_count === null || row.max_variant_count === undefined
+        ? null
+        : Number(row.max_variant_count),
+    continuous_sourcing: Boolean(row.continuous_sourcing),
+    target_catalogue_size:
+      row.target_catalogue_size === null || row.target_catalogue_size === undefined
+        ? null
+        : Number(row.target_catalogue_size),
     daily_import_cap: Number(row.daily_import_cap ?? DEFAULT_RULES.daily_import_cap),
     batch_size: Number(row.batch_size ?? DEFAULT_RULES.batch_size),
   };
