@@ -44,6 +44,7 @@ import { Route as AuthenticatedControlMcpRouteImport } from './routes/_authentic
 import { Route as AuthenticatedControlPreviewRouteImport } from './routes/_authenticated/control.preview'
 import { Route as AuthenticatedControlReviewsRouteImport } from './routes/_authenticated/control.reviews'
 import { Route as AuthenticatedControlSeoRouteImport } from './routes/_authenticated/control.seo'
+import { Route as AuthenticatedControlSourcingRouteImport } from './routes/_authenticated/control.sourcing'
 import { Route as AuthenticatedControlJournalIndexRouteImport } from './routes/_authenticated/control.journal.index'
 import { Route as AuthenticatedControlJournalArticleIdRouteImport } from './routes/_authenticated/control.journal.$articleId'
 import { Route as AuthenticatedControlJournalNewRouteImport } from './routes/_authenticated/control.journal.new'
@@ -247,6 +248,12 @@ const AuthenticatedControlSeoRoute = AuthenticatedControlSeoRouteImport.update({
   path: '/seo',
   getParentRoute: () => AuthenticatedControlRoute,
 } as any)
+const AuthenticatedControlSourcingRoute =
+  AuthenticatedControlSourcingRouteImport.update({
+    id: '/sourcing',
+    path: '/sourcing',
+    getParentRoute: () => AuthenticatedControlRoute,
+  } as any)
 const AuthenticatedControlJournalIndexRoute =
   AuthenticatedControlJournalIndexRouteImport.update({
     id: '/',
@@ -364,6 +371,7 @@ export interface FileRoutesByFullPath {
   '/control/preview': typeof AuthenticatedControlPreviewRoute
   '/control/reviews': typeof AuthenticatedControlReviewsRoute
   '/control/seo': typeof AuthenticatedControlSeoRoute
+  '/control/sourcing': typeof AuthenticatedControlSourcingRoute
   '/control/': typeof AuthenticatedControlIndexRoute
   '/control/journal/$articleId': typeof AuthenticatedControlJournalArticleIdRoute
   '/control/journal/new': typeof AuthenticatedControlJournalNewRoute
@@ -413,6 +421,7 @@ export interface FileRoutesByTo {
   '/control/preview': typeof AuthenticatedControlPreviewRoute
   '/control/reviews': typeof AuthenticatedControlReviewsRoute
   '/control/seo': typeof AuthenticatedControlSeoRoute
+  '/control/sourcing': typeof AuthenticatedControlSourcingRoute
   '/control': typeof AuthenticatedControlIndexRoute
   '/control/journal/$articleId': typeof AuthenticatedControlJournalArticleIdRoute
   '/control/journal/new': typeof AuthenticatedControlJournalNewRoute
@@ -466,6 +475,7 @@ export interface FileRoutesById {
   '/_authenticated/control/preview': typeof AuthenticatedControlPreviewRoute
   '/_authenticated/control/reviews': typeof AuthenticatedControlReviewsRoute
   '/_authenticated/control/seo': typeof AuthenticatedControlSeoRoute
+  '/_authenticated/control/sourcing': typeof AuthenticatedControlSourcingRoute
   '/_authenticated/control/': typeof AuthenticatedControlIndexRoute
   '/_authenticated/control/journal/$articleId': typeof AuthenticatedControlJournalArticleIdRoute
   '/_authenticated/control/journal/new': typeof AuthenticatedControlJournalNewRoute
@@ -519,6 +529,7 @@ export interface FileRouteTypes {
     | '/control/preview'
     | '/control/reviews'
     | '/control/seo'
+    | '/control/sourcing'
     | '/control/'
     | '/control/journal/$articleId'
     | '/control/journal/new'
@@ -568,6 +579,7 @@ export interface FileRouteTypes {
     | '/control/preview'
     | '/control/reviews'
     | '/control/seo'
+    | '/control/sourcing'
     | '/control'
     | '/control/journal/$articleId'
     | '/control/journal/new'
@@ -620,6 +632,7 @@ export interface FileRouteTypes {
     | '/_authenticated/control/preview'
     | '/_authenticated/control/reviews'
     | '/_authenticated/control/seo'
+    | '/_authenticated/control/sourcing'
     | '/_authenticated/control/'
     | '/_authenticated/control/journal/$articleId'
     | '/_authenticated/control/journal/new'
@@ -919,6 +932,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedControlSeoRouteImport
       parentRoute: typeof AuthenticatedControlRoute
     }
+    '/_authenticated/control/sourcing': {
+      id: '/_authenticated/control/sourcing'
+      path: '/sourcing'
+      fullPath: '/control/sourcing'
+      preLoaderRoute: typeof AuthenticatedControlSourcingRouteImport
+      parentRoute: typeof AuthenticatedControlRoute
+    }
     '/_authenticated/control/journal/': {
       id: '/_authenticated/control/journal/'
       path: '/'
@@ -1059,6 +1079,7 @@ interface AuthenticatedControlRouteChildren {
   AuthenticatedControlPreviewRoute: typeof AuthenticatedControlPreviewRoute
   AuthenticatedControlReviewsRoute: typeof AuthenticatedControlReviewsRoute
   AuthenticatedControlSeoRoute: typeof AuthenticatedControlSeoRoute
+  AuthenticatedControlSourcingRoute: typeof AuthenticatedControlSourcingRoute
   AuthenticatedControlIndexRoute: typeof AuthenticatedControlIndexRoute
 }
 
@@ -1075,6 +1096,7 @@ const AuthenticatedControlRouteChildren: AuthenticatedControlRouteChildren = {
   AuthenticatedControlPreviewRoute: AuthenticatedControlPreviewRoute,
   AuthenticatedControlReviewsRoute: AuthenticatedControlReviewsRoute,
   AuthenticatedControlSeoRoute: AuthenticatedControlSeoRoute,
+  AuthenticatedControlSourcingRoute: AuthenticatedControlSourcingRoute,
   AuthenticatedControlIndexRoute: AuthenticatedControlIndexRoute,
 }
 

@@ -10,6 +10,7 @@ import {
   Plug,
   Scale,
   Search,
+  ShoppingBag,
   Sparkles,
   Star,
 } from "lucide-react";
@@ -84,6 +85,12 @@ export const ADMIN_NAV: NavItem[] = [
     label: "Legal and Trust",
     description: "Policy documents and trust content records.",
     icon: Scale,
+  },
+  {
+    to: "/control/sourcing",
+    label: "Sourcing and Pricing",
+    description: "Supplier catalogue, margin pricing policy and controlled imports.",
+    icon: ShoppingBag,
   },
   {
     to: "/control/intake",
