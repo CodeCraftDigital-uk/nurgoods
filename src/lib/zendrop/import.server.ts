@@ -626,8 +626,19 @@ export async function reconcileImportedCandidates(): Promise<number> {
       pricingNote = result.message;
     } catch (cause) {
       pricingNote = cause instanceof Error ? cause.message : "The store price could not be set";
-
     }
+
+    // The supplier push can leave the product off the headless sales channel
+    // that serves checkout, which would break "Buy now" for shoppers.
+    let channelNote = "Sales channels were not checked";
+    try {
+      const { ensureStorePublications } = await import("./store-publication.server");
+      const publication = await ensureStorePublications(String(product.shopify_product_id));
+      channelNote = publication.message;
+    } catch (cause) {
+      channelNote = cause instanceof Error ? cause.message : "Sales channels could not be set";
+    }
+
 
     await supabase
       .from("zendrop_import_candidates")
@@ -646,7 +657,7 @@ export async function reconcileImportedCandidates(): Promise<number> {
       raw.state,
       "detected_in_store",
       "store_detected",
-      `The store product is linked. ${pricingNote}`,
+      `The store product is linked. ${pricingNote}. ${channelNote}`,
       { shopify_product_id: product.shopify_product_id },
     );
   }
