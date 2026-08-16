@@ -20,7 +20,27 @@ const KEYS = {
   lastTestedAt: "storefront_last_tested_at",
   lastError: "storefront_last_error",
   shopName: "storefront_shop_name",
+  primaryDomain: "storefront_primary_domain",
 } as const;
+
+/**
+ * Hosts served by this site. A checkout link issued on one of these cannot
+ * resolve, because the request lands here rather than at the store.
+ */
+const SITE_HOSTS = new Set(["nurgoods.com", "www.nurgoods.com"]);
+
+function hostOf(value: string | null): string | null {
+  if (!value) return null;
+  const trimmed = value.trim().replace(/^https?:\/\//i, "").split("/")[0] ?? "";
+  return trimmed ? trimmed.toLowerCase() : null;
+}
+
+export function isSiteHost(value: string | null): boolean {
+  const host = hostOf(value);
+  return host ? SITE_HOSTS.has(host) : false;
+}
+
+export const CHECKOUT_HOST_CONFLICT = "CHECKOUT_HOST_CONFLICT";
 
 export interface StorefrontApiStatus {
   configured: boolean;
@@ -32,6 +52,12 @@ export interface StorefrontApiStatus {
   lastTestedAt: string | null;
   lastError: string | null;
   shopName: string | null;
+  /** The host the store issues checkout links on. */
+  primaryDomain: string | null;
+  /** True when the store issues checkout links on the host serving this site. */
+  checkoutHostConflict: boolean;
+  /** Dedicated checkout host used to rewrite a conflicting link, when set. */
+  checkoutHostOverride: string | null;
   /** Domain suggested from the existing Admin API pairing. */
   suggestedDomain: string | null;
 }
@@ -152,6 +178,12 @@ export async function getStorefrontApiStatus(): Promise<StorefrontApiStatus> {
     lastTestedAt: settings.get(KEYS.lastTestedAt) ?? null,
     lastError: settings.get(KEYS.lastError) ?? null,
     shopName: settings.get(KEYS.shopName) ?? null,
+    primaryDomain: settings.get(KEYS.primaryDomain) ?? null,
+    checkoutHostConflict: isSiteHost(settings.get(KEYS.primaryDomain) ?? null),
+    checkoutHostOverride: (() => {
+      const candidate = hostOf(settings.get("checkout_domain") ?? null);
+      return candidate && !SITE_HOSTS.has(candidate) ? candidate : null;
+    })(),
     suggestedDomain,
   };
 }
@@ -162,6 +194,7 @@ export async function saveStorefrontCredentials(input: {
   privateToken?: string | null;
   publicToken?: string | null;
   shopName?: string | null;
+  primaryDomain?: string | null;
 }): Promise<void> {
   const supabase = await adminClient();
   if (input.privateToken) {
@@ -189,6 +222,14 @@ export async function saveStorefrontCredentials(input: {
   }
   if (input.shopName) {
     await writeSetting(supabase, KEYS.shopName, "Storefront shop name", input.shopName);
+  }
+  if (input.primaryDomain !== undefined) {
+    await writeSetting(
+      supabase,
+      KEYS.primaryDomain,
+      "Storefront checkout host",
+      input.primaryDomain,
+    );
   }
 }
 
@@ -224,6 +265,7 @@ export async function disconnectStorefront(): Promise<void> {
         KEYS.lastTestedAt,
         KEYS.lastError,
         KEYS.shopName,
+        KEYS.primaryDomain,
       ]);
   }
   storefrontReadyCache = null;
@@ -423,14 +465,45 @@ export async function createStorefrontCart(input: {
   const cart = data.cartCreate?.cart;
   if (!cart?.checkoutUrl) throw new Error("The store did not return a checkout link");
 
+  const checkoutUrl = await finaliseCheckoutUrl(cart.checkoutUrl);
+
   const amount = cart.cost?.subtotalAmount?.amount;
   return {
     cartId: cart.id,
-    checkoutUrl: cart.checkoutUrl,
+    checkoutUrl,
     totalQuantity: cart.totalQuantity ?? quantity,
     subtotal: amount != null && amount !== "" ? Number(amount) : null,
     currency: cart.cost?.subtotalAmount?.currencyCode ?? null,
   };
+}
+
+/**
+ * Keeps the store issued link intact, only swapping the host when a dedicated
+ * checkout host has been recorded. A link on this site's own host is refused
+ * rather than handed to the shopper, because it would never resolve.
+ */
+async function finaliseCheckoutUrl(rawUrl: string): Promise<string> {
+  let url: URL;
+  try {
+    url = new URL(rawUrl);
+  } catch {
+    throw new Error("The store did not return a usable checkout link");
+  }
+
+  if (isSiteHost(url.host)) {
+    let replacement: string | null = null;
+    try {
+      const settings = await readSettings(await adminClient());
+      const candidate = hostOf(settings.get("checkout_domain") ?? null);
+      if (candidate && !SITE_HOSTS.has(candidate)) replacement = candidate;
+    } catch {
+      replacement = null;
+    }
+    if (!replacement) throw new Error(CHECKOUT_HOST_CONFLICT);
+    url.host = replacement;
+  }
+
+  return url.toString();
 }
 
 let storefrontReadyCache: { ready: boolean; expires: number } | null = null;
@@ -443,7 +516,10 @@ export async function isStorefrontCheckoutReady(): Promise<boolean> {
   let ready = false;
   try {
     const status = await getStorefrontApiStatus();
-    ready = status.configured && status.connectionState === "connected";
+    ready =
+      status.configured &&
+      status.connectionState === "connected" &&
+      !(status.checkoutHostConflict && !status.checkoutHostOverride);
   } catch {
     ready = false;
   }
