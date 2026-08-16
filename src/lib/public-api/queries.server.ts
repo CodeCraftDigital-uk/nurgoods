@@ -109,44 +109,56 @@ function mapProduct(row: any, summary?: string | null): PublicProduct {
   };
 }
 
+/**
+ * Product search for the public API and the MCP connectors. It delegates to the
+ * shared catalogue search service, so assistants, the website and any future
+ * natural language layer all rank and filter the same canonical catalogue and
+ * inherit the same duplicate suppression.
+ */
 export async function searchProducts(input: {
   query?: string | undefined;
   productType?: string | undefined;
+  category?: string | undefined;
   tag?: string | undefined;
   limit?: number | undefined;
   offset?: number | undefined;
 }): Promise<{ items: PublicProduct[]; page: PublicPage }> {
-  const supabase = await publicClient();
   const { limit, offset } = normalisePage(input);
-  let builder = supabase
-    .from("shopify_products")
-    .select(PRODUCT_COLUMNS)
-    .order("title", { ascending: true })
-    .range(offset, offset + limit - 1);
-
-  const term = input.query ? safeTerm(input.query) : "";
-  if (term) {
-    builder = builder.or(
-      `title.ilike.%${term}%,product_type.ilike.%${term}%,vendor.ilike.%${term}%`,
-    );
-  }
-  if (input.productType) builder = builder.eq("product_type", input.productType);
-  if (input.tag) builder = builder.contains("tags", [input.tag]);
-
-  // Suppressed duplicate listings never appear in public or assistant results.
-  const { data: hidden } = await supabase
-    .from("duplicate_group_members")
-    .select("product_id")
-    .eq("suppressed", true)
-    .limit(5000);
-  const hiddenIds = ((hidden ?? []) as any[]).map((row) => row.product_id as string);
-  if (hiddenIds.length > 0) builder = builder.not("id", "in", `(${hiddenIds.join(",")})`);
-
-  const { data, error } = await builder;
-  if (error) throw new Error(error.message);
-  const items = (data ?? []).map((row) => mapProduct(row as any));
+  const { searchCatalogue } = await import("./catalogue-search.server");
+  const result = await searchCatalogue({
+    query: input.query,
+    category: input.category,
+    tag: input.tag,
+    limit,
+    offset,
+    sort: input.query ? "relevance" : "featured",
+  });
+  const typeFilter = input.productType?.trim().toLowerCase();
+  const cards = typeFilter
+    ? result.items.filter((card) => (card.product_type ?? "").toLowerCase() === typeFilter)
+    : result.items;
+  const items = cards.map((card) =>
+    mapProduct(
+      {
+        id: card.id,
+        handle: card.handle,
+        title: card.title,
+        product_type: card.product_type,
+        vendor: card.vendor,
+        tags: card.tags,
+        featured_image_url: card.image_url,
+        price_min: card.price_min,
+        price_max: card.price_max,
+        currency: card.currency,
+        variant_count: card.variant_count,
+        shopify_updated_at: card.updated_at,
+      },
+      card.summary,
+    ),
+  );
   return { items, page: pageMeta(items, limit, offset) };
 }
+
 
 export interface PublicProductDetail extends PublicProduct {
   long_description: string | null;
