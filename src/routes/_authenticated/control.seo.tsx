@@ -5,6 +5,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Loader2, RefreshCw, Search, Sparkles, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/admin/PageHeader";
+import { MetricGrid, ProgressBar } from "@/components/admin/IntelligencePanels";
+import { getSeoIntelligenceFn } from "@/lib/intelligence/intelligence.functions";
 import { SectionCard } from "@/components/admin/SectionCard";
 import { EmptyState } from "@/components/admin/EmptyState";
 import { StatusPill, statusTone, humanise } from "@/components/admin/StatusPill";
@@ -129,6 +131,7 @@ function SeoPage() {
 
   return (
     <div className="space-y-8">
+      <ProductSeoHealth />
       <PageHeader
         eyebrow="SEO Intelligence"
         title="Query, entity and metadata coverage"
@@ -504,4 +507,83 @@ function summarise(records: Array<{ optimisation_status: OptimisationStatus }>) 
     needs_review: records.filter((r) => r.optimisation_status === "needs_review").length,
     optimised: records.filter((r) => r.optimisation_status === "optimised").length,
   };
+}
+
+
+/**
+ * Automated product search intelligence. This is a monitoring surface: every
+ * figure here comes from work the pipeline has already validated and published.
+ */
+function ProductSeoHealth() {
+  const fetchOverview = useServerFn(getSeoIntelligenceFn);
+  const overview = useQuery({
+    queryKey: ["seo-intelligence"],
+    queryFn: () => fetchOverview({}),
+    retry: false,
+    refetchInterval: 30_000,
+  });
+  const data = overview.data;
+
+  return (
+    <SectionCard
+      title="Automatic product optimisation"
+      description="Titles, meta descriptions, entities, alt text, structured data inputs and internal links are generated and validated automatically for every synced product. Nothing waits on approval."
+    >
+      {overview.isLoading ? (
+        <p className="text-sm text-muted-foreground">Loading optimisation state.</p>
+      ) : !data ? (
+        <p className="text-sm text-muted-foreground">Optimisation state is unavailable right now.</p>
+      ) : (
+        <div className="space-y-5">
+          <MetricGrid
+            items={[
+              { label: "Optimisation health", value: `${data.totals.healthPercent}%` },
+              { label: "Optimised", value: `${data.totals.optimised} / ${data.totals.products}` },
+              { label: "Valid schema", value: `${data.totals.validSchemaPercent}%` },
+              { label: "Average score", value: data.totals.averageScore },
+              { label: "Needs attention", value: data.totals.needsAttention },
+              { label: "Rejected", value: data.totals.rejected },
+              { label: "Duplicate metadata", value: data.totals.duplicateMetadata },
+              { label: "Missing metadata", value: data.totals.missingMetadata },
+            ]}
+          />
+          <ProgressBar percent={data.backfill.percent} label="Backfill progress" />
+          {data.issues.length > 0 ? (
+            <ul className="flex flex-wrap gap-2">
+              {data.issues.map((issue) => (
+                <li
+                  key={issue.code}
+                  className="rounded-full border border-border px-3 py-1 text-xs text-muted-foreground"
+                >
+                  {issue.label} ({issue.count})
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          {data.recent.length > 0 ? (
+            <ul className="divide-y divide-border">
+              {data.recent.map((row) => (
+                <li key={row.product_id} className="flex items-center justify-between gap-3 py-2">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm text-foreground">{row.seo_title ?? row.title}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {row.handle} scored {row.optimisation_score}
+                    </p>
+                  </div>
+                  <StatusPill tone={statusTone(row.validation_state)}>
+                    {humanise(row.validation_state)}
+                  </StatusPill>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          <p className="text-xs text-muted-foreground">
+            {data.lastRun.at
+              ? `Last automatic run ${new Date(data.lastRun.at).toLocaleString()}.`
+              : "No automatic run has completed yet."}
+          </p>
+        </div>
+      )}
+    </SectionCard>
+  );
 }
