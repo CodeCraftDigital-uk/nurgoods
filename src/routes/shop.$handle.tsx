@@ -193,7 +193,11 @@ function ProductDetail() {
       ...(product.summary ? { description: product.summary } : {}),
       ...(product.image_url ? { image: product.image_url } : {}),
       ...(product.vendor ? { brand: { "@type": "Brand", name: product.vendor } } : {}),
-      ...(product.product_type ? { category: product.product_type } : {}),
+      ...(product.category_name
+        ? { category: product.category_path.map((node) => node.name).join(" > ") }
+        : product.product_type
+          ? { category: product.product_type }
+          : {}),
       ...(price && product.price_min != null
         ? {
             offers: {
@@ -229,7 +233,14 @@ function ProductDetail() {
 
       <article className="mx-auto w-full max-w-6xl px-5 pt-10 sm:px-8 sm:pt-14">
         <Breadcrumbs
-          items={[{ label: "Shop", href: "/shop" }, { label: product.title }]}
+          items={[
+            { label: "Shop", href: "/shop" },
+            ...product.category_path.map((node) => ({
+              label: node.name,
+              href: `/shop?category=${encodeURIComponent(node.slug)}`,
+            })),
+            { label: product.title },
+          ]}
         />
 
         <div className="mt-6 grid gap-10 lg:grid-cols-2 lg:gap-14">
@@ -280,7 +291,15 @@ function ProductDetail() {
           </div>
 
           <div>
-            {product.product_type ? (
+            {product.category_name ? (
+              <Link
+                to="/shop"
+                search={{ category: product.category_slug ?? undefined } as never}
+                className="inline-flex items-center rounded-full border border-border px-3 py-1 text-[0.7rem] uppercase tracking-[0.14em] text-muted-foreground transition-colors hover:text-foreground"
+              >
+                {product.category_name}
+              </Link>
+            ) : product.product_type ? (
               <p className="text-[0.68rem] uppercase tracking-[0.22em] text-muted-foreground">
                 {product.product_type}
               </p>

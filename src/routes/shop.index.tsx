@@ -14,6 +14,8 @@ import {
 
 interface ShopSearch {
   q?: string | undefined;
+  /** Canonical NUR GOODS category slug. */
+  category?: string | undefined;
   collection?: string | undefined;
   tag?: string | undefined;
   sort?: string | undefined;
@@ -30,6 +32,10 @@ const SORT_OPTIONS = [
 export const Route = createFileRoute("/shop/")({
   validateSearch: (search: Record<string, unknown>): ShopSearch => ({
     q: typeof search["q"] === "string" && search["q"] ? search["q"].slice(0, 120) : undefined,
+    category:
+      typeof search["category"] === "string" && search["category"]
+        ? search["category"].slice(0, 120)
+        : undefined,
     collection:
       typeof search["collection"] === "string" && search["collection"]
         ? search["collection"].slice(0, 120)
@@ -77,6 +83,7 @@ function ShopIndex() {
     queryKey: [
       "storefront-products",
       search.q ?? "",
+      search.category ?? "",
       search.collection ?? "",
       search.tag ?? "",
       search.sort ?? "featured",
@@ -85,6 +92,7 @@ function ShopIndex() {
       fetchProducts({
         data: {
           query: search.q,
+          category: search.category,
           collectionHandle: search.collection,
           tag: search.tag,
           sort: search.sort,
@@ -114,6 +122,7 @@ function ShopIndex() {
         const merged = { ...prev, ...next };
         return {
           q: merged.q || undefined,
+          category: merged.category || undefined,
           collection: merged.collection || undefined,
           tag: merged.tag || undefined,
           sort: merged.sort && merged.sort !== "featured" ? merged.sort : undefined,
@@ -125,10 +134,11 @@ function ShopIndex() {
 
   const items = products.data?.items ?? [];
   const tags = facets.data?.tags ?? [];
+  const categories = facets.data?.categories ?? [];
   const collectionItems = [...(collections.data ?? [])].sort(
     (a, b) => b.product_count - a.product_count || a.title.localeCompare(b.title),
   );
-  const filtered = Boolean(search.q || search.collection || search.tag);
+  const filtered = Boolean(search.q || search.category || search.collection || search.tag);
 
   return (
     <PublicShell>
@@ -190,10 +200,52 @@ function ShopIndex() {
           </div>
         </form>
 
+        {categories.length > 0 ? (
+          <div className="mt-6">
+            <h2 className="text-[0.65rem] uppercase tracking-[0.2em] text-muted-foreground">
+              Departments
+            </h2>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setSearch({ category: undefined })}
+                aria-pressed={!search.category}
+                className={`inline-flex min-h-9 items-center rounded-full border px-3.5 text-xs transition-colors ${
+                  search.category
+                    ? "border-border text-muted-foreground hover:text-foreground"
+                    : "border-gold text-foreground"
+                }`}
+              >
+                All
+              </button>
+              {categories.slice(0, 18).map((category) => (
+                <button
+                  key={category.slug}
+                  type="button"
+                  onClick={() =>
+                    setSearch({
+                      category: search.category === category.slug ? undefined : category.slug,
+                    })
+                  }
+                  aria-pressed={search.category === category.slug}
+                  className={`inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3.5 text-xs transition-colors ${
+                    search.category === category.slug
+                      ? "border-gold text-foreground"
+                      : "border-border text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {category.name}
+                  <span className="text-[0.65rem] text-muted-foreground">{category.products}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
         {collectionItems.length > 0 ? (
           <div className="mt-6">
             <h2 className="text-[0.65rem] uppercase tracking-[0.2em] text-muted-foreground">
-              Categories
+              Collections
             </h2>
             <div className="mt-3 flex flex-wrap gap-2">
               <button

@@ -18,6 +18,8 @@ const SORTS: StorefrontSort[] = ["featured", "price_asc", "price_desc", "newest"
 export interface StorefrontListInput {
   query?: string | undefined;
   productType?: string | undefined;
+  /** Canonical NUR GOODS category slug. */
+  category?: string | undefined;
   collectionHandle?: string | undefined;
   tag?: string | undefined;
   sort?: string | undefined;
@@ -34,6 +36,7 @@ export const listStorefrontProductsFn = createServerFn({ method: "GET" })
     return {
       query: value.query ? String(value.query).slice(0, 120) : undefined,
       productType: value.productType ? String(value.productType).slice(0, 120) : undefined,
+      category: value.category ? String(value.category).slice(0, 120) : undefined,
       collectionHandle: value.collectionHandle
         ? String(value.collectionHandle).slice(0, 120)
         : undefined,

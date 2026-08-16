@@ -436,6 +436,59 @@ export type Database = {
         }
         Relationships: []
       }
+      catalogue_categories: {
+        Row: {
+          created_at: string
+          description: string | null
+          enabled: boolean
+          id: string
+          is_fallback: boolean
+          keywords: string[]
+          name: string
+          parent_id: string | null
+          slug: string
+          sort_order: number
+          synonyms: string[]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          enabled?: boolean
+          id?: string
+          is_fallback?: boolean
+          keywords?: string[]
+          name: string
+          parent_id?: string | null
+          slug: string
+          sort_order?: number
+          synonyms?: string[]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          enabled?: boolean
+          id?: string
+          is_fallback?: boolean
+          keywords?: string[]
+          name?: string
+          parent_id?: string | null
+          slug?: string
+          sort_order?: number
+          synonyms?: string[]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "catalogue_categories_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "catalogue_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contact_enquiries: {
         Row: {
           category: string
@@ -721,6 +774,62 @@ export type Database = {
         }
         Relationships: []
       }
+      intelligence_queue: {
+        Row: {
+          attempts: number
+          created_at: string
+          id: string
+          last_error: string | null
+          lock_token: string | null
+          locked_at: string | null
+          priority: number
+          processed_at: string | null
+          product_id: string
+          reason: string | null
+          stage: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          lock_token?: string | null
+          locked_at?: string | null
+          priority?: number
+          processed_at?: string | null
+          product_id: string
+          reason?: string | null
+          stage: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          lock_token?: string | null
+          locked_at?: string | null
+          priority?: number
+          processed_at?: string | null
+          product_id?: string
+          reason?: string | null
+          stage?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intelligence_queue_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "shopify_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       legal_documents: {
         Row: {
           body_markdown: string
@@ -926,6 +1035,153 @@ export type Database = {
         }
         Relationships: []
       }
+      product_classification_history: {
+        Row: {
+          actor: string | null
+          confidence: number | null
+          confidence_tier: string | null
+          created_at: string
+          id: string
+          new_category_slug: string | null
+          previous_category_slug: string | null
+          product_id: string
+          reason: string | null
+          source: string
+          supplier_category: string | null
+        }
+        Insert: {
+          actor?: string | null
+          confidence?: number | null
+          confidence_tier?: string | null
+          created_at?: string
+          id?: string
+          new_category_slug?: string | null
+          previous_category_slug?: string | null
+          product_id: string
+          reason?: string | null
+          source?: string
+          supplier_category?: string | null
+        }
+        Update: {
+          actor?: string | null
+          confidence?: number | null
+          confidence_tier?: string | null
+          created_at?: string
+          id?: string
+          new_category_slug?: string | null
+          previous_category_slug?: string | null
+          product_id?: string
+          reason?: string | null
+          source?: string
+          supplier_category?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_classification_history_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "shopify_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_classifications: {
+        Row: {
+          anomaly_flags: Json
+          auto_published: boolean
+          category_id: string | null
+          category_slug: string | null
+          classifier_model: string | null
+          classifier_version: string | null
+          confidence: number
+          confidence_tier: string
+          created_at: string
+          duplicate_of_product_id: string | null
+          id: string
+          input_fingerprint: string | null
+          last_classified_at: string | null
+          needs_attention: boolean
+          product_id: string
+          quality_issues: Json
+          quality_score: number
+          reasoning: string | null
+          supplier_product_type: string | null
+          supplier_tags: string[]
+          supplier_vendor: string | null
+          updated_at: string
+        }
+        Insert: {
+          anomaly_flags?: Json
+          auto_published?: boolean
+          category_id?: string | null
+          category_slug?: string | null
+          classifier_model?: string | null
+          classifier_version?: string | null
+          confidence?: number
+          confidence_tier?: string
+          created_at?: string
+          duplicate_of_product_id?: string | null
+          id?: string
+          input_fingerprint?: string | null
+          last_classified_at?: string | null
+          needs_attention?: boolean
+          product_id: string
+          quality_issues?: Json
+          quality_score?: number
+          reasoning?: string | null
+          supplier_product_type?: string | null
+          supplier_tags?: string[]
+          supplier_vendor?: string | null
+          updated_at?: string
+        }
+        Update: {
+          anomaly_flags?: Json
+          auto_published?: boolean
+          category_id?: string | null
+          category_slug?: string | null
+          classifier_model?: string | null
+          classifier_version?: string | null
+          confidence?: number
+          confidence_tier?: string
+          created_at?: string
+          duplicate_of_product_id?: string | null
+          id?: string
+          input_fingerprint?: string | null
+          last_classified_at?: string | null
+          needs_attention?: boolean
+          product_id?: string
+          quality_issues?: Json
+          quality_score?: number
+          reasoning?: string | null
+          supplier_product_type?: string | null
+          supplier_tags?: string[]
+          supplier_vendor?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_classifications_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "catalogue_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_classifications_duplicate_of_product_id_fkey"
+            columns: ["duplicate_of_product_id"]
+            isOneToOne: false
+            referencedRelation: "shopify_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_classifications_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: true
+            referencedRelation: "shopify_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_enrichment: {
         Row: {
           benefits: Json
@@ -981,6 +1237,98 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "product_enrichment_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: true
+            referencedRelation: "shopify_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_seo_intelligence: {
+        Row: {
+          auto_published: boolean
+          collection_relevance: Json
+          created_at: string
+          entities: string[]
+          faqs: Json
+          id: string
+          image_alt: string | null
+          input_hash: string | null
+          intelligence_version: string | null
+          internal_links: Json
+          issues: Json
+          keywords: string[]
+          last_analysed_at: string | null
+          meta_description: string | null
+          model: string | null
+          og_description: string | null
+          og_title: string | null
+          optimisation_score: number
+          primary_topic: string | null
+          product_id: string
+          schema_inputs: Json
+          seo_title: string | null
+          slug_recommendation: string | null
+          updated_at: string
+          validation_state: string
+        }
+        Insert: {
+          auto_published?: boolean
+          collection_relevance?: Json
+          created_at?: string
+          entities?: string[]
+          faqs?: Json
+          id?: string
+          image_alt?: string | null
+          input_hash?: string | null
+          intelligence_version?: string | null
+          internal_links?: Json
+          issues?: Json
+          keywords?: string[]
+          last_analysed_at?: string | null
+          meta_description?: string | null
+          model?: string | null
+          og_description?: string | null
+          og_title?: string | null
+          optimisation_score?: number
+          primary_topic?: string | null
+          product_id: string
+          schema_inputs?: Json
+          seo_title?: string | null
+          slug_recommendation?: string | null
+          updated_at?: string
+          validation_state?: string
+        }
+        Update: {
+          auto_published?: boolean
+          collection_relevance?: Json
+          created_at?: string
+          entities?: string[]
+          faqs?: Json
+          id?: string
+          image_alt?: string | null
+          input_hash?: string | null
+          intelligence_version?: string | null
+          internal_links?: Json
+          issues?: Json
+          keywords?: string[]
+          last_analysed_at?: string | null
+          meta_description?: string | null
+          model?: string | null
+          og_description?: string | null
+          og_title?: string | null
+          optimisation_score?: number
+          primary_topic?: string | null
+          product_id?: string
+          schema_inputs?: Json
+          seo_title?: string | null
+          slug_recommendation?: string | null
+          updated_at?: string
+          validation_state?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_seo_intelligence_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: true
             referencedRelation: "shopify_products"
