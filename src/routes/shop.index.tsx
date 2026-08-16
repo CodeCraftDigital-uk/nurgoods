@@ -79,6 +79,14 @@ function ShopIndex() {
   const fetchFacets = useServerFn(listStorefrontFacetsFn);
   const fetchCollections = useServerFn(listStorefrontCollectionsFn);
 
+  const PAGE_SIZE = 48;
+  const [shown, setShown] = useState(PAGE_SIZE);
+
+  // Any change of search or filter starts the range again from the first page.
+  useEffect(() => {
+    setShown(PAGE_SIZE);
+  }, [search.q, search.category, search.collection, search.tag, search.sort]);
+
   const products = useQuery({
     queryKey: [
       "storefront-products",
@@ -87,6 +95,7 @@ function ShopIndex() {
       search.collection ?? "",
       search.tag ?? "",
       search.sort ?? "featured",
+      shown,
     ],
     queryFn: () =>
       fetchProducts({
@@ -96,11 +105,13 @@ function ShopIndex() {
           collectionHandle: search.collection,
           tag: search.tag,
           sort: search.sort,
-          limit: 48,
+          limit: shown,
         },
       }),
+    placeholderData: (previous) => previous,
     retry: false,
   });
+
 
   const collections = useQuery({
     queryKey: ["storefront-collection-filters"],
