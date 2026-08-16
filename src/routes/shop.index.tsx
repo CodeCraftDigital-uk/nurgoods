@@ -158,7 +158,10 @@ function ShopIndex() {
     });
   };
 
-  const items = products.data?.items ?? [];
+  const items = loaded;
+  const total = products.data?.total ?? items.length;
+  const hasMore = items.length > 0 && items.length < total;
+
   const tags = facets.data?.tags ?? [];
   const categories = facets.data?.categories ?? [];
   const collectionItems = [...(collections.data ?? [])].sort(
