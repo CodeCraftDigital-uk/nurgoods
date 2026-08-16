@@ -277,26 +277,46 @@ export async function getStorefrontApiStatus(): Promise<StorefrontApiStatus> {
   }
   const state = settings.get(KEYS.state) ?? null;
   const configured = Boolean(resolved.domain && resolved.privateToken);
+  const connectionState: "not_connected" | "connected" | "error" =
+    state === "connected" || state === "error" ? state : "not_connected";
+
+  // Record the intended checkout host once, so the split needs no code change.
+  let checkoutHostOverride = (() => {
+    const candidate = hostOf(settings.get("checkout_domain") ?? null);
+    return candidate && !SITE_HOSTS.has(candidate) ? candidate : null;
+  })();
+  if (!checkoutHostOverride) checkoutHostOverride = await ensureIntendedCheckoutHost();
+
+  const storeIssuedHost = hostOf(settings.get(KEYS.primaryDomain) ?? null);
+  const probeTarget = checkoutHostOverride ?? storeIssuedHost;
+  const checkoutHostProbe = await probeCheckoutHost(probeTarget);
+  const storefrontConnected = configured && connectionState === "connected";
+  const checkoutHostServesStore = checkoutHostProbe?.servesStore ?? false;
+
   return {
     configured,
     domain: resolved.domain,
     apiVersion: resolved.apiVersion,
     hasPrivateToken: Boolean(resolved.privateToken),
     publicToken: resolved.publicToken,
-    connectionState:
-      state === "connected" || state === "error" ? state : configured ? "not_connected" : "not_connected",
+    connectionState,
     lastTestedAt: settings.get(KEYS.lastTestedAt) ?? null,
     lastError: settings.get(KEYS.lastError) ?? null,
     shopName: settings.get(KEYS.shopName) ?? null,
     primaryDomain: settings.get(KEYS.primaryDomain) ?? null,
     checkoutHostConflict: isSiteHost(settings.get(KEYS.primaryDomain) ?? null),
-    checkoutHostOverride: (() => {
-      const candidate = hostOf(settings.get("checkout_domain") ?? null);
-      return candidate && !SITE_HOSTS.has(candidate) ? candidate : null;
-    })(),
+    checkoutHostOverride,
+    checkoutHostProbe,
+    readiness: {
+      storefrontConnected,
+      checkoutHostConfigured: Boolean(checkoutHostOverride),
+      checkoutHostServesStore,
+      buyNowReady: storefrontConnected && checkoutHostServesStore,
+    },
     suggestedDomain,
   };
 }
+
 
 export async function saveStorefrontCredentials(input: {
   domain: string;
