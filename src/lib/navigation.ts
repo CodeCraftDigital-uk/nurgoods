@@ -83,9 +83,15 @@ export const ADMIN_NAV: NavItem[] = [
     description: "Policy documents and trust content records.",
     icon: Scale,
   },
-
+  {
+    to: "/control/intake",
+    label: "Product Intake",
+    description: "Automated validation, identity, classification and publishing of new products.",
+    icon: PackageSearch,
+  },
   {
     to: "/control/mcp",
+
     label: "MCP Readiness",
     description: "Planned read only resources for ChatGPT and Claude.",
     icon: FileText,
