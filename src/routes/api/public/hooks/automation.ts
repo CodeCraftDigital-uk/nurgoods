@@ -31,7 +31,14 @@ export const Route = createFileRoute("/api/public/hooks/automation")({
         } catch {
           jobKey = "";
         }
-        if (jobKey !== "monthly_editorial_plan" && jobKey !== "daily_article_publish") {
+        const allowed = new Set([
+          "monthly_editorial_plan",
+          "daily_article_publish",
+          "catalogue_intelligence_backfill",
+          "catalogue_intelligence_daily",
+          "catalogue_quality_audit",
+        ]);
+        if (!allowed.has(jobKey)) {
           return Response.json({ error: "Unknown job" }, { status: 400 });
         }
 

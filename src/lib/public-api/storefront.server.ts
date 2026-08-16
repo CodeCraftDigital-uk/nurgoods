@@ -15,7 +15,11 @@ export interface StorefrontProductCard {
   id: string;
   handle: string;
   title: string;
+  /** Raw supplier classification, kept only for traceability. */
   product_type: string | null;
+  /** Canonical NUR GOODS category. This is what customer facing pages use. */
+  category_slug: string | null;
+  category_name: string | null;
   vendor: string | null;
   tags: string[];
   image_url: string | null;
@@ -29,7 +33,15 @@ export interface StorefrontProductCard {
   updated_at: string | null;
 }
 
+export interface StorefrontCategoryFacet {
+  slug: string;
+  name: string;
+  parent_slug: string | null;
+  products: number;
+}
+
 export interface StorefrontFacets {
+  categories: StorefrontCategoryFacet[];
   product_types: string[];
   tags: string[];
   total: number;
@@ -44,12 +56,78 @@ function safeTerm(term: string): string {
   return term.replace(/[%,()*\\]/g, " ").trim().slice(0, 120);
 }
 
-function mapCard(row: any, summary: string | null = null): StorefrontProductCard {
+interface CategoryRow {
+  id: string;
+  slug: string;
+  name: string;
+  parent_id: string | null;
+}
+
+/** Live canonical taxonomy, enabled nodes only. */
+async function loadTaxonomy(supabase: any): Promise<{
+  bySlug: Map<string, CategoryRow>;
+  childrenOf: Map<string, string[]>;
+}> {
+  const { data } = await supabase
+    .from("catalogue_categories")
+    .select("id, slug, name, parent_id")
+    .eq("enabled", true);
+  const rows = ((data ?? []) as CategoryRow[]);
+  const bySlug = new Map(rows.map((row) => [row.slug, row]));
+  const byId = new Map(rows.map((row) => [row.id, row]));
+  const childrenOf = new Map<string, string[]>();
+  for (const row of rows) {
+    if (!row.parent_id) continue;
+    const parent = byId.get(row.parent_id);
+    if (!parent) continue;
+    childrenOf.set(parent.slug, [...(childrenOf.get(parent.slug) ?? []), row.slug]);
+  }
+  return { bySlug, childrenOf };
+}
+
+/** A category plus everything beneath it, so parent pages include their leaves. */
+function categoryBranch(slug: string, childrenOf: Map<string, string[]>): string[] {
+  const out: string[] = [];
+  const stack = [slug];
+  while (stack.length > 0) {
+    const current = stack.pop()!;
+    if (out.includes(current)) continue;
+    out.push(current);
+    stack.push(...(childrenOf.get(current) ?? []));
+  }
+  return out;
+}
+
+/** Canonical category per product, resolved from validated classifications. */
+async function loadProductCategories(
+  supabase: any,
+  productIds: string[],
+): Promise<Map<string, { slug: string; name: string }>> {
+  if (productIds.length === 0) return new Map();
+  const [{ data: classifications }, taxonomy] = await Promise.all([
+    supabase.from("product_classifications").select("product_id, category_slug").in("product_id", productIds),
+    loadTaxonomy(supabase),
+  ]);
+  const out = new Map<string, { slug: string; name: string }>();
+  for (const row of ((classifications ?? []) as any[])) {
+    const node = row.category_slug ? taxonomy.bySlug.get(row.category_slug) : null;
+    if (node) out.set(row.product_id, { slug: node.slug, name: node.name });
+  }
+  return out;
+}
+
+function mapCard(
+  row: any,
+  summary: string | null = null,
+  category: { slug: string; name: string } | null = null,
+): StorefrontProductCard {
   return {
     id: row.id,
     handle: row.handle,
     title: row.title,
     product_type: row.product_type ?? null,
+    category_slug: category?.slug ?? null,
+    category_name: category?.name ?? null,
     vendor: row.vendor ?? null,
     tags: row.tags ?? [],
     image_url: row.featured_image_url ?? null,
@@ -82,6 +160,7 @@ function applySort(builder: any, sort: StorefrontSort) {
 export async function listStorefrontProducts(input: {
   query?: string | undefined;
   productType?: string | undefined;
+  category?: string | undefined;
   collectionHandle?: string | undefined;
   tag?: string | undefined;
   sort?: StorefrontSort | undefined;
@@ -107,6 +186,24 @@ export async function listStorefrontProducts(input: {
     if (productIds.length === 0) return { items: [], total: 0, hasMore: false };
   }
 
+  // Canonical category filtering. The supplier product_type is never trusted
+  // for navigation, only the NUR GOODS taxonomy.
+  if (input.category) {
+    const { childrenOf, bySlug } = await loadTaxonomy(supabase);
+    if (!bySlug.has(input.category)) return { items: [], total: 0, hasMore: false };
+    const branch = categoryBranch(input.category, childrenOf);
+    const { data: classified } = await supabase
+      .from("product_classifications")
+      .select("product_id")
+      .in("category_slug", branch);
+    const categoryIds = ((classified ?? []) as any[]).map((row) => row.product_id as string);
+    if (categoryIds.length === 0) return { items: [], total: 0, hasMore: false };
+    productIds = productIds
+      ? productIds.filter((id) => categoryIds.includes(id))
+      : categoryIds;
+    if (productIds.length === 0) return { items: [], total: 0, hasMore: false };
+  }
+
   let builder = supabase
     .from("shopify_products")
     .select(CARD_COLUMNS, { count: "exact" })
@@ -128,22 +225,24 @@ export async function listStorefrontProducts(input: {
   const rows = (data ?? []) as any[];
 
   let summaries = new Map<string, string>();
+  let categories = new Map<string, { slug: string; name: string }>();
   if (rows.length > 0) {
-    const { data: enrichment } = await supabase
-      .from("product_enrichment")
-      .select("product_id, summary")
-      .in(
-        "product_id",
-        rows.map((row) => row.id),
-      );
+    const ids = rows.map((row) => row.id as string);
+    const [{ data: enrichment }, resolved] = await Promise.all([
+      supabase.from("product_enrichment").select("product_id, summary").in("product_id", ids),
+      loadProductCategories(supabase, ids),
+    ]);
     summaries = new Map(
       ((enrichment ?? []) as any[])
         .filter((row) => typeof row.summary === "string" && row.summary.trim())
         .map((row) => [row.product_id as string, row.summary as string]),
     );
+    categories = resolved;
   }
 
-  const items = rows.map((row) => mapCard(row, summaries.get(row.id) ?? null));
+  const items = rows.map((row) =>
+    mapCard(row, summaries.get(row.id) ?? null, categories.get(row.id) ?? null),
+  );
   const total = count ?? items.length;
   return { items, total, hasMore: offset + items.length < total };
 }
@@ -173,7 +272,37 @@ export async function listStorefrontFacets(): Promise<StorefrontFacets> {
     .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
     .slice(0, 24)
     .map(([tag]) => tag);
+
+  // Canonical categories drive navigation. Only categories that actually hold
+  // products are offered, so the customer never lands on an empty filter.
+  const [{ bySlug, childrenOf }, { data: classified }] = await Promise.all([
+    loadTaxonomy(supabase),
+    supabase.from("product_classifications").select("category_slug").limit(3000),
+  ]);
+  const direct = new Map<string, number>();
+  for (const row of ((classified ?? []) as any[])) {
+    if (!row.category_slug) continue;
+    direct.set(row.category_slug, (direct.get(row.category_slug) ?? 0) + 1);
+  }
+  const parentBySlug = new Map<string, string | null>();
+  for (const [parent, children] of childrenOf) {
+    for (const child of children) parentBySlug.set(child, parent);
+  }
+  const categories: StorefrontCategoryFacet[] = [...bySlug.values()]
+    .map((node) => ({
+      slug: node.slug,
+      name: node.name,
+      parent_slug: parentBySlug.get(node.slug) ?? null,
+      products: categoryBranch(node.slug, childrenOf).reduce(
+        (sum, slug) => sum + (direct.get(slug) ?? 0),
+        0,
+      ),
+    }))
+    .filter((node) => node.products > 0)
+    .sort((a, b) => b.products - a.products || a.name.localeCompare(b.name));
+
   return {
+    categories,
     product_types: [...types].sort((a, b) => a.localeCompare(b)),
     tags,
     total: count ?? 0,
@@ -315,6 +444,19 @@ export interface StorefrontProductDetail extends StorefrontProductCard {
   content_updated_at: string | null;
   collections: { handle: string; title: string }[];
   related: StorefrontProductCard[];
+  /** Canonical category trail, root first, used for navigation and breadcrumbs. */
+  category_path: { slug: string; name: string }[];
+  /** Validated search intelligence. Absent when nothing has been published. */
+  intelligence: {
+    seo_title: string | null;
+    meta_description: string | null;
+    image_alt: string | null;
+    entities: string[];
+    keywords: string[];
+    faqs: { question: string; answer: string }[];
+    internal_links: { target_type: string; target_reference: string; anchor_text: string }[];
+    schema: Record<string, any> | null;
+  } | null;
 }
 
 /** Pulls the numeric identifier out of a store global id. */
@@ -472,7 +614,81 @@ export async function getStorefrontProduct(handle: string): Promise<StorefrontPr
       .map((q) => ({ question: q.question as string, answer: q.answer as string }));
   }
 
+  // Canonical category trail. Supplier categories never drive navigation.
+  const [{ data: classification }, taxonomy, { data: seoIntel }] = await Promise.all([
+    supabase
+      .from("product_classifications")
+      .select("category_slug")
+      .eq("product_id", row.id)
+      .maybeSingle(),
+    loadTaxonomy(supabase),
+    supabase
+      .from("product_seo_intelligence")
+      .select(
+        "seo_title, meta_description, image_alt_text, entities, keywords, faqs, internal_links, schema_inputs, validation_state, auto_published",
+      )
+      .eq("product_id", row.id)
+      .maybeSingle(),
+  ]);
+
+  const categoryPath: { slug: string; name: string }[] = [];
+  const canonicalSlug = (classification as any)?.category_slug as string | undefined;
+  if (canonicalSlug) {
+    const byId = new Map([...taxonomy.bySlug.values()].map((node) => [node.id, node]));
+    let node = taxonomy.bySlug.get(canonicalSlug) ?? null;
+    while (node) {
+      categoryPath.unshift({ slug: node.slug, name: node.name });
+      node = node.parent_id ? (byId.get(node.parent_id) ?? null) : null;
+    }
+  }
+
+  // Only validated, automatically published intelligence reaches a customer.
+  const intel = seoIntel as any;
+  const intelligence =
+    intel && intel.auto_published && intel.validation_state !== "rejected"
+      ? {
+          seo_title: (intel.seo_title as string | null) ?? null,
+          meta_description: (intel.meta_description as string | null) ?? null,
+          image_alt: (intel.image_alt_text as string | null) ?? null,
+          entities: stringList(intel.entities),
+          keywords: stringList(intel.keywords),
+          faqs: pairList(intel.faqs, "question", "answer"),
+          internal_links: (Array.isArray(intel.internal_links) ? intel.internal_links : []).filter(
+            (link: any) =>
+              link &&
+              typeof link.target_type === "string" &&
+              typeof link.target_reference === "string" &&
+              typeof link.anchor_text === "string",
+          ),
+          schema: (intel.schema_inputs as Record<string, any> | null) ?? null,
+        }
+      : null;
+
+  if (faqs.length === 0 && intelligence) faqs = intelligence.faqs;
+
   let related: StorefrontProductCard[] = [];
+  // Prefer siblings inside the same canonical category over supplier grouping.
+  if (canonicalSlug) {
+    const branch = categoryBranch(canonicalSlug, taxonomy.childrenOf);
+    const { data: sameCategory } = await supabase
+      .from("product_classifications")
+      .select("product_id")
+      .in("category_slug", branch)
+      .limit(40);
+    const ids = ((sameCategory ?? []) as any[])
+      .map((entry) => entry.product_id as string)
+      .filter((id) => id !== row.id)
+      .slice(0, 24);
+    if (ids.length > 0) {
+      const { data: siblings } = await supabase
+        .from("shopify_products")
+        .select(CARD_COLUMNS)
+        .in("id", ids)
+        .order("title", { ascending: true })
+        .limit(4);
+      related = ((siblings ?? []) as any[]).map((sibling) => mapCard(sibling));
+    }
+  }
   if (collectionIds.length > 0) {
     const { data: siblingJoins } = await supabase
       .from("shopify_product_collections")
@@ -537,11 +753,18 @@ export async function getStorefrontProduct(handle: string): Promise<StorefrontPr
     : [];
 
   return {
-    ...mapCard(row, content.summary ?? null),
+    ...mapCard(
+      row,
+      content.summary ?? null,
+      categoryPath.length > 0 ? categoryPath[categoryPath.length - 1]! : null,
+    ),
+    category_path: categoryPath,
+    intelligence,
     description: row.description ?? null,
     description_html: sanitiseHtml(row.description_html),
-    seo_title: row.seo_title ?? null,
-    seo_description: row.seo_description ?? null,
+    // Canonical metadata wins over supplier metadata when it has been validated.
+    seo_title: intelligence?.seo_title ?? row.seo_title ?? null,
+    seo_description: intelligence?.meta_description ?? row.seo_description ?? null,
     store_url: row.online_store_url ?? null,
     checkout_domain: checkoutDomain,
     checkout_ready: await isCheckoutReady(checkoutDomain),

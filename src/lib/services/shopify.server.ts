@@ -983,6 +983,18 @@ export async function syncCatalogue(
         .from("shopify_product_collections")
         .upsert(joinRows, { onConflict: "product_id,collection_id" });
     }
+
+    // The store stays authoritative for the record itself. The canonical
+    // category and search intelligence are worked out here, so every mirrored
+    // product is checked for a material change and queued when one is found.
+    // Price and stock only changes are filtered out inside planWork.
+    try {
+      const { planWork } = await import("@/lib/intelligence/queue.server");
+      await planWork(supabase as never, [...productIdByShopifyId.values()], "Catalogue sync");
+    } catch {
+      // Intelligence planning must never fail a catalogue sync. The daily
+      // maintenance job picks up anything missed here.
+    }
   }
 
   return {

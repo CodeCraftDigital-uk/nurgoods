@@ -20,7 +20,10 @@ export type JobKey =
   | "publish_scheduler"
   | "article_drafting"
   | "monthly_editorial_plan"
-  | "daily_article_publish";
+  | "daily_article_publish"
+  | "catalogue_intelligence_backfill"
+  | "catalogue_intelligence_daily"
+  | "catalogue_quality_audit";
 
 export interface JobRunResult {
   jobKey: string;
@@ -155,6 +158,12 @@ async function execute(ctx: RunContext, jobKey: string): Promise<JobRunResult> {
       return runMonthlyPlan(ctx);
     case "daily_article_publish":
       return runDailyPublish(ctx);
+    case "catalogue_intelligence_backfill":
+      return runIntelligenceJob(ctx, jobKey, `${jobKey}:${Date.now()}`);
+    case "catalogue_intelligence_daily":
+      return runIntelligenceJob(ctx, jobKey, `${jobKey}:${new Date().toISOString().slice(0, 10)}`);
+    case "catalogue_quality_audit":
+      return runIntelligenceJob(ctx, jobKey, `${jobKey}:${isoWeek()}`);
     case "article_drafting":
       return {
         jobKey,
@@ -165,6 +174,67 @@ async function execute(ctx: RunContext, jobKey: string): Promise<JobRunResult> {
       };
     default:
       throw new Error("That job has no runner yet");
+  }
+}
+
+/* --------------------- catalogue and seo intelligence --------------------- */
+
+/** ISO week key so the weekly audit claims one run per week. */
+function isoWeek(): string {
+  const now = new Date();
+  const target = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const day = target.getUTCDay() || 7;
+  target.setUTCDate(target.getUTCDate() + 4 - day);
+  const yearStart = new Date(Date.UTC(target.getUTCFullYear(), 0, 1));
+  const week = Math.ceil(((target.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+  return `${target.getUTCFullYear()}-W${String(week).padStart(2, "0")}`;
+}
+
+/**
+ * Runs one intelligence job under a claimed run key. The backfill claims a
+ * fresh key each pass because it is designed to be called repeatedly until the
+ * queue drains, while the daily and weekly jobs claim a dated key so a
+ * duplicated scheduler call cannot repeat the work.
+ */
+async function runIntelligenceJob(
+  ctx: RunContext,
+  jobKey: string,
+  runKey: string,
+): Promise<JobRunResult> {
+  const runId = await claimRun(ctx, jobKey, runKey);
+  if (!runId) {
+    return {
+      jobKey,
+      status: "skipped",
+      message: "This intelligence run has already happened for this period.",
+      details: {},
+    };
+  }
+
+  try {
+    const { runBackfill, runDailyMaintenance, runQualityAudit } = await import(
+      "@/lib/intelligence/jobs.server"
+    );
+    const { data: job } = await ctx.supabase
+      .from("automation_jobs")
+      .select("config")
+      .eq("job_key", jobKey)
+      .maybeSingle();
+    const batchSize = Number((job as any)?.config?.batch_size) || undefined;
+
+    const summary =
+      jobKey === "catalogue_intelligence_backfill"
+        ? await runBackfill(ctx.supabase, batchSize ?? 8)
+        : jobKey === "catalogue_intelligence_daily"
+          ? await runDailyMaintenance(ctx.supabase, batchSize ?? 12)
+          : await runQualityAudit(ctx.supabase);
+
+    await closeRun(ctx, runId, "succeeded", summary.message, summary.details);
+    return { jobKey, status: "succeeded", message: summary.message, details: summary.details };
+  } catch (cause) {
+    const message = cause instanceof Error ? cause.message : "The intelligence job failed";
+    await closeRun(ctx, runId, "failed", message);
+    throw new Error(message);
   }
 }
 
