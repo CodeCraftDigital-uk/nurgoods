@@ -364,8 +364,12 @@ function SourcingPage() {
             <Input
               type="number"
               min={1}
-              defaultValue={rules?.max_variants ?? 30}
-              onBlur={(event) => saveRules.mutate({ max_variants: Number(event.target.value) })}
+              defaultValue={rules?.max_variant_count ?? ""}
+              onBlur={(event) =>
+                saveRules.mutate({
+                  max_variant_count: event.target.value ? Number(event.target.value) : null,
+                })
+              }
             />
           </div>
           <div className="space-y-1.5 sm:col-span-2 lg:col-span-3">
