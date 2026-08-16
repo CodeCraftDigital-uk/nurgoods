@@ -674,6 +674,7 @@ const CATALOGUE_QUERY = /* GraphQL */ `
             id
             title
             sku
+            barcode
             price
             compareAtPrice
             availableForSale
@@ -765,6 +766,7 @@ type GraphQlProduct = {
       id: string;
       title: string;
       sku: string | null;
+      barcode: string | null;
       price: string | null;
       compareAtPrice: string | null;
       availableForSale: boolean | null;
@@ -949,6 +951,7 @@ export async function syncCatalogue(
           compare_at_price: toNumber(variant.compareAtPrice),
           currency: product.priceRangeV2?.minVariantPrice?.currencyCode ?? null,
           sku: variant.sku,
+          barcode: variant.barcode ?? null,
           image_url: variant.image?.url ?? null,
           selected_options: variant.selectedOptions ?? [],
           available_for_sale: variant.availableForSale,

@@ -8,6 +8,7 @@ import { SectionCard } from "@/components/admin/SectionCard";
 import { EmptyState } from "@/components/admin/EmptyState";
 import { StatusPill, statusTone, humanise } from "@/components/admin/StatusPill";
 import { MetricGrid, ProgressBar } from "@/components/admin/IntelligencePanels";
+import { DuplicateIntelligence } from "@/components/admin/DuplicateIntelligence";
 import { Button } from "@/components/ui/button";
 import { listCollections, listProducts } from "@/lib/services/catalogue";
 import {
@@ -196,6 +197,8 @@ function CataloguePage() {
           </div>
         )}
       </SectionCard>
+
+      <DuplicateIntelligence />
 
       <SectionCard
         title="Recent category corrections"

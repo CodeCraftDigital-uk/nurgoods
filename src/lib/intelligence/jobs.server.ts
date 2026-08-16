@@ -317,3 +317,59 @@ export async function runQualityAudit(db: Db): Promise<JobSummary> {
 }
 
 export type { ProcessResult };
+
+/**
+ * Automatic worker. Drains the intelligence queue in bounded batches and seeds
+ * the next slice of the catalogue when the queue empties, so the backfill
+ * completes on its own without anyone pressing a control.
+ */
+export async function runIntelligenceWorker(db: Db, batchSize = 10): Promise<JobSummary> {
+  const before = await backfillProgress(db);
+  let planned = 0;
+  if (before.queued < batchSize) {
+    const fresh = await unseenProductIds(db, BACKFILL_PLAN_SIZE);
+    if (fresh.length > 0) planned = (await planWork(db, fresh, "Catalogue backfill")).queued;
+  }
+
+  const processed = await processQueue(db, batchSize);
+  const after = await backfillProgress(db);
+
+  return {
+    message:
+      after.queued === 0 && planned === 0 && processed.processed === 0
+        ? `Everything is current. ${after.classified} of ${after.total} products carry a canonical category.`
+        : `Processed ${processed.processed} items. ${after.queued} remain queued.`,
+    details: {
+      planned,
+      processed: processed.processed,
+      classified: processed.classified,
+      optimised: processed.optimised,
+      failed: processed.failed,
+      remaining: after.queued,
+      percent: after.percent,
+    },
+  };
+}
+
+/**
+ * Product identity pass. Deterministic evidence first, with canonical winner
+ * election by lowest customer price among genuinely identical listings.
+ */
+export async function runIdentityJob(db: Db): Promise<JobSummary> {
+  const { runDuplicateIdentity, reelectCanonicals } = await import("./dedupe.server");
+  const identity = await runDuplicateIdentity(db);
+  const elected = await reelectCanonicals(db);
+  return {
+    message: `${identity.highConfidenceGroups} verified groups, ${identity.suppressed} listings presented once, ${identity.suspectGroups} suspects for review.`,
+    details: {
+      inspected: identity.inspected,
+      pairs: identity.pairs,
+      groups: identity.groups,
+      verified_groups: identity.highConfidenceGroups,
+      suppressed: identity.suppressed,
+      suspects: identity.suspectGroups,
+      tie_breaks: identity.tieBreaksUsed,
+      winner_changes: elected.changes,
+    },
+  };
+}

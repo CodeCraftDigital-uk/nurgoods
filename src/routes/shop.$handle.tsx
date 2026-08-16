@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { createFileRoute, Link, notFound, redirect } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { createCheckoutFn } from "@/lib/services/shopify-storefront.functions";
@@ -17,6 +17,15 @@ export const Route = createFileRoute("/shop/$handle")({
   loader: async ({ params }) => {
     const product = await getStorefrontProductFn({ data: { handle: params.handle } });
     if (!product) throw notFound();
+    // A listing proven identical to another is presented once. Old links move
+    // permanently to the canonical listing so search authority stays together.
+    if (product.duplicate_suppressed && product.duplicate_canonical_handle) {
+      throw redirect({
+        to: "/shop/$handle",
+        params: { handle: product.duplicate_canonical_handle },
+        statusCode: 301,
+      });
+    }
     return { product };
   },
   head: ({ params, loaderData }) => {
@@ -37,6 +46,7 @@ export const Route = createFileRoute("/shop/$handle")({
         { property: "og:title", content: `${product.title} | ${BRAND.name}` },
         { property: "og:description", content: description.slice(0, 155) },
         { property: "og:type", content: "product" },
+        ...(product.duplicate_suppressed ? [{ name: "robots", content: "noindex, follow" }] : []),
         { property: "og:url", content: url },
         { name: "twitter:card", content: "summary_large_image" },
         ...(product.image_url
@@ -46,7 +56,14 @@ export const Route = createFileRoute("/shop/$handle")({
             ]
           : []),
       ],
-      links: [{ rel: "canonical", href: url }],
+      links: [
+        {
+          rel: "canonical",
+          href: product.duplicate_canonical_handle
+            ? `${BRAND.siteUrl}/shop/${product.duplicate_canonical_handle}`
+            : url,
+        },
+      ],
     };
   },
   notFoundComponent: ProductNotFound,

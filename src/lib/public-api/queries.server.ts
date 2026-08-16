@@ -133,6 +133,15 @@ export async function searchProducts(input: {
   if (input.productType) builder = builder.eq("product_type", input.productType);
   if (input.tag) builder = builder.contains("tags", [input.tag]);
 
+  // Suppressed duplicate listings never appear in public or assistant results.
+  const { data: hidden } = await supabase
+    .from("duplicate_group_members")
+    .select("product_id")
+    .eq("suppressed", true)
+    .limit(5000);
+  const hiddenIds = ((hidden ?? []) as any[]).map((row) => row.product_id as string);
+  if (hiddenIds.length > 0) builder = builder.not("id", "in", `(${hiddenIds.join(",")})`);
+
   const { data, error } = await builder;
   if (error) throw new Error(error.message);
   const items = (data ?? []).map((row) => mapProduct(row as any));
