@@ -7,7 +7,9 @@ import { PublicShell } from "@/components/public/PublicShell";
 import { Breadcrumbs } from "@/components/public/Breadcrumbs";
 import { JsonLd } from "@/components/public/JsonLd";
 import { Markdown } from "@/components/public/Markdown";
-import { ProductCard, formatPrice } from "@/components/public/ProductCard";
+import { ProductCard } from "@/components/public/ProductCard";
+import { resolvePriceDisplay } from "@/lib/pricing/display";
+
 import { MissingProductImage } from "@/components/public/MissingProductImage";
 import { ReviewPlacementSlot } from "@/components/public/ReviewPlacementSlot";
 import { BRAND } from "@/lib/brand";
