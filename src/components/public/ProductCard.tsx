@@ -1,23 +1,22 @@
 import { Link } from "@tanstack/react-router";
 import { MissingProductImage } from "@/components/public/MissingProductImage";
+import { formatMoney, productPriceDisplay } from "@/lib/pricing/display";
 import type { StorefrontProductCard } from "@/lib/public-api/storefront.server";
 
-/** Formats a synced price range. Returns null when the store has not supplied one. */
+/**
+ * Legacy helper kept for callers that only need a formatted range string.
+ * All new work should use the shared pricing display module directly.
+ */
 export function formatPrice(
   min: number | null,
   max: number | null,
   currency: string | null,
 ): string | null {
   if (min == null && max == null) return null;
-  const code = currency ?? "GBP";
-  const format = (value: number) =>
-    new Intl.NumberFormat("en-GB", {
-      style: "currency",
-      currency: code,
-      maximumFractionDigits: Number.isInteger(value) ? 0 : 2,
-    }).format(value);
-  if (min != null && max != null && max > min) return `${format(min)} to ${format(max)}`;
-  return format((min ?? max) as number);
+  if (min != null && max != null && max > min) {
+    return `${formatMoney(min, currency)} to ${formatMoney(max, currency)}`;
+  }
+  return formatMoney((min ?? max) as number, currency);
 }
 
 /**
@@ -31,11 +30,9 @@ export function ProductCard({
   product: StorefrontProductCard;
   eager?: boolean;
 }) {
-  const price = formatPrice(product.price_min, product.price_max, product.currency);
-  const reduced =
-    product.compare_at_price_min != null &&
-    product.price_min != null &&
-    product.compare_at_price_min > product.price_min;
+  const display = productPriceDisplay(product);
+  const reduced = display.compareAt != null;
+
 
   return (
     <Link
@@ -77,18 +74,19 @@ export function ProductCard({
             {product.summary}
           </p>
         ) : null}
-        {price ? (
-          <p className="mt-auto flex items-baseline gap-2 pt-3">
+        {display.primary ? (
+          <p className="mt-auto flex flex-wrap items-baseline gap-2 pt-3">
             <span className="font-display text-lg font-bold tracking-tight text-foreground">
-              {price}
+              {display.primary}
             </span>
-            {reduced ? (
+            {display.compareAt ? (
               <span className="text-xs text-muted-foreground line-through">
-                {formatPrice(product.compare_at_price_min, null, product.currency)}
+                {display.compareAt}
               </span>
             ) : null}
           </p>
         ) : null}
+
       </div>
     </Link>
   );

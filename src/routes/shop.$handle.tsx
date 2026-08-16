@@ -7,7 +7,9 @@ import { PublicShell } from "@/components/public/PublicShell";
 import { Breadcrumbs } from "@/components/public/Breadcrumbs";
 import { JsonLd } from "@/components/public/JsonLd";
 import { Markdown } from "@/components/public/Markdown";
-import { ProductCard, formatPrice } from "@/components/public/ProductCard";
+import { ProductCard } from "@/components/public/ProductCard";
+import { resolvePriceDisplay } from "@/lib/pricing/display";
+
 import { MissingProductImage } from "@/components/public/MissingProductImage";
 import { ReviewPlacementSlot } from "@/components/public/ReviewPlacementSlot";
 import { BRAND } from "@/lib/brand";
@@ -198,7 +200,22 @@ function ProductDetail() {
   };
 
 
-  const price = formatPrice(product.price_min, product.price_max, product.currency);
+  // One shared pricing helper drives every price on the page, so a range can
+  // never be rendered alongside a stale variant price.
+  const display = resolvePriceDisplay(product, selectedVariant);
+
+  const availabilityLabel = selectedVariant
+    ? selectedVariant.available_for_sale === false
+      ? "Currently unavailable"
+      : "Available to order"
+    : product.available_for_sale == null
+      ? null
+      : product.available_for_sale
+        ? product.variant_count > 1
+          ? `Available to order in ${product.variant_count} options`
+          : "Available to order"
+        : "Currently unavailable";
+
   const url = `${BRAND.siteUrl}/shop/${product.handle}`;
 
   const schema: Record<string, unknown>[] = [
@@ -215,21 +232,32 @@ function ProductDetail() {
         : product.product_type
           ? { category: product.product_type }
           : {}),
-      ...(price && product.price_min != null
+      ...(product.price_min != null
         ? {
-            offers: {
-              "@type": "Offer",
-              price: product.price_min,
-              priceCurrency: product.currency ?? "GBP",
-              url,
-              ...(product.available_for_sale === true
-                ? { availability: "https://schema.org/InStock" }
-                : product.available_for_sale === false
-                  ? { availability: "https://schema.org/OutOfStock" }
-                  : {}),
-            },
+            offers:
+              product.price_max != null && product.price_max > product.price_min
+                ? {
+                    "@type": "AggregateOffer",
+                    lowPrice: product.price_min,
+                    highPrice: product.price_max,
+                    offerCount: product.variant_count,
+                    priceCurrency: product.currency ?? "GBP",
+                    url,
+                  }
+                : {
+                    "@type": "Offer",
+                    price: product.price_min,
+                    priceCurrency: product.currency ?? "GBP",
+                    url,
+                    ...(product.available_for_sale === true
+                      ? { availability: "https://schema.org/InStock" }
+                      : product.available_for_sale === false
+                        ? { availability: "https://schema.org/OutOfStock" }
+                        : {}),
+                  },
           }
         : {}),
+
     },
   ];
   if (product.category_path.length > 0) {
@@ -346,24 +374,35 @@ function ProductDetail() {
             <h1 className="mt-2 font-display text-3xl leading-tight text-foreground sm:text-4xl">
               {product.title}
             </h1>
-            {price ? (
-              <p className="mt-4 flex items-baseline gap-3 text-xl text-foreground">
-                <span>{price}</span>
-                {product.compare_at_price_min != null &&
-                product.price_min != null &&
-                product.compare_at_price_min > product.price_min ? (
-                  <span className="text-sm text-muted-foreground line-through">
-                    {formatPrice(product.compare_at_price_min, null, product.currency)}
-                  </span>
+            {display.primary ? (
+              <p
+                aria-live="polite"
+                className="mt-4 flex flex-wrap items-baseline gap-3 text-foreground"
+              >
+                <span className="font-display text-3xl font-bold tracking-tight">
+                  {display.primary}
+                </span>
+                {display.compareAt ? (
+                  <>
+                    <span className="text-base text-muted-foreground line-through">
+                      {display.compareAt}
+                    </span>
+                    <span className="rounded-full bg-gold px-2.5 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-gold-foreground">
+                      Save {display.savingPercent}%
+                    </span>
+                  </>
                 ) : null}
               </p>
             ) : null}
-            {product.available_for_sale != null ? (
-              <p className="mt-3 text-sm text-muted-foreground">
-                {product.available_for_sale ? "Available to order" : "Currently unavailable"}
-                {product.variant_count > 1 ? ` in ${product.variant_count} options` : ""}
+            {display.isRange ? (
+              <p className="mt-2 text-sm text-muted-foreground">
+                Price depends on the option you choose.
               </p>
             ) : null}
+            {availabilityLabel ? (
+              <p className="mt-3 text-sm text-muted-foreground">{availabilityLabel}</p>
+            ) : null}
+
             {product.summary ? (
               <p className="mt-5 text-base leading-relaxed text-muted-foreground">
                 {product.summary}
