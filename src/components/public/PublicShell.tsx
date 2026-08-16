@@ -3,7 +3,8 @@ import { useState, type FormEvent, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { listPublicLegalSources } from "@/lib/services/public-content.functions";
-import { Menu, Search, LifeBuoy, ShoppingBag } from "lucide-react";
+import { Menu, Search, LifeBuoy } from "lucide-react";
+import { BasketButton, BasketSheet } from "@/components/public/BasketSheet";
 import { BrandLogo, BrandWordmark } from "@/components/admin/BrandLogo";
 import { BRAND } from "@/lib/brand";
 import { ReviewPlacementSlot } from "@/components/public/ReviewPlacementSlot";
@@ -119,13 +120,7 @@ export function PublicShell({ children }: { children: ReactNode }) {
               <LifeBuoy className="size-4" aria-hidden />
               Support
             </Link>
-            <a
-              href={BRAND.storeUrl}
-              className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl bg-primary px-4 text-[0.82rem] font-semibold text-primary-foreground transition-colors hover:bg-primary/90 sm:text-sm"
-            >
-              <ShoppingBag className="size-4" aria-hidden />
-              Store
-            </a>
+            <BasketButton />
 
             <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
               <SheetTrigger
@@ -202,6 +197,8 @@ export function PublicShell({ children }: { children: ReactNode }) {
           ))}
         </ul>
       </div>
+
+      <BasketSheet />
 
       <main id="main" className="flex-1">
         {children}
