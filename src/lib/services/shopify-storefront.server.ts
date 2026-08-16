@@ -88,8 +88,17 @@ export async function probeCheckoutHost(
     });
     finalHost = hostOf(response.url) ?? host;
     redirectsToSite = SITE_HOSTS.has(finalHost);
-    servesStore =
-      response.ok && !redirectsToSite && Boolean(response.headers.get("x-shopid"));
+    // Store served pages can be fronted by a proxy that strips the store id
+    // header, so accept any of the reliable store fingerprints.
+    const headers = response.headers;
+    const cookies = headers.get("set-cookie") ?? "";
+    const storeFingerprint =
+      Boolean(headers.get("x-shopid")) ||
+      /shopify/i.test(headers.get("powered-by") ?? "") ||
+      /shopify/i.test(headers.get("x-shopify-stage") ?? "") ||
+      /_shopify_y|cart_currency|_shopify_essential/i.test(cookies) ||
+      /pageType;desc="cart"/i.test(headers.get("server-timing") ?? "");
+    servesStore = response.ok && !redirectsToSite && storeFingerprint;
   } catch {
     servesStore = false;
   }
