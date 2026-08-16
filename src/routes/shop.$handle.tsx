@@ -215,6 +215,27 @@ function ProductDetail() {
         : {}),
     },
   ];
+  if (product.category_path.length > 0) {
+    schema.push({
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        { "@type": "ListItem", position: 1, name: "Shop", item: `${BRAND.siteUrl}/shop` },
+        ...product.category_path.map((node, index) => ({
+          "@type": "ListItem",
+          position: index + 2,
+          name: node.name,
+          item: `${BRAND.siteUrl}/shop?category=${encodeURIComponent(node.slug)}`,
+        })),
+        {
+          "@type": "ListItem",
+          position: product.category_path.length + 2,
+          name: product.title,
+          item: url,
+        },
+      ],
+    });
+  }
   if (product.faqs.length > 0) {
     schema.push({
       "@context": "https://schema.org",
