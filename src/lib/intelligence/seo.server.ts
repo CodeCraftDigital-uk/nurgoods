@@ -91,11 +91,11 @@ export async function optimiseProduct(
 ): Promise<SeoOutcome> {
   const product = bundle.product;
   const byId = new Map(categories.map((node) => [node.id, node]));
-  const trail: Array<{ name: string; path: string }> = [{ name: "Shop", path: "/shop" }];
+  const trail: Array<{ name: string; path: string }> = [{ name: "Store", path: "/store" }];
   if (category) {
     for (const slug of category.path) {
       const node = categories.find((item) => item.slug === slug);
-      if (node) trail.push({ name: node.name, path: `/shop?category=${node.slug}` });
+      if (node) trail.push({ name: node.name, path: `/store?category=${node.slug}` });
     }
   }
   trail.push({ name: product.title, path: `/shop/${product.handle}` });

@@ -71,7 +71,7 @@ function ReviewsPage() {
                 Visit the store
               </a>
               <Link
-                to="/shop"
+                to="/store"
                 className="inline-flex min-h-11 items-center rounded-lg border border-input px-5 text-sm font-medium text-foreground transition-colors hover:bg-accent"
               >
                 Browse the range
