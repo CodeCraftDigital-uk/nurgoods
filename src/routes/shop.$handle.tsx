@@ -237,12 +237,12 @@ function ProductDetail() {
       "@context": "https://schema.org",
       "@type": "BreadcrumbList",
       itemListElement: [
-        { "@type": "ListItem", position: 1, name: "Shop", item: `${BRAND.siteUrl}/shop` },
+        { "@type": "ListItem", position: 1, name: "Store", item: `${BRAND.siteUrl}/store` },
         ...product.category_path.map((node, index) => ({
           "@type": "ListItem",
           position: index + 2,
           name: node.name,
-          item: `${BRAND.siteUrl}/shop?category=${encodeURIComponent(node.slug)}`,
+          item: `${BRAND.siteUrl}/store?category=${encodeURIComponent(node.slug)}`,
         })),
         {
           "@type": "ListItem",
@@ -275,7 +275,7 @@ function ProductDetail() {
             { label: "Store", href: "/store" },
             ...product.category_path.map((node) => ({
               label: node.name,
-              href: `/shop?category=${encodeURIComponent(node.slug)}`,
+              href: `/store?category=${encodeURIComponent(node.slug)}`,
             })),
             { label: product.title },
           ]}
