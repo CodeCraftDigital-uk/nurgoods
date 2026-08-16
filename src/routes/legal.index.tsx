@@ -84,7 +84,7 @@ function LegalIndex() {
             [0, 1, 2].map((i) => (
               <div
                 key={i}
-                className="h-20 animate-pulse rounded-xl border border-border/70 bg-muted/40"
+                className="h-20 animate-pulse glass-card rounded-2xl bg-muted/40"
               />
             ))
           ) : total === 0 ? (
@@ -102,7 +102,7 @@ function LegalIndex() {
                   key={doc.slug}
                   to="/legal/$slug"
                   params={{ slug: doc.slug }}
-                  className="block rounded-xl border border-border/70 p-5 transition-colors hover:border-gold"
+                  className="block glass-card rounded-2xl p-5 transition-colors hover:border-brand"
                 >
                   <h2 className="font-display text-lg text-foreground">{doc.title}</h2>
                   {doc.summary ? (
@@ -116,7 +116,7 @@ function LegalIndex() {
                 <a
                   key={item.source_url}
                   href={item.source_url}
-                  className="block rounded-xl border border-border/70 p-5 transition-colors hover:border-gold"
+                  className="block glass-card rounded-2xl p-5 transition-colors hover:border-brand"
                   rel="noopener"
                 >
                   <h2 className="font-display text-lg text-foreground">{item.title}</h2>

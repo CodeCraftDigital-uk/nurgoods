@@ -174,7 +174,7 @@ function ArticlePage() {
             src={article.hero_image_url}
             alt={article.hero_image_alt ?? article.title}
             loading="lazy"
-            className="mt-8 w-full rounded-xl border border-border/70 object-cover"
+            className="mt-8 w-full glass-card rounded-2xl object-cover"
           />
         ) : null}
 
@@ -286,7 +286,7 @@ function ArticlePage() {
                   <Link
                     to="/journal/$slug"
                     params={{ slug: item.slug }}
-                    className="flex h-full flex-col rounded-xl border border-border/70 p-5 transition-colors hover:border-gold"
+                    className="flex h-full flex-col glass-card rounded-2xl p-5 transition-colors hover:border-brand"
                   >
                     <h3 className="font-display text-base leading-snug text-foreground">
                       {item.title}
@@ -307,7 +307,7 @@ function ArticlePage() {
       </article>
 
       <div className="mx-auto mt-16 w-full max-w-3xl px-5 sm:px-8">
-        <div className="rounded-xl border border-border/70 p-6">
+        <div className="glass-card rounded-2xl p-6">
           <h2 className="font-display text-xl text-foreground">Shop the collection</h2>
           <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
             Browse the full {BRAND.name} range, with secure checkout and tracked delivery.

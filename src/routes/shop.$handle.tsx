@@ -309,7 +309,7 @@ function ProductDetail() {
                       aria-label={`Show image ${index + 1}`}
                       aria-current={index === activeIndex}
                       className={`block w-full overflow-hidden rounded-lg border transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${
-                        index === activeIndex ? "border-gold" : "border-border/70 hover:border-gold/60"
+                        index === activeIndex ? "border-brand" : "border-border/70 hover:border-brand/50"
                       }`}
                     >
                       <img
@@ -401,8 +401,8 @@ function ProductDetail() {
                                 onClick={() => setSelection((prev) => ({ ...prev, [name]: value }))}
                                 className={`inline-flex min-h-10 items-center rounded-lg border px-3.5 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${
                                   active
-                                    ? "border-gold bg-accent text-foreground"
-                                    : "border-border text-foreground hover:border-gold/60"
+                                    ? "border-brand bg-brand-soft text-foreground"
+                                    : "border-border bg-surface text-foreground hover:border-brand/60"
                                 } ${outOfStock ? "text-muted-foreground line-through" : ""}`}
                               >
                                 {value}
@@ -440,14 +440,14 @@ function ProductDetail() {
                     type="button"
                     onClick={() => void beginCheckout()}
                     disabled={starting}
-                    className="inline-flex min-h-12 flex-1 items-center justify-center rounded-lg bg-primary px-6 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-70 sm:flex-none"
+                    className="inline-flex min-h-12 flex-1 items-center justify-center rounded-2xl bg-primary px-6 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-70 sm:flex-none"
                   >
                     {starting ? "Opening checkout" : "Buy now"}
                   </button>
                 ) : (
                   <a
                     href={buyHref!}
-                    className="inline-flex min-h-12 flex-1 items-center justify-center rounded-lg bg-primary px-6 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 sm:flex-none"
+                    className="inline-flex min-h-12 flex-1 items-center justify-center rounded-2xl bg-primary px-6 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 sm:flex-none"
                   >
                     Buy now
                   </a>

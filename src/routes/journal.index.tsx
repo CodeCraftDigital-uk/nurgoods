@@ -68,11 +68,11 @@ function JournalIndex() {
         {articles.isLoading ? (
           <ul className="grid gap-5 sm:grid-cols-2">
             {[0, 1, 2, 3].map((i) => (
-              <li key={i} className="h-44 animate-pulse rounded-xl border border-border/70 bg-muted/40" />
+              <li key={i} className="h-44 animate-pulse glass-card rounded-2xl bg-muted/40" />
             ))}
           </ul>
         ) : articles.isError ? (
-          <div className="rounded-xl border border-border/70 p-8 text-center">
+          <div className="glass-card rounded-2xl p-8 text-center">
             <h2 className="font-display text-xl text-foreground">Journal is unavailable</h2>
             <p className="mt-2 text-sm text-muted-foreground">
               Articles could not be loaded right now. Please try again shortly.
@@ -93,7 +93,7 @@ function JournalIndex() {
                 <Link
                   to="/journal/$slug"
                   params={{ slug: article.slug }}
-                  className="flex h-full flex-col overflow-hidden rounded-xl border border-border/70 transition-colors hover:border-gold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                  className="flex h-full flex-col overflow-hidden glass-card rounded-2xl transition-colors hover:border-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                 >
                   {article.hero_image_url ? (
                     <img
