@@ -12,7 +12,7 @@ import { getStorefrontApiStatusFn } from "@/lib/services/shopify-storefront.func
 
 const INTENDED_CHECKOUT_HOST = "shop.nurgoods.com";
 
-function Gate({ done, label, detail }: { done: boolean; label: string; detail?: string }) {
+function Gate({ done, label, detail }: { done: boolean; label: string; detail?: string | undefined }) {
   return (
     <li className="flex items-start gap-3">
       <span
