@@ -427,7 +427,7 @@ function ShopIndex() {
         )}
 
 
-        <div className="mt-14 rounded-2xl border border-border/70 p-7 sm:p-9">
+        <div className="mt-14 glass-card rounded-3xl p-7 sm:p-9">
           <h2 className="font-display text-2xl text-foreground">Browse by collection</h2>
           <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">
             Collections group the range by how the products are used, which is often a faster way

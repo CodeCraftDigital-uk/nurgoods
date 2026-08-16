@@ -365,7 +365,7 @@ function Index() {
                 <Link
                   to="/journal/$slug"
                   params={{ slug: article.slug }}
-                  className="flex h-full flex-col rounded-xl border border-border/70 p-5 transition-colors hover:border-gold"
+                  className="flex h-full flex-col glass-card rounded-2xl p-5 transition-all hover:-translate-y-0.5"
                 >
                   <h3 className="font-display text-lg leading-snug text-foreground">
                     {article.title}
@@ -393,7 +393,7 @@ function Index() {
 
       {/* Support */}
       <section className="mx-auto mt-16 w-full max-w-7xl px-5 sm:mt-24 sm:px-8" aria-labelledby="support">
-        <div className="rounded-2xl border border-border/70 p-8 sm:p-10">
+        <div className="glass-card rounded-3xl p-8 sm:p-10">
           <h2 id="support" className="font-display text-2xl text-foreground">
             Questions before you order?
           </h2>

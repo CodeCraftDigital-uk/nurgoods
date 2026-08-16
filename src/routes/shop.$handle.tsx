@@ -283,7 +283,7 @@ function ProductDetail() {
 
         <div className="mt-6 grid gap-10 lg:grid-cols-2 lg:gap-14">
           <div>
-            <div className="overflow-hidden rounded-2xl border border-border/70 bg-muted/40">
+            <div className="overflow-hidden glass-card rounded-3xl">
               {activeImage ? (
                 <img
                   src={activeImage.url}
@@ -571,7 +571,7 @@ function ProductDetail() {
         {product.delivery_information || product.care_information ? (
           <section className="mt-14 grid gap-8 sm:grid-cols-2">
             {product.delivery_information ? (
-              <div className="rounded-xl border border-border/70 p-6">
+              <div className="glass-card rounded-2xl p-6">
                 <h2 className="font-display text-lg text-foreground">Delivery</h2>
                 <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
                   {product.delivery_information}
@@ -579,7 +579,7 @@ function ProductDetail() {
               </div>
             ) : null}
             {product.care_information ? (
-              <div className="rounded-xl border border-border/70 p-6">
+              <div className="glass-card rounded-2xl p-6">
                 <h2 className="font-display text-lg text-foreground">Care</h2>
                 <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
                   {product.care_information}
@@ -620,7 +620,7 @@ function ProductDetail() {
           </section>
         ) : null}
 
-        <section className="mt-16 rounded-2xl border border-border/70 p-7 sm:p-9">
+        <section className="mt-16 glass-card rounded-3xl p-7 sm:p-9">
           <h2 className="font-display text-xl text-foreground">Need a hand before ordering?</h2>
           <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">
             Write to us and a person will reply. Returns, delivery and privacy terms are set out in
