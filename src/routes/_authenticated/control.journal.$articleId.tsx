@@ -298,7 +298,7 @@ function ArticleEditor() {
       <div className="space-y-6">
         <PageHeader title="Article not found" description="This article no longer exists." />
         <Button asChild variant="outline">
-          <Link to="/admin/journal">Back to Journal</Link>
+          <Link to="/control/journal">Back to Journal</Link>
         </Button>
       </div>
     );
@@ -320,7 +320,7 @@ function ArticleEditor() {
               {WORKFLOW_STATUS_LABEL[form.status]}
             </StatusPill>
             <Button variant="outline" asChild>
-              <Link to="/admin/journal">Back</Link>
+              <Link to="/control/journal">Back</Link>
             </Button>
             <Button onClick={() => save.mutate(form)} disabled={save.isPending}>
               {save.isPending ? "Saving" : "Save"}

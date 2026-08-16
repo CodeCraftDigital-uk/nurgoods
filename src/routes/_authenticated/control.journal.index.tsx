@@ -25,7 +25,7 @@ function JournalIndex() {
         description="Briefs, drafts, sources and scheduling for the NUR GOODS Journal. Nothing is published automatically and no placeholder articles have been created."
         actions={
           <Button asChild>
-            <Link to="/admin/journal/new">
+            <Link to="/control/journal/new">
               <Plus className="h-4 w-4" aria-hidden="true" />
               New article
             </Link>
@@ -41,7 +41,7 @@ function JournalIndex() {
             description="Create the first article to see the editorial workflow, source citations, metadata and structured data preview in one place."
             action={
               <Button asChild>
-                <Link to="/admin/journal/new">Create an article</Link>
+                <Link to="/control/journal/new">Create an article</Link>
               </Button>
             }
           />
@@ -50,7 +50,7 @@ function JournalIndex() {
             {(articles.data ?? []).map((article) => (
               <li key={article.id}>
                 <Link
-                  to="/admin/journal/$articleId"
+                  to="/control/journal/$articleId"
                   params={{ articleId: article.id }}
                   className="flex min-h-14 flex-col gap-2 py-4 transition-colors hover:bg-accent/40 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-2"
                 >

@@ -21,7 +21,7 @@ function NavList({ pathname, onNavigate }: { pathname: string; onNavigate?: () =
         return (
           <Link
             key={item.to}
-            to={item.to as "/admin"}
+            to={item.to as "/control"}
             onClick={onNavigate}
             aria-current={active ? "page" : undefined}
             className={cn(
