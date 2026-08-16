@@ -346,24 +346,35 @@ function ProductDetail() {
             <h1 className="mt-2 font-display text-3xl leading-tight text-foreground sm:text-4xl">
               {product.title}
             </h1>
-            {price ? (
-              <p className="mt-4 flex items-baseline gap-3 text-xl text-foreground">
-                <span>{price}</span>
-                {product.compare_at_price_min != null &&
-                product.price_min != null &&
-                product.compare_at_price_min > product.price_min ? (
-                  <span className="text-sm text-muted-foreground line-through">
-                    {formatPrice(product.compare_at_price_min, null, product.currency)}
-                  </span>
+            {display.primary ? (
+              <p
+                aria-live="polite"
+                className="mt-4 flex flex-wrap items-baseline gap-3 text-foreground"
+              >
+                <span className="font-display text-3xl font-bold tracking-tight">
+                  {display.primary}
+                </span>
+                {display.compareAt ? (
+                  <>
+                    <span className="text-base text-muted-foreground line-through">
+                      {display.compareAt}
+                    </span>
+                    <span className="rounded-full bg-gold px-2.5 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-gold-foreground">
+                      Save {display.savingPercent}%
+                    </span>
+                  </>
                 ) : null}
               </p>
             ) : null}
-            {product.available_for_sale != null ? (
-              <p className="mt-3 text-sm text-muted-foreground">
-                {product.available_for_sale ? "Available to order" : "Currently unavailable"}
-                {product.variant_count > 1 ? ` in ${product.variant_count} options` : ""}
+            {display.isRange ? (
+              <p className="mt-2 text-sm text-muted-foreground">
+                Price depends on the option you choose.
               </p>
             ) : null}
+            {availabilityLabel ? (
+              <p className="mt-3 text-sm text-muted-foreground">{availabilityLabel}</p>
+            ) : null}
+
             {product.summary ? (
               <p className="mt-5 text-base leading-relaxed text-muted-foreground">
                 {product.summary}
