@@ -1201,6 +1201,132 @@ export type Database = {
         }
         Relationships: []
       }
+      pricing_audit_items: {
+        Row: {
+          calculated_price: number | null
+          cost_source: string | null
+          created_at: string
+          currency: string
+          current_margin: number | null
+          current_price: number | null
+          handle: string | null
+          id: string
+          landed_cost: number | null
+          product_id: string | null
+          product_title: string | null
+          proposed_margin: number | null
+          reason: string | null
+          run_id: string
+          shipping_cost: number | null
+          shipping_source: string | null
+          shopify_product_id: string
+          shopify_variant_id: string
+          status: string
+          unit_cost: number | null
+          variant_title: string | null
+        }
+        Insert: {
+          calculated_price?: number | null
+          cost_source?: string | null
+          created_at?: string
+          currency?: string
+          current_margin?: number | null
+          current_price?: number | null
+          handle?: string | null
+          id?: string
+          landed_cost?: number | null
+          product_id?: string | null
+          product_title?: string | null
+          proposed_margin?: number | null
+          reason?: string | null
+          run_id: string
+          shipping_cost?: number | null
+          shipping_source?: string | null
+          shopify_product_id: string
+          shopify_variant_id: string
+          status: string
+          unit_cost?: number | null
+          variant_title?: string | null
+        }
+        Update: {
+          calculated_price?: number | null
+          cost_source?: string | null
+          created_at?: string
+          currency?: string
+          current_margin?: number | null
+          current_price?: number | null
+          handle?: string | null
+          id?: string
+          landed_cost?: number | null
+          product_id?: string | null
+          product_title?: string | null
+          proposed_margin?: number | null
+          reason?: string | null
+          run_id?: string
+          shipping_cost?: number | null
+          shipping_source?: string | null
+          shopify_product_id?: string
+          shopify_variant_id?: string
+          status?: string
+          unit_cost?: number | null
+          variant_title?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pricing_audit_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "shopify_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pricing_audit_items_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "pricing_audit_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pricing_audit_runs: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          message: string | null
+          mode: string
+          settings: Json
+          status: string
+          totals: Json
+          updated_at: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          message?: string | null
+          mode?: string
+          settings?: Json
+          status?: string
+          totals?: Json
+          updated_at?: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          message?: string | null
+          mode?: string
+          settings?: Json
+          status?: string
+          totals?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
       product_classification_history: {
         Row: {
           actor: string | null
@@ -1658,6 +1784,84 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "shopify_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_price_revisions: {
+        Row: {
+          applied_by: string | null
+          cost_source: string | null
+          created_at: string
+          id: string
+          landed_cost: number | null
+          new_price: number
+          old_price: number | null
+          product_id: string | null
+          rounding_mode: string | null
+          run_id: string | null
+          shipping_cost: number | null
+          shipping_source: string | null
+          shopify_product_id: string
+          shopify_variant_id: string
+          source: string
+          target_margin: number | null
+          unit_cost: number | null
+          variant_title: string | null
+        }
+        Insert: {
+          applied_by?: string | null
+          cost_source?: string | null
+          created_at?: string
+          id?: string
+          landed_cost?: number | null
+          new_price: number
+          old_price?: number | null
+          product_id?: string | null
+          rounding_mode?: string | null
+          run_id?: string | null
+          shipping_cost?: number | null
+          shipping_source?: string | null
+          shopify_product_id: string
+          shopify_variant_id: string
+          source?: string
+          target_margin?: number | null
+          unit_cost?: number | null
+          variant_title?: string | null
+        }
+        Update: {
+          applied_by?: string | null
+          cost_source?: string | null
+          created_at?: string
+          id?: string
+          landed_cost?: number | null
+          new_price?: number
+          old_price?: number | null
+          product_id?: string | null
+          rounding_mode?: string | null
+          run_id?: string | null
+          shipping_cost?: number | null
+          shipping_source?: string | null
+          shopify_product_id?: string
+          shopify_variant_id?: string
+          source?: string
+          target_margin?: number | null
+          unit_cost?: number | null
+          variant_title?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_price_revisions_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "shopify_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_price_revisions_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "pricing_audit_runs"
             referencedColumns: ["id"]
           },
         ]
@@ -2234,6 +2438,8 @@ export type Database = {
           available_for_sale: boolean | null
           barcode: string | null
           compare_at_price: number | null
+          cost_source: string | null
+          cost_synced_at: string | null
           created_at: string
           currency: string | null
           id: string
@@ -2248,11 +2454,15 @@ export type Database = {
           shopify_variant_id: string
           sku: string | null
           title: string
+          unit_cost: number | null
+          unit_cost_currency: string | null
         }
         Insert: {
           available_for_sale?: boolean | null
           barcode?: string | null
           compare_at_price?: number | null
+          cost_source?: string | null
+          cost_synced_at?: string | null
           created_at?: string
           currency?: string | null
           id?: string
@@ -2267,11 +2477,15 @@ export type Database = {
           shopify_variant_id: string
           sku?: string | null
           title: string
+          unit_cost?: number | null
+          unit_cost_currency?: string | null
         }
         Update: {
           available_for_sale?: boolean | null
           barcode?: string | null
           compare_at_price?: number | null
+          cost_source?: string | null
+          cost_synced_at?: string | null
           created_at?: string
           currency?: string | null
           id?: string
@@ -2286,6 +2500,8 @@ export type Database = {
           shopify_variant_id?: string
           sku?: string | null
           title?: string
+          unit_cost?: number | null
+          unit_cost_currency?: string | null
         }
         Relationships: [
           {
@@ -2476,11 +2692,14 @@ export type Database = {
           pricing_snapshot: Json
           product_id: string | null
           queued_at: string | null
+          score_reasons: Json
+          screening: Json
           shipping_cost: number | null
           shopify_product_id: string | null
           state: string
           store_reference: string | null
           suggested_retail: number | null
+          suitability_score: number | null
           supplier_cost: number | null
           supplier_payload: Json
           title: string
@@ -2514,11 +2733,14 @@ export type Database = {
           pricing_snapshot?: Json
           product_id?: string | null
           queued_at?: string | null
+          score_reasons?: Json
+          screening?: Json
           shipping_cost?: number | null
           shopify_product_id?: string | null
           state?: string
           store_reference?: string | null
           suggested_retail?: number | null
+          suitability_score?: number | null
           supplier_cost?: number | null
           supplier_payload?: Json
           title: string
@@ -2552,11 +2774,14 @@ export type Database = {
           pricing_snapshot?: Json
           product_id?: string | null
           queued_at?: string | null
+          score_reasons?: Json
+          screening?: Json
           shipping_cost?: number | null
           shopify_product_id?: string | null
           state?: string
           store_reference?: string | null
           suggested_retail?: number | null
+          suitability_score?: number | null
           supplier_cost?: number | null
           supplier_payload?: Json
           title?: string
@@ -2666,6 +2891,7 @@ export type Database = {
           allowed_categories: string[]
           batch_size: number
           blocked_categories: string[]
+          continuous_sourcing: boolean
           created_at: string
           daily_import_cap: number
           duplicate_precheck: boolean
@@ -2673,16 +2899,22 @@ export type Database = {
           id: string
           max_landed_cost: number | null
           max_retail_price: number | null
+          max_variant_count: number | null
           min_landed_cost: number | null
+          min_retail_price: number | null
+          min_suitability_score: number
           require_image: boolean
           require_stock: boolean
           require_uk_shipping: boolean
+          restricted_keywords: string[]
+          target_catalogue_size: number | null
           updated_at: string
         }
         Insert: {
           allowed_categories?: string[]
           batch_size?: number
           blocked_categories?: string[]
+          continuous_sourcing?: boolean
           created_at?: string
           daily_import_cap?: number
           duplicate_precheck?: boolean
@@ -2690,16 +2922,22 @@ export type Database = {
           id?: string
           max_landed_cost?: number | null
           max_retail_price?: number | null
+          max_variant_count?: number | null
           min_landed_cost?: number | null
+          min_retail_price?: number | null
+          min_suitability_score?: number
           require_image?: boolean
           require_stock?: boolean
           require_uk_shipping?: boolean
+          restricted_keywords?: string[]
+          target_catalogue_size?: number | null
           updated_at?: string
         }
         Update: {
           allowed_categories?: string[]
           batch_size?: number
           blocked_categories?: string[]
+          continuous_sourcing?: boolean
           created_at?: string
           daily_import_cap?: number
           duplicate_precheck?: boolean
@@ -2707,10 +2945,15 @@ export type Database = {
           id?: string
           max_landed_cost?: number | null
           max_retail_price?: number | null
+          max_variant_count?: number | null
           min_landed_cost?: number | null
+          min_retail_price?: number | null
+          min_suitability_score?: number
           require_image?: boolean
           require_stock?: boolean
           require_uk_shipping?: boolean
+          restricted_keywords?: string[]
+          target_catalogue_size?: number | null
           updated_at?: string
         }
         Relationships: []
