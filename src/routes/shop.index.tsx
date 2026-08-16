@@ -21,6 +21,8 @@ interface ShopSearch {
   sort?: string | undefined;
 }
 
+type StorefrontCard = Awaited<ReturnType<typeof listStorefrontProductsFn>>["items"][number];
+
 const SORT_OPTIONS = [
   { value: "featured", label: "Featured" },
   { value: "price_asc", label: "Price, low to high" },
