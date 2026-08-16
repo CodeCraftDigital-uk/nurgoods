@@ -16,9 +16,9 @@ export function CollectionTile({
     <Link
       to="/collections/$handle"
       params={{ handle: collection.handle }}
-      className="group relative flex h-full flex-col overflow-hidden rounded-xl border border-border/70 bg-card transition-colors hover:border-gold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+      className="glass-card group relative flex h-full flex-col overflow-hidden rounded-2xl transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[var(--shadow-lift)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
     >
-      <div className="aspect-[4/3] w-full overflow-hidden bg-muted/50">
+      <div className="aspect-[4/3] w-full overflow-hidden bg-surface-muted">
         {collection.image_url ? (
           <img
             src={collection.image_url}
@@ -27,16 +27,18 @@ export function CollectionTile({
             height={450}
             loading={eager ? "eager" : "lazy"}
             decoding="async"
-            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.05]"
           />
         ) : null}
       </div>
-      <div className="flex flex-1 flex-col justify-between gap-1 p-4">
-        <h3 className="font-display text-base leading-snug text-foreground">{collection.title}</h3>
+      <div className="flex flex-1 items-center justify-between gap-3 p-4">
+        <h3 className="min-w-0 truncate font-display text-[0.95rem] font-semibold text-foreground">
+          {collection.title}
+        </h3>
         {collection.product_count > 0 ? (
-          <p className="text-xs text-muted-foreground">
-            {collection.product_count} product{collection.product_count === 1 ? "" : "s"}
-          </p>
+          <span className="shrink-0 rounded-full bg-brand-soft px-2.5 py-1 text-[0.68rem] font-semibold text-brand">
+            {collection.product_count}
+          </span>
         ) : null}
       </div>
     </Link>
@@ -45,11 +47,10 @@ export function CollectionTile({
 
 export function CollectionTileSkeleton() {
   return (
-    <div className="overflow-hidden rounded-xl border border-border/70">
-      <div className="aspect-[4/3] w-full animate-pulse bg-muted/50" />
+    <div className="glass-card overflow-hidden rounded-2xl">
+      <div className="aspect-[4/3] w-full animate-pulse bg-surface-muted" />
       <div className="space-y-2 p-4">
-        <div className="h-4 w-2/3 animate-pulse rounded bg-muted/60" />
-        <div className="h-3 w-1/3 animate-pulse rounded bg-muted/60" />
+        <div className="h-4 w-2/3 animate-pulse rounded bg-muted" />
       </div>
     </div>
   );
