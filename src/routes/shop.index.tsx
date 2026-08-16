@@ -229,8 +229,10 @@ function ShopIndex() {
           </div>
         </form>
 
+        <div className="glass-card mt-6 rounded-3xl p-4 sm:p-6">
         {categories.length > 0 ? (
-          <div className="mt-6">
+          <div>
+
             <h2 className="text-[0.65rem] uppercase tracking-[0.2em] text-muted-foreground">
               Departments
             </h2>
