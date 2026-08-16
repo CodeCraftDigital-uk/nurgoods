@@ -326,12 +326,61 @@ function SourcingPage() {
           </div>
           <div className="space-y-1.5">
             <Label>Batch size</Label>
+            <div className="flex flex-wrap gap-1.5">
+              {[25, 50, 100, 250, 500].map((size) => (
+                <Button
+                  key={size}
+                  type="button"
+                  size="sm"
+                  variant={rules?.batch_size === size ? "default" : "outline"}
+                  onClick={() => saveRules.mutate({ batch_size: size })}
+                >
+                  {size}
+                </Button>
+              ))}
+            </div>
             <Input
               type="number"
               min={1}
-              max={50}
-              defaultValue={rules?.batch_size ?? 10}
+              max={500}
+              defaultValue={rules?.batch_size ?? 25}
               onBlur={(event) => saveRules.mutate({ batch_size: Number(event.target.value) })}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Minimum suitability score</Label>
+            <Input
+              type="number"
+              min={0}
+              max={100}
+              defaultValue={rules?.min_suitability_score ?? 60}
+              onBlur={(event) =>
+                saveRules.mutate({ min_suitability_score: Number(event.target.value) })
+              }
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Maximum variants per product</Label>
+            <Input
+              type="number"
+              min={1}
+              defaultValue={rules?.max_variants ?? 30}
+              onBlur={(event) => saveRules.mutate({ max_variants: Number(event.target.value) })}
+            />
+          </div>
+          <div className="space-y-1.5 sm:col-span-2 lg:col-span-3">
+            <Label>Restricted keywords</Label>
+            <Input
+              defaultValue={(rules?.restricted_keywords ?? []).join(", ")}
+              placeholder="Comma separated"
+              onBlur={(event) =>
+                saveRules.mutate({
+                  restricted_keywords: event.target.value
+                    .split(",")
+                    .map((value) => value.trim().toLowerCase())
+                    .filter(Boolean),
+                })
+              }
             />
           </div>
           <div className="space-y-1.5">
