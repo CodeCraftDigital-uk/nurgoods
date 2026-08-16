@@ -80,24 +80,39 @@ export interface PublicPlacement {
 const ARTICLE_SUMMARY_COLUMNS =
   "id, slug, title, excerpt, hero_image_url, hero_image_alt, meta_description, tags, author_name, reading_minutes, published_at";
 
+function keyedFetch(key: string) {
+  return (input: RequestInfo | URL, init?: RequestInit) => {
+    const headers = new Headers(init?.headers);
+    // Pin the credential explicitly so no ambient request token (for example a
+    // signed in visitor's bearer token) can ever be applied to these reads.
+    headers.set("apikey", key);
+    headers.set("Authorization", `Bearer ${key}`);
+    return fetch(input, { ...init, headers });
+  };
+}
+
 async function publicClient() {
   const { createClient } = await import("@supabase/supabase-js");
   const url = process.env["SUPABASE_URL"]!;
   const key = process.env["SUPABASE_PUBLISHABLE_KEY"]!;
   return createClient(url, key, {
     auth: { persistSession: false },
-    global: {
-      fetch: (input: RequestInfo | URL, init?: RequestInit) => {
-        const headers = new Headers(init?.headers);
-        if (key.startsWith("sb_") && headers.get("Authorization") === `Bearer ${key}`) {
-          headers.delete("Authorization");
-        }
-        headers.set("apikey", key);
-        return fetch(input, { ...init, headers });
-      },
-    },
+    global: { fetch: keyedFetch(key) },
   });
 }
+
+/** Service role reader used only for owner approved public policy content. */
+async function adminClient() {
+  const { createClient } = await import("@supabase/supabase-js");
+  const url = process.env["SUPABASE_URL"]!;
+  const key = process.env["SUPABASE_SERVICE_ROLE_KEY"]!;
+  return createClient(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false },
+    global: { fetch: keyedFetch(key) },
+  });
+}
+
+
 
 /** Published Journal articles, newest first. */
 export const listPublicArticles = createServerFn({ method: "GET" }).handler(
