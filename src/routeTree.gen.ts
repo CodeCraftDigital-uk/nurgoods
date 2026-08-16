@@ -30,6 +30,7 @@ import { Route as LegalIndexRouteImport } from './routes/legal.index'
 import { Route as LegalSlugRouteImport } from './routes/legal.$slug'
 import { Route as ShopIndexRouteImport } from './routes/shop.index'
 import { Route as ShopHandleRouteImport } from './routes/shop.$handle'
+import { Route as StoreIndexRouteImport } from './routes/store.index'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as AuthenticatedControlIndexRouteImport } from './routes/_authenticated/control.index'
 import { Route as AuthenticatedControlAutomationsRouteImport } from './routes/_authenticated/control.automations'
@@ -161,6 +162,11 @@ const ShopIndexRoute = ShopIndexRouteImport.update({
 const ShopHandleRoute = ShopHandleRouteImport.update({
   id: '/shop/$handle',
   path: '/shop/$handle',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StoreIndexRoute = StoreIndexRouteImport.update({
+  id: '/store/',
+  path: '/store/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const Char91DotmcpChar93InvokeToolToolRoute =
@@ -331,6 +337,7 @@ export interface FileRoutesByFullPath {
   '/journal/': typeof JournalIndexRoute
   '/legal/': typeof LegalIndexRoute
   '/shop/': typeof ShopIndexRoute
+  '/store/': typeof StoreIndexRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/control/automations': typeof AuthenticatedControlAutomationsRoute
   '/control/catalogue': typeof AuthenticatedControlCatalogueRoute
@@ -378,6 +385,7 @@ export interface FileRoutesByTo {
   '/journal': typeof JournalIndexRoute
   '/legal': typeof LegalIndexRoute
   '/shop': typeof ShopIndexRoute
+  '/store': typeof StoreIndexRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/control/automations': typeof AuthenticatedControlAutomationsRoute
   '/control/catalogue': typeof AuthenticatedControlCatalogueRoute
@@ -427,6 +435,7 @@ export interface FileRoutesById {
   '/journal/': typeof JournalIndexRoute
   '/legal/': typeof LegalIndexRoute
   '/shop/': typeof ShopIndexRoute
+  '/store/': typeof StoreIndexRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/_authenticated/control/automations': typeof AuthenticatedControlAutomationsRoute
   '/_authenticated/control/catalogue': typeof AuthenticatedControlCatalogueRoute
@@ -477,6 +486,7 @@ export interface FileRouteTypes {
     | '/journal/'
     | '/legal/'
     | '/shop/'
+    | '/store/'
     | '/.mcp/invoke-tool/$tool'
     | '/control/automations'
     | '/control/catalogue'
@@ -524,6 +534,7 @@ export interface FileRouteTypes {
     | '/journal'
     | '/legal'
     | '/shop'
+    | '/store'
     | '/.mcp/invoke-tool/$tool'
     | '/control/automations'
     | '/control/catalogue'
@@ -572,6 +583,7 @@ export interface FileRouteTypes {
     | '/journal/'
     | '/legal/'
     | '/shop/'
+    | '/store/'
     | '/.mcp/invoke-tool/$tool'
     | '/_authenticated/control/automations'
     | '/_authenticated/control/catalogue'
@@ -620,6 +632,7 @@ export interface RootRouteChildren {
   JournalIndexRoute: typeof JournalIndexRoute
   LegalIndexRoute: typeof LegalIndexRoute
   ShopIndexRoute: typeof ShopIndexRoute
+  StoreIndexRoute: typeof StoreIndexRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
   ApiPublicHooksAutomationRoute: typeof ApiPublicHooksAutomationRoute
   ApiPublicJournalMediaSplatRoute: typeof ApiPublicJournalMediaSplatRoute
@@ -779,6 +792,13 @@ declare module '@tanstack/react-router' {
       path: '/shop/$handle'
       fullPath: '/shop/$handle'
       preLoaderRoute: typeof ShopHandleRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/store/': {
+      id: '/store/'
+      path: '/store'
+      fullPath: '/store/'
+      preLoaderRoute: typeof StoreIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/.mcp/invoke-tool/$tool': {
@@ -1082,6 +1102,7 @@ const rootRouteChildren: RootRouteChildren = {
   JournalIndexRoute: JournalIndexRoute,
   LegalIndexRoute: LegalIndexRoute,
   ShopIndexRoute: ShopIndexRoute,
+  StoreIndexRoute: StoreIndexRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
   ApiPublicHooksAutomationRoute: ApiPublicHooksAutomationRoute,
   ApiPublicJournalMediaSplatRoute: ApiPublicJournalMediaSplatRoute,
