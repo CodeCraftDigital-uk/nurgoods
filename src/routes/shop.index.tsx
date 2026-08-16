@@ -80,11 +80,13 @@ function ShopIndex() {
   const fetchCollections = useServerFn(listStorefrontCollectionsFn);
 
   const PAGE_SIZE = 48;
-  const [shown, setShown] = useState(PAGE_SIZE);
+  const [offset, setOffset] = useState(0);
+  const [loaded, setLoaded] = useState<StorefrontCard[]>([]);
 
   // Any change of search or filter starts the range again from the first page.
   useEffect(() => {
-    setShown(PAGE_SIZE);
+    setOffset(0);
+    setLoaded([]);
   }, [search.q, search.category, search.collection, search.tag, search.sort]);
 
   const products = useQuery({
@@ -95,7 +97,7 @@ function ShopIndex() {
       search.collection ?? "",
       search.tag ?? "",
       search.sort ?? "featured",
-      shown,
+      offset,
     ],
     queryFn: () =>
       fetchProducts({
@@ -105,12 +107,23 @@ function ShopIndex() {
           collectionHandle: search.collection,
           tag: search.tag,
           sort: search.sort,
-          limit: shown,
+          limit: PAGE_SIZE,
+          offset,
         },
       }),
-    placeholderData: (previous) => previous,
     retry: false,
   });
+
+  const pageItems = products.data?.items;
+  useEffect(() => {
+    if (!pageItems) return;
+    setLoaded((previous) => {
+      const seen = new Set(previous.map((item) => item.id));
+      const additions = pageItems.filter((item) => !seen.has(item.id));
+      return additions.length ? [...previous, ...additions] : previous;
+    });
+  }, [pageItems]);
+
 
 
   const collections = useQuery({
