@@ -143,9 +143,10 @@ function withinOneEdit(a: string, b: string): boolean {
 async function buildIndex(): Promise<CatalogueIndex> {
   const supabase = await publicClient();
 
-  const [{ data: suppressedRows }, { data: productRows }, { data: categoryRows }] =
+  const [{ data: suppressedRows }, { data: intakeRows }, { data: productRows }, { data: categoryRows }] =
     await Promise.all([
       supabase.from("duplicate_group_members").select("product_id").eq("suppressed", true).limit(5000),
+      supabase.rpc("hidden_intake_product_ids"),
       supabase
         .from("shopify_products")
         .select(
@@ -156,7 +157,13 @@ async function buildIndex(): Promise<CatalogueIndex> {
     ]);
 
   const suppressed = new Set(((suppressedRows ?? []) as any[]).map((row) => row.product_id as string));
+  for (const row of ((intakeRows ?? []) as any[])) {
+    const value = typeof row === "string" ? row : (row as any)?.product_id;
+    if (value) suppressed.add(value as string);
+  }
   const products = ((productRows ?? []) as any[]).filter((row) => !suppressed.has(row.id));
+
+
   const productIds = products.map((row) => row.id as string);
 
   const nodes = (categoryRows ?? []) as Array<{

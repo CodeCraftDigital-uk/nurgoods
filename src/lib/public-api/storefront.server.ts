@@ -117,17 +117,30 @@ async function loadProductCategories(
 }
 
 /**
- * Listings hidden by de-duplication. Only high confidence groups suppress, and
- * the supplier record is never altered, only the NUR GOODS presentation.
+ * Products held back from customers by de-duplication or by product intake.
+ * Only high confidence duplicate groups suppress, and intake only holds a
+ * product while a required quality or intelligence gate has not passed. The
+ * supplier record is never altered, only the NUR GOODS presentation.
  */
-async function loadSuppressedProductIds(supabase: any): Promise<string[]> {
-  const { data } = await supabase
-    .from("duplicate_group_members")
-    .select("product_id")
-    .eq("suppressed", true)
-    .limit(5000);
-  return ((data ?? []) as any[]).map((row) => row.product_id as string);
+export async function loadHiddenProductIds(supabase: any): Promise<string[]> {
+  const [{ data: duplicates }, { data: intake }] = await Promise.all([
+    supabase.from("duplicate_group_members").select("product_id").eq("suppressed", true).limit(5000),
+    supabase.rpc("hidden_intake_product_ids"),
+  ]);
+  const ids = new Set<string>();
+  for (const row of ((duplicates ?? []) as any[])) ids.add(row.product_id as string);
+  for (const row of ((intake ?? []) as any[])) {
+    const value = typeof row === "string" ? row : row?.product_id;
+    if (value) ids.add(value as string);
+  }
+  return [...ids];
 }
+
+
+async function loadSuppressedProductIds(supabase: any): Promise<string[]> {
+  return loadHiddenProductIds(supabase);
+}
+
 
 /** Canonical listing for a suppressed product, used for redirects and rel canonical. */
 export async function resolveCanonicalHandle(
