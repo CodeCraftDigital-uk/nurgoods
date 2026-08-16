@@ -309,6 +309,16 @@ export async function selectCandidates(input: {
         pricing_complete: pricing.complete,
         pricing_snapshot: pricing as unknown as Record<string, unknown>,
         supplier_payload: item as unknown as Record<string, unknown>,
+        suitability_score: screen.score,
+        score_reasons: screen.reasons as unknown as Record<string, unknown>[],
+        screening: {
+          outcome: screen.outcome,
+          threshold: rules.min_suitability_score,
+          landed_cost: screen.landedCost,
+          price: screen.price,
+          gross_margin: screen.grossMargin,
+          promo_within_floor: screen.promoWithinFloor,
+        } as Record<string, unknown>,
         created_by: input.userId,
       } as never)
       .select("id")
