@@ -199,7 +199,7 @@ function ShopIndex() {
               value={term}
               onChange={(event) => setTerm(event.target.value)}
               placeholder="Search products"
-              className="h-11 w-full rounded-lg border border-input bg-background px-4 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              className="h-12 w-full rounded-2xl border border-input bg-surface px-4 text-sm shadow-[var(--shadow-card)] focus:border-brand focus:ring-4 focus:ring-brand/15 text-foreground placeholder:text-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
             />
           </div>
           <div className="flex gap-3">
@@ -211,7 +211,7 @@ function ShopIndex() {
                 id="shop-sort"
                 value={search.sort ?? "featured"}
                 onChange={(event) => setSearch({ sort: event.target.value })}
-                className="h-11 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                className="h-12 w-full rounded-2xl border border-input bg-surface px-3 text-sm text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
               >
                 {SORT_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -222,7 +222,7 @@ function ShopIndex() {
             </div>
             <button
               type="submit"
-              className="inline-flex h-11 shrink-0 items-center rounded-lg bg-primary px-5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+              className="inline-flex h-12 shrink-0 items-center rounded-2xl bg-primary px-6 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
             >
               Search
             </button>
@@ -241,8 +241,8 @@ function ShopIndex() {
                 aria-pressed={!search.category}
                 className={`inline-flex min-h-9 items-center rounded-full border px-3.5 text-xs transition-colors ${
                   search.category
-                    ? "border-border text-muted-foreground hover:text-foreground"
-                    : "border-gold text-foreground"
+                    ? "border-border bg-surface text-muted-foreground hover:border-brand/40 hover:text-foreground"
+                    : "border-transparent bg-primary text-primary-foreground shadow-sm"
                 }`}
               >
                 All
@@ -259,8 +259,8 @@ function ShopIndex() {
                   aria-pressed={search.category === category.slug}
                   className={`inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3.5 text-xs transition-colors ${
                     search.category === category.slug
-                      ? "border-gold text-foreground"
-                      : "border-border text-muted-foreground hover:text-foreground"
+                      ? "border-transparent bg-primary text-primary-foreground shadow-sm"
+                      : "border-border bg-surface text-muted-foreground hover:border-brand/40 hover:text-foreground"
                   }`}
                 >
                   {category.name}
@@ -283,8 +283,8 @@ function ShopIndex() {
                 aria-pressed={!search.collection}
                 className={`inline-flex min-h-9 items-center rounded-full border px-3.5 text-xs transition-colors ${
                   search.collection
-                    ? "border-border text-muted-foreground hover:text-foreground"
-                    : "border-gold text-foreground"
+                    ? "border-border bg-surface text-muted-foreground hover:border-brand/40 hover:text-foreground"
+                    : "border-transparent bg-primary text-primary-foreground shadow-sm"
                 }`}
               >
                 All
@@ -297,8 +297,8 @@ function ShopIndex() {
                   aria-pressed={search.collection === collection.handle}
                   className={`inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3.5 text-xs transition-colors ${
                     search.collection === collection.handle
-                      ? "border-gold text-foreground"
-                      : "border-border text-muted-foreground hover:text-foreground"
+                      ? "border-transparent bg-primary text-primary-foreground shadow-sm"
+                      : "border-border bg-surface text-muted-foreground hover:border-brand/40 hover:text-foreground"
                   }`}
                 >
                   {collection.title}
@@ -334,8 +334,8 @@ function ShopIndex() {
                   aria-pressed={search.tag === tag}
                   className={`inline-flex min-h-9 items-center rounded-full border px-3.5 text-xs transition-colors ${
                     search.tag === tag
-                      ? "border-gold text-foreground"
-                      : "border-border text-muted-foreground hover:text-foreground"
+                      ? "border-transparent bg-primary text-primary-foreground shadow-sm"
+                      : "border-border bg-surface text-muted-foreground hover:border-brand/40 hover:text-foreground"
                   }`}
                 >
                   {tag}
