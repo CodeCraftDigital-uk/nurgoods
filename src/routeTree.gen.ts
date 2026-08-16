@@ -36,6 +36,7 @@ import { Route as AuthenticatedControlIndexRouteImport } from './routes/_authent
 import { Route as AuthenticatedControlAutomationsRouteImport } from './routes/_authenticated/control.automations'
 import { Route as AuthenticatedControlCatalogueRouteImport } from './routes/_authenticated/control.catalogue'
 import { Route as AuthenticatedControlContactRouteImport } from './routes/_authenticated/control.contact'
+import { Route as AuthenticatedControlIntakeRouteImport } from './routes/_authenticated/control.intake'
 import { Route as AuthenticatedControlIntegrationsRouteImport } from './routes/_authenticated/control.integrations'
 import { Route as AuthenticatedControlJournalRouteImport } from './routes/_authenticated/control.journal'
 import { Route as AuthenticatedControlLegalRouteImport } from './routes/_authenticated/control.legal'
@@ -200,6 +201,12 @@ const AuthenticatedControlContactRoute =
     path: '/contact',
     getParentRoute: () => AuthenticatedControlRoute,
   } as any)
+const AuthenticatedControlIntakeRoute =
+  AuthenticatedControlIntakeRouteImport.update({
+    id: '/intake',
+    path: '/intake',
+    getParentRoute: () => AuthenticatedControlRoute,
+  } as any)
 const AuthenticatedControlIntegrationsRoute =
   AuthenticatedControlIntegrationsRouteImport.update({
     id: '/integrations',
@@ -349,6 +356,7 @@ export interface FileRoutesByFullPath {
   '/control/automations': typeof AuthenticatedControlAutomationsRoute
   '/control/catalogue': typeof AuthenticatedControlCatalogueRoute
   '/control/contact': typeof AuthenticatedControlContactRoute
+  '/control/intake': typeof AuthenticatedControlIntakeRoute
   '/control/integrations': typeof AuthenticatedControlIntegrationsRoute
   '/control/journal': typeof AuthenticatedControlJournalRouteWithChildren
   '/control/legal': typeof AuthenticatedControlLegalRoute
@@ -398,6 +406,7 @@ export interface FileRoutesByTo {
   '/control/automations': typeof AuthenticatedControlAutomationsRoute
   '/control/catalogue': typeof AuthenticatedControlCatalogueRoute
   '/control/contact': typeof AuthenticatedControlContactRoute
+  '/control/intake': typeof AuthenticatedControlIntakeRoute
   '/control/integrations': typeof AuthenticatedControlIntegrationsRoute
   '/control/legal': typeof AuthenticatedControlLegalRoute
   '/control/mcp': typeof AuthenticatedControlMcpRoute
@@ -449,6 +458,7 @@ export interface FileRoutesById {
   '/_authenticated/control/automations': typeof AuthenticatedControlAutomationsRoute
   '/_authenticated/control/catalogue': typeof AuthenticatedControlCatalogueRoute
   '/_authenticated/control/contact': typeof AuthenticatedControlContactRoute
+  '/_authenticated/control/intake': typeof AuthenticatedControlIntakeRoute
   '/_authenticated/control/integrations': typeof AuthenticatedControlIntegrationsRoute
   '/_authenticated/control/journal': typeof AuthenticatedControlJournalRouteWithChildren
   '/_authenticated/control/legal': typeof AuthenticatedControlLegalRoute
@@ -501,6 +511,7 @@ export interface FileRouteTypes {
     | '/control/automations'
     | '/control/catalogue'
     | '/control/contact'
+    | '/control/intake'
     | '/control/integrations'
     | '/control/journal'
     | '/control/legal'
@@ -550,6 +561,7 @@ export interface FileRouteTypes {
     | '/control/automations'
     | '/control/catalogue'
     | '/control/contact'
+    | '/control/intake'
     | '/control/integrations'
     | '/control/legal'
     | '/control/mcp'
@@ -600,6 +612,7 @@ export interface FileRouteTypes {
     | '/_authenticated/control/automations'
     | '/_authenticated/control/catalogue'
     | '/_authenticated/control/contact'
+    | '/_authenticated/control/intake'
     | '/_authenticated/control/integrations'
     | '/_authenticated/control/journal'
     | '/_authenticated/control/legal'
@@ -850,6 +863,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedControlContactRouteImport
       parentRoute: typeof AuthenticatedControlRoute
     }
+    '/_authenticated/control/intake': {
+      id: '/_authenticated/control/intake'
+      path: '/intake'
+      fullPath: '/control/intake'
+      preLoaderRoute: typeof AuthenticatedControlIntakeRouteImport
+      parentRoute: typeof AuthenticatedControlRoute
+    }
     '/_authenticated/control/integrations': {
       id: '/_authenticated/control/integrations'
       path: '/integrations'
@@ -1031,6 +1051,7 @@ interface AuthenticatedControlRouteChildren {
   AuthenticatedControlAutomationsRoute: typeof AuthenticatedControlAutomationsRoute
   AuthenticatedControlCatalogueRoute: typeof AuthenticatedControlCatalogueRoute
   AuthenticatedControlContactRoute: typeof AuthenticatedControlContactRoute
+  AuthenticatedControlIntakeRoute: typeof AuthenticatedControlIntakeRoute
   AuthenticatedControlIntegrationsRoute: typeof AuthenticatedControlIntegrationsRoute
   AuthenticatedControlJournalRoute: typeof AuthenticatedControlJournalRouteWithChildren
   AuthenticatedControlLegalRoute: typeof AuthenticatedControlLegalRoute
@@ -1045,6 +1066,7 @@ const AuthenticatedControlRouteChildren: AuthenticatedControlRouteChildren = {
   AuthenticatedControlAutomationsRoute: AuthenticatedControlAutomationsRoute,
   AuthenticatedControlCatalogueRoute: AuthenticatedControlCatalogueRoute,
   AuthenticatedControlContactRoute: AuthenticatedControlContactRoute,
+  AuthenticatedControlIntakeRoute: AuthenticatedControlIntakeRoute,
   AuthenticatedControlIntegrationsRoute: AuthenticatedControlIntegrationsRoute,
   AuthenticatedControlJournalRoute:
     AuthenticatedControlJournalRouteWithChildren,
