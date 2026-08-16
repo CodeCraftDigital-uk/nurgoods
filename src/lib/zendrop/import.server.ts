@@ -576,9 +576,10 @@ export async function runImportQueue(limit = 5): Promise<ImportOutcome> {
  */
 export async function reconcileImportedCandidates(): Promise<number> {
   const supabase = await zendropAdminClient();
+  const settings = await loadPricingSettings();
   const { data: rows } = await supabase
     .from("zendrop_import_candidates")
-    .select("id, title, zendrop_product_id, state, write_response, calculated_price")
+    .select("id, title, zendrop_product_id, state, write_response, calculated_price, shipping_cost")
     .in("state", ["imported", "linked"])
     .limit(50);
 
@@ -611,18 +612,21 @@ export async function reconcileImportedCandidates(): Promise<number> {
     }
     if (!product) continue;
 
-    // The supplier import cannot carry a price, so the approved retail price
-    // is applied to the store product once, right after linkage.
+    // The supplier import cannot carry a price, so every variant is priced
+    // from its own cost of goods once the store product exists.
     let pricingNote = "Pricing was not applied";
     try {
       const { applyCalculatedPriceToStore } = await import("./store-pricing.server");
       const result = await applyCalculatedPriceToStore({
         shopifyProductId: String(product.shopify_product_id),
-        price: raw.calculated_price === null ? null : Number(raw.calculated_price),
+        shippingCost: raw.shipping_cost === null ? null : Number(raw.shipping_cost),
+        settings,
+        fallbackPrice: raw.calculated_price === null ? null : Number(raw.calculated_price),
       });
       pricingNote = result.message;
     } catch (cause) {
       pricingNote = cause instanceof Error ? cause.message : "The store price could not be set";
+
     }
 
     await supabase
