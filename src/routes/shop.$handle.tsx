@@ -232,21 +232,32 @@ function ProductDetail() {
         : product.product_type
           ? { category: product.product_type }
           : {}),
-      ...(price && product.price_min != null
+      ...(product.price_min != null
         ? {
-            offers: {
-              "@type": "Offer",
-              price: product.price_min,
-              priceCurrency: product.currency ?? "GBP",
-              url,
-              ...(product.available_for_sale === true
-                ? { availability: "https://schema.org/InStock" }
-                : product.available_for_sale === false
-                  ? { availability: "https://schema.org/OutOfStock" }
-                  : {}),
-            },
+            offers:
+              product.price_max != null && product.price_max > product.price_min
+                ? {
+                    "@type": "AggregateOffer",
+                    lowPrice: product.price_min,
+                    highPrice: product.price_max,
+                    offerCount: product.variant_count,
+                    priceCurrency: product.currency ?? "GBP",
+                    url,
+                  }
+                : {
+                    "@type": "Offer",
+                    price: product.price_min,
+                    priceCurrency: product.currency ?? "GBP",
+                    url,
+                    ...(product.available_for_sale === true
+                      ? { availability: "https://schema.org/InStock" }
+                      : product.available_for_sale === false
+                        ? { availability: "https://schema.org/OutOfStock" }
+                        : {}),
+                  },
           }
         : {}),
+
     },
   ];
   if (product.category_path.length > 0) {
