@@ -124,78 +124,97 @@ function Index() {
       />
 
       {/* Hero */}
-      <section className="border-b border-border/60 bg-gradient-to-b from-accent/40 to-background">
-        <div className="mx-auto grid w-full max-w-6xl items-center gap-10 px-5 pb-14 pt-12 sm:px-8 sm:pb-20 sm:pt-20 lg:grid-cols-[1.05fr_1fr] lg:gap-16">
-          <div>
-            <BrandWordmark height={44} className="sm:h-14" />
-            <h1 className="mt-7 max-w-2xl font-display text-[2.15rem] leading-[1.06] text-foreground sm:text-5xl lg:text-6xl">
+      <section className="relative overflow-hidden border-b border-border/70">
+        <div aria-hidden className="brand-gradient absolute inset-0" />
+        <div
+          aria-hidden
+          className="absolute -right-24 top-[-10rem] size-[28rem] rounded-full bg-gold/25 blur-3xl"
+        />
+        <div className="relative mx-auto grid w-full max-w-7xl items-center gap-10 px-5 pb-14 pt-12 sm:px-8 sm:pb-20 sm:pt-16 lg:grid-cols-[1.05fr_1fr] lg:gap-14">
+          <div className="min-w-0">
+            <span className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-navy-foreground backdrop-blur">
+              <span aria-hidden className="size-1.5 rounded-full bg-gold" />
+              {BRAND.name} marketplace
+            </span>
+            <h1 className="mt-5 max-w-2xl font-display text-[2.3rem] font-extrabold leading-[1.03] text-navy-foreground sm:text-5xl lg:text-6xl">
               {BRAND.tagline}
             </h1>
-            <p className="mt-5 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg">
-              A carefully kept range across the home, fitness, tech, pets, beauty and play. Browse
-              here, then order securely on the {BRAND.name} store.
+            <p className="mt-5 max-w-xl text-base leading-relaxed text-navy-foreground/80 sm:text-lg">
+              Everyday goods across home, fitness, tech, pets, beauty and play. Browse the full
+              range here, then order securely on the {BRAND.name} store.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link
                 to="/shop"
-                className="inline-flex min-h-12 items-center rounded-lg bg-primary px-6 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                className="inline-flex min-h-12 items-center rounded-2xl bg-gold px-6 text-sm font-semibold text-gold-foreground transition-transform hover:-translate-y-0.5"
               >
                 Browse the range
               </Link>
               <Link
                 to="/collections"
-                className="inline-flex min-h-12 items-center rounded-lg border border-input px-6 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+                className="inline-flex min-h-12 items-center rounded-2xl border border-white/30 bg-white/10 px-6 text-sm font-semibold text-navy-foreground backdrop-blur transition-colors hover:bg-white/20"
               >
                 Shop by category
               </Link>
             </div>
             {totalProducts > 0 ? (
-              <p className="mt-5 text-xs uppercase tracking-[0.2em] text-muted-foreground">
+              <p className="mt-6 text-xs font-medium uppercase tracking-[0.2em] text-navy-foreground/70">
                 {totalProducts} products listed from the live store
               </p>
             ) : null}
           </div>
 
-          <div aria-hidden className="hidden gap-3 lg:grid lg:grid-cols-2">
-            {heroImages.length > 0 ? (
-              <>
-                <div className="row-span-2 overflow-hidden rounded-2xl border border-border/70 bg-card">
-                  <img
-                    src={heroImages[0]}
-                    alt=""
-                    width={800}
-                    height={1100}
-                    decoding="async"
-                    className="h-full w-full object-contain p-3"
-                  />
-                </div>
-                {heroImages.slice(1, 3).map((url) => (
-                  <div
-                    key={url}
-                    className="overflow-hidden rounded-2xl border border-border/70 bg-card"
-                  >
-                    <img
-                      src={url}
-                      alt=""
-                      width={600}
-                      height={600}
-                      loading="lazy"
-                      decoding="async"
-                      className="aspect-square w-full object-contain p-3"
+          <div className="glass-panel rounded-3xl p-4 sm:p-5">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="font-display text-sm font-semibold uppercase tracking-[0.14em] text-foreground">
+                Recently added
+              </h2>
+              <Link
+                to="/shop"
+                search={{ sort: "newest" }}
+                className="text-xs font-semibold text-brand hover:underline"
+              >
+                See all
+              </Link>
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              {heroImages.length > 0
+                ? newestItems.slice(0, 4).map((product, index) => (
+                    <Link
+                      key={product.id}
+                      to="/shop/$handle"
+                      params={{ handle: product.handle }}
+                      className="group overflow-hidden rounded-2xl border border-border/70 bg-surface"
+                    >
+                      <div className="aspect-square w-full overflow-hidden bg-surface-muted">
+                        {product.image_url ? (
+                          <img
+                            src={product.image_url}
+                            alt=""
+                            width={400}
+                            height={400}
+                            loading={index < 2 ? "eager" : "lazy"}
+                            decoding="async"
+                            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                          />
+                        ) : null}
+                      </div>
+                      <p className="truncate px-3 py-2 text-[0.72rem] font-medium text-foreground">
+                        {product.title}
+                      </p>
+                    </Link>
+                  ))
+                : [0, 1, 2, 3].map((index) => (
+                    <div
+                      key={index}
+                      className="aspect-square animate-pulse rounded-2xl bg-surface-muted"
                     />
-                  </div>
-                ))}
-              </>
-            ) : (
-              <>
-                <div className="row-span-2 aspect-[3/4] animate-pulse rounded-2xl bg-muted/50" />
-                <div className="aspect-square animate-pulse rounded-2xl bg-muted/50" />
-                <div className="aspect-square animate-pulse rounded-2xl bg-muted/50" />
-              </>
-            )}
+                  ))}
+            </div>
           </div>
         </div>
       </section>
+
 
       {/* Categories */}
       <section className="mx-auto mt-16 w-full max-w-6xl px-5 sm:mt-24 sm:px-8" aria-labelledby="categories">
