@@ -321,7 +321,7 @@ function ShopIndex() {
                 <button
                   type="button"
                   onClick={() => setSearch({ tag: undefined })}
-                  className="inline-flex min-h-9 items-center rounded-full border border-gold px-3.5 text-xs text-foreground"
+                  className="inline-flex min-h-9 items-center rounded-full border-transparent bg-secondary px-3.5 text-xs font-medium text-secondary-foreground"
                 >
                   Clear tag
                 </button>
