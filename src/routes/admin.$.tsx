@@ -4,6 +4,6 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 export const Route = createFileRoute("/admin/$")({
   beforeLoad: ({ params }) => {
     const rest = (params as { _splat?: string })._splat ?? "";
-    throw redirect({ to: rest ? `/control/${rest}` : "/control", replace: true });
+    throw redirect({ href: rest ? `/control/${rest}` : "/control", replace: true });
   },
 });
