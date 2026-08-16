@@ -328,7 +328,7 @@ function ShopIndex() {
                   Clear tag
                 </button>
               ) : null}
-              {tags.map((tag) => (
+              {tags.slice(0, expanded ? tags.length : 12).map((tag) => (
                 <button
                   key={tag}
                   type="button"
@@ -346,7 +346,20 @@ function ShopIndex() {
             </div>
           </div>
         ) : null}
+
+        {collectionItems.length > 12 || tags.length > 12 ? (
+          <button
+            type="button"
+            onClick={() => setExpanded((value) => !value)}
+            aria-expanded={expanded}
+            className="mt-5 inline-flex min-h-10 items-center rounded-xl border border-input bg-surface px-4 text-xs font-semibold text-foreground transition-colors hover:border-brand/50"
+          >
+            {expanded ? "Show fewer filters" : "Show all filters"}
+          </button>
+        ) : null}
+        </div>
       </div>
+
 
       <div className="mx-auto w-full max-w-7xl px-5 pb-8 pt-10 sm:px-8">
         {products.isLoading ? (
