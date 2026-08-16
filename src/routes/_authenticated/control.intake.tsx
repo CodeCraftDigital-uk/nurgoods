@@ -2,7 +2,7 @@ import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { PackageSearch, RefreshCw, ShieldCheck } from "lucide-react";
+import { RefreshCw, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { SectionCard } from "@/components/admin/SectionCard";
@@ -124,8 +124,8 @@ function IntakePage() {
     <div className="space-y-6">
       <PageHeader
         title="Product Intake"
+        eyebrow="Automation"
         description="Every product that arrives from the supplier is validated, de-duplicated, classified and optimised before customers can see it."
-        icon={PackageSearch}
       />
 
       <MetricGrid
