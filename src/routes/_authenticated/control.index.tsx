@@ -13,7 +13,7 @@ import { listIntegrations, listIntegrationEvents } from "@/lib/services/operatio
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 
-export const Route = createFileRoute("/_authenticated/admin/")({
+export const Route = createFileRoute("/_authenticated/control/")({
   component: DashboardPage,
 });
 
@@ -134,7 +134,7 @@ function DashboardPage() {
                 ) : null}
               </div>
               <Link
-                to={item.href as "/admin"}
+                to={item.href as "/control"}
                 className="inline-flex min-h-9 items-center gap-1.5 self-start rounded-md border border-input px-3 text-xs font-medium text-foreground transition-colors hover:bg-accent"
               >
                 {item.complete ? "Review" : "Set up"}

@@ -28,7 +28,13 @@ export function isPublicProductionHost(host: string | null | undefined): boolean
 
 /** Paths that belong to the admin console (including its sign in surface). */
 export function isAdminPath(pathname: string): boolean {
-  return pathname === "/admin" || pathname.startsWith("/admin/") || pathname === "/auth";
+  return (
+    pathname === "/control" ||
+    pathname.startsWith("/control/") ||
+    pathname === "/admin" ||
+    pathname.startsWith("/admin/") ||
+    pathname === "/auth"
+  );
 }
 
 /** Paths that must never be rewritten: APIs, assets and framework internals. */

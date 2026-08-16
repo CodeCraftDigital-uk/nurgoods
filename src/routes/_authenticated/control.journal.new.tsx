@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { createArticle } from "@/lib/services/journal";
 import { slugify } from "@/lib/types/platform";
 
-export const Route = createFileRoute("/_authenticated/admin/journal/new")({
+export const Route = createFileRoute("/_authenticated/control/journal/new")({
   component: NewArticlePage,
 });
 
@@ -25,7 +25,7 @@ function NewArticlePage() {
     onSuccess: async (article) => {
       await queryClient.invalidateQueries({ queryKey: ["articles"] });
       toast.success("Article created as a draft");
-      void navigate({ to: "/admin/journal/$articleId", params: { articleId: article.id } });
+      void navigate({ to: "/control/journal/$articleId", params: { articleId: article.id } });
     },
     onError: (error: Error) => toast.error(error.message),
   });
@@ -40,7 +40,7 @@ function NewArticlePage() {
         description="Create the record first, then work through research, drafting, verification and metadata in the editor."
         actions={
           <Button variant="outline" asChild>
-            <Link to="/admin/journal">Back to Journal</Link>
+            <Link to="/control/journal">Back to Journal</Link>
           </Button>
         }
       />

@@ -1,7 +1,7 @@
 import { createFileRoute, Outlet } from "@tanstack/react-router";
 import { AdminShell } from "@/components/admin/AdminShell";
 
-export const Route = createFileRoute("/_authenticated/admin")({
+export const Route = createFileRoute("/_authenticated/control")({
   head: () => ({
     meta: [
       { name: "robots", content: "noindex, nofollow, noarchive" },

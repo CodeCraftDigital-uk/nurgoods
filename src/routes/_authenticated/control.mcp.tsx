@@ -7,7 +7,7 @@ import { StatusPill } from "@/components/admin/StatusPill";
 import { EmptyState } from "@/components/admin/EmptyState";
 import { getConnectorReadiness } from "@/lib/public-api/readiness.functions";
 
-export const Route = createFileRoute("/_authenticated/admin/mcp")({
+export const Route = createFileRoute("/_authenticated/control/mcp")({
   component: McpPage,
 });
 
