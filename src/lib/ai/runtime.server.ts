@@ -52,29 +52,95 @@ export function resolveAdapter(): AiProviderAdapter {
       if (usage?.outputTokens != null) result.tokenOutput = usage.outputTokens;
 
       if (request.responseSchema) {
-        // Some responses wrap JSON in fences or a short preamble, so the
-        // object is isolated before parsing rather than failing the stage.
-        let cleaned = text
-          .replace(/^```(?:json)?/i, "")
-          .replace(/```\s*$/, "")
-          .trim();
-        const first = cleaned.indexOf("{");
-        const last = cleaned.lastIndexOf("}");
-        if (first > 0 || (last >= 0 && last < cleaned.length - 1)) {
-          if (first >= 0 && last > first) cleaned = cleaned.slice(first, last + 1);
+        const parsed = extractJsonObject(text);
+        if (parsed !== undefined) {
+          result.parsed = parsed;
+          return result;
         }
-        try {
-          result.parsed = JSON.parse(cleaned);
-        } catch {
+
+        // Some responses carry reasoning before the object or stop short of the
+        // closing brace. One corrective pass recovers the stage instead of
+        // failing the product.
+        const retry = streamText({
+          model: provider(model),
+          ...(systemText ? { system: systemText } : {}),
+          messages: [
+            ...conversation,
+            { role: "assistant" as const, content: text.slice(0, 2000) },
+            {
+              role: "user" as const,
+              content:
+                "That reply was not usable. Return the same result as a single raw JSON object only. No commentary, no reasoning, no code fences, and never stop before the closing brace.",
+            },
+          ],
+          temperature: 0,
+          maxOutputTokens: Math.max(request.maxOutputTokens ?? 4000, 6000),
+        });
+        const retryText = (await retry.text)?.trim() ?? "";
+        const retryParsed = extractJsonObject(retryText);
+        if (retryParsed === undefined) {
           throw new Error(
-            `The editorial model did not return valid JSON for this stage. Response began: ${cleaned.slice(0, 160)}`,
+            `The editorial model did not return valid JSON for this stage. Response began: ${retryText.slice(0, 160)}`,
           );
         }
+        result.parsed = retryParsed;
+        result.text = retryText;
       }
       return result;
     },
   };
 }
+
+/**
+ * Isolates the JSON object inside a model reply. Reasoning text, code fences
+ * and trailing commentary are common, so every balanced candidate is tried,
+ * largest first.
+ */
+function extractJsonObject(raw: string): unknown | undefined {
+  const text = raw
+    .replace(/^```(?:json)?/i, "")
+    .replace(/```\s*$/, "")
+    .trim();
+
+  const candidates: string[] = [];
+  if (text.startsWith("{")) candidates.push(text);
+
+  for (let start = 0; start < text.length; start += 1) {
+    if (text[start] !== "{") continue;
+    let depth = 0;
+    let inString = false;
+    let escaped = false;
+    for (let index = start; index < text.length; index += 1) {
+      const char = text[index]!;
+      if (inString) {
+        if (escaped) escaped = false;
+        else if (char === "\\") escaped = true;
+        else if (char === '"') inString = false;
+        continue;
+      }
+      if (char === '"') inString = true;
+      else if (char === "{") depth += 1;
+      else if (char === "}") {
+        depth -= 1;
+        if (depth === 0) {
+          candidates.push(text.slice(start, index + 1));
+          break;
+        }
+      }
+    }
+  }
+
+  for (const candidate of candidates.sort((a, b) => b.length - a.length)) {
+    try {
+      const value = JSON.parse(candidate);
+      if (value && typeof value === "object") return value;
+    } catch {
+      // try the next candidate
+    }
+  }
+  return undefined;
+}
+
 
 const BRAND_RULES = [
   "You write for NUR GOODS, a premium and calm retail brand. Tagline: Good things, brought to light.",

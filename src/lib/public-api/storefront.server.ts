@@ -291,14 +291,19 @@ export async function listStorefrontProducts(input: {
 
 export async function listStorefrontFacets(): Promise<StorefrontFacets> {
   const supabase = await publicClient();
-  const { data, count, error } = await supabase
+  // Suppressed duplicates must not inflate facet counts or the catalogue total.
+  const hiddenFacetIds = new Set(await loadSuppressedProductIds(supabase));
+  const { data, error } = await supabase
     .from("shopify_products")
-    .select("product_type, tags", { count: "exact" })
+    .select("id, product_type, tags")
     .limit(1000);
   if (error) throw new Error(error.message);
+  const visibleRows = ((data ?? []) as any[]).filter((row) => !hiddenFacetIds.has(row.id));
+  const count = visibleRows.length;
+
   const types = new Set<string>();
   const tagCounts = new Map<string, number>();
-  for (const row of (data ?? []) as any[]) {
+  for (const row of visibleRows) {
     if (typeof row.product_type === "string" && row.product_type.trim()) {
       types.add(row.product_type.trim());
     }
@@ -321,7 +326,7 @@ export async function listStorefrontFacets(): Promise<StorefrontFacets> {
     loadTaxonomy(supabase),
     supabase.from("product_classifications").select("product_id, category_slug").limit(3000),
   ]);
-  const hiddenIds = new Set(await loadSuppressedProductIds(supabase));
+  const hiddenIds = hiddenFacetIds;
   const direct = new Map<string, number>();
   for (const row of ((classified ?? []) as any[])) {
     if (!row.category_slug || hiddenIds.has(row.product_id)) continue;
@@ -398,8 +403,13 @@ export async function listStorefrontCollections(options?: {
       rows.map((row) => row.id),
     )
     .limit(2000);
-  const joinRows = (joins ?? []) as any[];
+  // Suppressed duplicates never count towards a collection tile.
+  const hiddenCollectionIds = new Set(await loadSuppressedProductIds(supabase));
+  const joinRows = ((joins ?? []) as any[]).filter(
+    (join) => !hiddenCollectionIds.has(join.product_id),
+  );
   const productIds = [...new Set(joinRows.map((join) => join.product_id))];
+
   const imageByProduct = new Map<string, string>();
   if (productIds.length > 0) {
     const { data: products } = await supabase
@@ -739,7 +749,8 @@ export async function getStorefrontProduct(handle: string): Promise<StorefrontPr
       related = ((siblings ?? []) as any[]).map((sibling) => mapCard(sibling));
     }
   }
-  if (collectionIds.length > 0) {
+  if (related.length === 0 && collectionIds.length > 0) {
+
     const { data: siblingJoins } = await supabase
       .from("shopify_product_collections")
       .select("product_id")
