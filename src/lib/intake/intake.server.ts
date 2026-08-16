@@ -158,6 +158,12 @@ export async function detectProducts(db: Db, inputs: DetectionInput[]): Promise<
       continue;
     }
 
+    if (!input.updatedAt) {
+      // Without a version we cannot tell whether anything actually changed, so
+      // an existing record is left exactly as it is.
+      result.unchanged += 1;
+      continue;
+    }
     const alreadyProcessed = row.processed_fingerprint === fingerprint;
     const openState = !["published_to_storefront", "approved", "rejected"].includes(row.state);
     if (alreadyProcessed && !openState) {
