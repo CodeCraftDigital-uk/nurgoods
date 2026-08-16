@@ -49,8 +49,8 @@ export function CheckoutDomainPanel() {
 
   return (
     <SectionCard
-      title="Checkout domain"
-      description="Product pages send shoppers to a basket on this host. Payment, delivery and order tracking stay with the store."
+      title="Checkout domain fallback"
+      description="Only used when Storefront API headless checkout is not connected, or to rewrite a checkout link whose host clashes with this site. When headless checkout is working, the store issued checkout link is the source of truth."
       actions={
         <StatusPill tone={ready ? "positive" : effective ? "warning" : "neutral"}>
           {ready ? "Working" : effective ? "Not answering" : "Not set"}

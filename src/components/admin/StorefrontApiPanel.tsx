@@ -279,6 +279,19 @@ export function StorefrontApiPanel() {
         </div>
       </dl>
 
+      {data?.checkoutHostConflict ? (
+        <div className="mt-4 rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm text-foreground">
+          <p className="font-medium">Checkout links cannot open yet</p>
+          <p className="mt-1 text-xs leading-relaxed">
+            The store issues checkout links on {data.primaryDomain}, which is the same address
+            serving this site, so a shopper is sent back here instead of to payment.
+            {data.checkoutHostOverride
+              ? ` Links are being rewritten to ${data.checkoutHostOverride} until the store primary domain is changed.`
+              : " In the store admin, add a dedicated checkout host such as shop.nurgoods.com, set it as the primary domain there, then run Test Storefront connection again."}
+          </p>
+        </div>
+      ) : null}
+
       {data?.lastError && state === "error" ? (
         <p className="mt-4 rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
           {data.lastError}
