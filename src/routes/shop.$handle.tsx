@@ -14,6 +14,7 @@ import { MissingProductImage } from "@/components/public/MissingProductImage";
 import { ReviewPlacementSlot } from "@/components/public/ReviewPlacementSlot";
 import { BRAND } from "@/lib/brand";
 import { getStorefrontProductFn } from "@/lib/services/storefront.functions";
+import { useBasket } from "@/lib/basket/BasketProvider";
 
 export const Route = createFileRoute("/shop/$handle")({
   loader: async ({ params }) => {
@@ -169,6 +170,25 @@ function ProductDetail() {
     : !headlessReady && !product.checkout_ready
       ? "Checkout is being set up"
       : "Currently unavailable";
+
+  const basket = useBasket();
+  const addToBasket = () => {
+    if (!selectedVariant?.variant_id) return;
+    const added = basket.add({
+      variantId: selectedVariant.variant_id,
+      productHandle: product.handle,
+      productTitle: product.title,
+      options: selectedVariant.selected_options,
+      variantTitle: selectedVariant.title ?? null,
+      price: selectedVariant.price ?? null,
+      compareAtPrice: selectedVariant.compare_at_price ?? null,
+      currency: selectedVariant.currency ?? product.currency ?? null,
+      imageUrl: selectedVariant.image_url ?? product.image_url ?? null,
+      quantity,
+      availableForSale: selectedVariant.available_for_sale,
+    });
+    if (added) toast.success(`${product.title} added to your basket`);
+  };
 
   const [starting, setStarting] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
@@ -474,19 +494,29 @@ function ProductDetail() {
               </select>
 
               {canBuy ? (
+                <button
+                  type="button"
+                  onClick={addToBasket}
+                  className="inline-flex min-h-12 flex-1 items-center justify-center rounded-2xl bg-primary px-6 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 sm:flex-none"
+                >
+                  Add to basket
+                </button>
+              ) : null}
+
+              {canBuy ? (
                 headlessReady ? (
                   <button
                     type="button"
                     onClick={() => void beginCheckout()}
                     disabled={starting}
-                    className="inline-flex min-h-12 flex-1 items-center justify-center rounded-2xl bg-primary px-6 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-70 sm:flex-none"
+                    className="inline-flex min-h-12 flex-1 items-center justify-center rounded-2xl border border-input bg-surface px-6 text-sm font-semibold text-foreground transition-colors hover:bg-accent disabled:opacity-70 sm:flex-none"
                   >
                     {starting ? "Opening checkout" : "Buy now"}
                   </button>
                 ) : (
                   <a
                     href={buyHref!}
-                    className="inline-flex min-h-12 flex-1 items-center justify-center rounded-2xl bg-primary px-6 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 sm:flex-none"
+                    className="inline-flex min-h-12 flex-1 items-center justify-center rounded-2xl border border-input bg-surface px-6 text-sm font-semibold text-foreground transition-colors hover:bg-accent sm:flex-none"
                   >
                     Buy now
                   </a>
