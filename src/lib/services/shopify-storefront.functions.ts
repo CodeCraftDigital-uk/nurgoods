@@ -57,6 +57,7 @@ export const connectStorefrontApi = createServerFn({ method: "POST" })
         privateToken: data.privateToken?.trim() || null,
         ...(data.publicToken !== undefined ? { publicToken: data.publicToken } : {}),
         shopName: result.shopName,
+        primaryDomain: result.primaryDomain,
       });
       await markStorefrontState({
         state: "connected",
@@ -105,6 +106,13 @@ export const testStorefrontApiFn = createServerFn({ method: "POST" })
         domain: resolved.domain,
         apiVersion: resolved.apiVersion,
         token: resolved.privateToken,
+      });
+      const { saveStorefrontCredentials } = await import("./shopify-storefront.server");
+      await saveStorefrontCredentials({
+        domain: resolved.domain,
+        apiVersion: resolved.apiVersion,
+        shopName: result.shopName,
+        primaryDomain: result.primaryDomain,
       });
       await markStorefrontState({
         state: "connected",
@@ -166,7 +174,9 @@ export const createCheckoutFn = createServerFn({ method: "POST" })
       .parse(data),
   )
   .handler(async ({ data }): Promise<{ checkoutUrl: string; totalQuantity: number }> => {
-    const { createStorefrontCart, toVariantGid } = await import("./shopify-storefront.server");
+    const { createStorefrontCart, toVariantGid, CHECKOUT_HOST_CONFLICT } = await import(
+      "./shopify-storefront.server"
+    );
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const gid = toVariantGid(data.variantId);
@@ -178,9 +188,32 @@ export const createCheckoutFn = createServerFn({ method: "POST" })
       .maybeSingle();
     if (!variant) throw new Error("That product option is no longer available");
 
-    const cart = await createStorefrontCart({
-      variantId: gid,
-      quantity: data.quantity ?? 1,
-    });
-    return { checkoutUrl: cart.checkoutUrl, totalQuantity: cart.totalQuantity };
+    try {
+      const cart = await createStorefrontCart({
+        variantId: gid,
+        quantity: data.quantity ?? 1,
+      });
+      return { checkoutUrl: cart.checkoutUrl, totalQuantity: cart.totalQuantity };
+    } catch (error) {
+      const raw = error instanceof Error ? error.message : "Checkout could not be started";
+      const conflict = raw === CHECKOUT_HOST_CONFLICT;
+      try {
+        const { recordSyncEvent } = await import("./shopify.server");
+        await recordSyncEvent(supabaseAdmin as never, {
+          eventType: "storefront_checkout_failed",
+          status: "failed",
+          message: conflict
+            ? "The store issues checkout links on the same domain that serves this site, so checkout cannot open. Set a dedicated checkout host in the store admin and make it the primary domain there."
+            : raw,
+          payload: { variant_id: numeric },
+        });
+      } catch {
+        /* diagnostics are best effort */
+      }
+      throw new Error(
+        conflict
+          ? "Checkout is being set up for this store. Please try again shortly."
+          : "Checkout could not be started. Please try again.",
+      );
+    }
   });
