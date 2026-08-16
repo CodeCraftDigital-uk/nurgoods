@@ -63,7 +63,7 @@ function CollectionsIndex() {
             ))}
           </ul>
         ) : collections.isError ? (
-          <div className="mt-10 rounded-xl border border-border/70 p-10 text-center">
+          <div className="mt-10 glass-card rounded-2xl p-10 text-center">
             <h2 className="font-display text-xl text-foreground">Collections cannot be shown</h2>
             <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
               Please try again shortly, or browse everything on the store.

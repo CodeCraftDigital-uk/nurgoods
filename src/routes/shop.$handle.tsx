@@ -269,7 +269,7 @@ function ProductDetail() {
     <PublicShell>
       <JsonLd data={schema} />
 
-      <article className="mx-auto w-full max-w-6xl px-5 pt-10 sm:px-8 sm:pt-14">
+      <article className="mx-auto w-full max-w-7xl px-5 pt-10 sm:px-8 sm:pt-14">
         <Breadcrumbs
           items={[
             { label: "Shop", href: "/shop" },
@@ -283,7 +283,7 @@ function ProductDetail() {
 
         <div className="mt-6 grid gap-10 lg:grid-cols-2 lg:gap-14">
           <div>
-            <div className="overflow-hidden rounded-2xl border border-border/70 bg-muted/40">
+            <div className="overflow-hidden glass-card rounded-3xl">
               {activeImage ? (
                 <img
                   src={activeImage.url}
@@ -309,7 +309,7 @@ function ProductDetail() {
                       aria-label={`Show image ${index + 1}`}
                       aria-current={index === activeIndex}
                       className={`block w-full overflow-hidden rounded-lg border transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${
-                        index === activeIndex ? "border-gold" : "border-border/70 hover:border-gold/60"
+                        index === activeIndex ? "border-brand" : "border-border/70 hover:border-brand/50"
                       }`}
                     >
                       <img
@@ -328,7 +328,8 @@ function ProductDetail() {
             ) : null}
           </div>
 
-          <div>
+          <div className="glass-panel h-fit rounded-3xl p-5 sm:p-7 lg:sticky lg:top-28">
+
             {product.category_name ? (
               <Link
                 to="/shop"
@@ -400,8 +401,8 @@ function ProductDetail() {
                                 onClick={() => setSelection((prev) => ({ ...prev, [name]: value }))}
                                 className={`inline-flex min-h-10 items-center rounded-lg border px-3.5 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${
                                   active
-                                    ? "border-gold bg-accent text-foreground"
-                                    : "border-border text-foreground hover:border-gold/60"
+                                    ? "border-brand bg-brand-soft text-foreground"
+                                    : "border-border bg-surface text-foreground hover:border-brand/60"
                                 } ${outOfStock ? "text-muted-foreground line-through" : ""}`}
                               >
                                 {value}
@@ -439,14 +440,14 @@ function ProductDetail() {
                     type="button"
                     onClick={() => void beginCheckout()}
                     disabled={starting}
-                    className="inline-flex min-h-12 flex-1 items-center justify-center rounded-lg bg-primary px-6 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-70 sm:flex-none"
+                    className="inline-flex min-h-12 flex-1 items-center justify-center rounded-2xl bg-primary px-6 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-70 sm:flex-none"
                   >
                     {starting ? "Opening checkout" : "Buy now"}
                   </button>
                 ) : (
                   <a
                     href={buyHref!}
-                    className="inline-flex min-h-12 flex-1 items-center justify-center rounded-lg bg-primary px-6 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 sm:flex-none"
+                    className="inline-flex min-h-12 flex-1 items-center justify-center rounded-2xl bg-primary px-6 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 sm:flex-none"
                   >
                     Buy now
                   </a>
@@ -571,7 +572,7 @@ function ProductDetail() {
         {product.delivery_information || product.care_information ? (
           <section className="mt-14 grid gap-8 sm:grid-cols-2">
             {product.delivery_information ? (
-              <div className="rounded-xl border border-border/70 p-6">
+              <div className="glass-card rounded-2xl p-6">
                 <h2 className="font-display text-lg text-foreground">Delivery</h2>
                 <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
                   {product.delivery_information}
@@ -579,7 +580,7 @@ function ProductDetail() {
               </div>
             ) : null}
             {product.care_information ? (
-              <div className="rounded-xl border border-border/70 p-6">
+              <div className="glass-card rounded-2xl p-6">
                 <h2 className="font-display text-lg text-foreground">Care</h2>
                 <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
                   {product.care_information}
@@ -610,7 +611,7 @@ function ProductDetail() {
         {product.related.length > 0 ? (
           <section className="mt-16">
             <h2 className="font-display text-2xl text-foreground">More like this</h2>
-            <ul className="mt-5 grid grid-cols-2 gap-4 lg:grid-cols-4">
+            <ul className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
               {product.related.map((related) => (
                 <li key={related.id}>
                   <ProductCard product={related} />
@@ -620,7 +621,7 @@ function ProductDetail() {
           </section>
         ) : null}
 
-        <section className="mt-16 rounded-2xl border border-border/70 p-7 sm:p-9">
+        <section className="mt-16 glass-card rounded-3xl p-7 sm:p-9">
           <h2 className="font-display text-xl text-foreground">Need a hand before ordering?</h2>
           <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">
             Write to us and a person will reply. Returns, delivery and privacy terms are set out in

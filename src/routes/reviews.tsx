@@ -55,7 +55,7 @@ function ReviewsPage() {
             key={placement.placement_key}
           />
         ) : isLoading ? (
-          <div className="mt-12 h-56 animate-pulse rounded-2xl border border-border/70 bg-muted/40" />
+          <div className="mt-12 h-56 animate-pulse glass-card rounded-3xl bg-muted/40" />
         ) : (
           <div className="mt-12 rounded-2xl border border-dashed border-border p-10 text-center sm:p-14">
             <h2 className="font-display text-2xl text-foreground">Reviews coming soon</h2>

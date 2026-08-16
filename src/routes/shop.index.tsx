@@ -72,6 +72,8 @@ function ShopIndex() {
   const search = Route.useSearch();
   const navigate = useNavigate({ from: "/shop/" });
   const [term, setTerm] = useState(search.q ?? "");
+  const [expanded, setExpanded] = useState(false);
+
 
   useEffect(() => {
     setTerm(search.q ?? "");
@@ -171,7 +173,7 @@ function ShopIndex() {
 
   return (
     <PublicShell>
-      <div className="mx-auto w-full max-w-6xl px-5 pt-12 sm:px-8 sm:pt-16">
+      <div className="mx-auto w-full max-w-7xl px-5 pt-12 sm:px-8 sm:pt-16">
         <Breadcrumbs items={[{ label: "Shop", href: "/shop" }]} />
         <h1 className="mt-4 font-display text-4xl leading-tight text-foreground sm:text-5xl">
           Shop the range
@@ -199,7 +201,7 @@ function ShopIndex() {
               value={term}
               onChange={(event) => setTerm(event.target.value)}
               placeholder="Search products"
-              className="h-11 w-full rounded-lg border border-input bg-background px-4 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              className="h-12 w-full rounded-2xl border border-input bg-surface px-4 text-sm shadow-[var(--shadow-card)] focus:border-brand focus:ring-4 focus:ring-brand/15 text-foreground placeholder:text-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
             />
           </div>
           <div className="flex gap-3">
@@ -211,7 +213,7 @@ function ShopIndex() {
                 id="shop-sort"
                 value={search.sort ?? "featured"}
                 onChange={(event) => setSearch({ sort: event.target.value })}
-                className="h-11 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                className="h-12 w-full rounded-2xl border border-input bg-surface px-3 text-sm text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
               >
                 {SORT_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -222,15 +224,17 @@ function ShopIndex() {
             </div>
             <button
               type="submit"
-              className="inline-flex h-11 shrink-0 items-center rounded-lg bg-primary px-5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+              className="inline-flex h-12 shrink-0 items-center rounded-2xl bg-primary px-6 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
             >
               Search
             </button>
           </div>
         </form>
 
+        <div className="glass-card mt-6 rounded-3xl p-4 sm:p-6">
         {categories.length > 0 ? (
-          <div className="mt-6">
+          <div>
+
             <h2 className="text-[0.65rem] uppercase tracking-[0.2em] text-muted-foreground">
               Departments
             </h2>
@@ -241,8 +245,8 @@ function ShopIndex() {
                 aria-pressed={!search.category}
                 className={`inline-flex min-h-9 items-center rounded-full border px-3.5 text-xs transition-colors ${
                   search.category
-                    ? "border-border text-muted-foreground hover:text-foreground"
-                    : "border-gold text-foreground"
+                    ? "border-border bg-surface text-muted-foreground hover:border-brand/40 hover:text-foreground"
+                    : "border-transparent bg-primary text-primary-foreground shadow-sm"
                 }`}
               >
                 All
@@ -259,8 +263,8 @@ function ShopIndex() {
                   aria-pressed={search.category === category.slug}
                   className={`inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3.5 text-xs transition-colors ${
                     search.category === category.slug
-                      ? "border-gold text-foreground"
-                      : "border-border text-muted-foreground hover:text-foreground"
+                      ? "border-transparent bg-primary text-primary-foreground shadow-sm"
+                      : "border-border bg-surface text-muted-foreground hover:border-brand/40 hover:text-foreground"
                   }`}
                 >
                   {category.name}
@@ -283,13 +287,13 @@ function ShopIndex() {
                 aria-pressed={!search.collection}
                 className={`inline-flex min-h-9 items-center rounded-full border px-3.5 text-xs transition-colors ${
                   search.collection
-                    ? "border-border text-muted-foreground hover:text-foreground"
-                    : "border-gold text-foreground"
+                    ? "border-border bg-surface text-muted-foreground hover:border-brand/40 hover:text-foreground"
+                    : "border-transparent bg-primary text-primary-foreground shadow-sm"
                 }`}
               >
                 All
               </button>
-              {collectionItems.map((collection) => (
+              {collectionItems.slice(0, expanded ? collectionItems.length : 12).map((collection) => (
                 <button
                   key={collection.handle}
                   type="button"
@@ -297,8 +301,8 @@ function ShopIndex() {
                   aria-pressed={search.collection === collection.handle}
                   className={`inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3.5 text-xs transition-colors ${
                     search.collection === collection.handle
-                      ? "border-gold text-foreground"
-                      : "border-border text-muted-foreground hover:text-foreground"
+                      ? "border-transparent bg-primary text-primary-foreground shadow-sm"
+                      : "border-border bg-surface text-muted-foreground hover:border-brand/40 hover:text-foreground"
                   }`}
                 >
                   {collection.title}
@@ -321,12 +325,12 @@ function ShopIndex() {
                 <button
                   type="button"
                   onClick={() => setSearch({ tag: undefined })}
-                  className="inline-flex min-h-9 items-center rounded-full border border-gold px-3.5 text-xs text-foreground"
+                  className="inline-flex min-h-9 items-center rounded-full border-transparent bg-secondary px-3.5 text-xs font-medium text-secondary-foreground"
                 >
                   Clear tag
                 </button>
               ) : null}
-              {tags.map((tag) => (
+              {tags.slice(0, expanded ? tags.length : 12).map((tag) => (
                 <button
                   key={tag}
                   type="button"
@@ -334,8 +338,8 @@ function ShopIndex() {
                   aria-pressed={search.tag === tag}
                   className={`inline-flex min-h-9 items-center rounded-full border px-3.5 text-xs transition-colors ${
                     search.tag === tag
-                      ? "border-gold text-foreground"
-                      : "border-border text-muted-foreground hover:text-foreground"
+                      ? "border-transparent bg-primary text-primary-foreground shadow-sm"
+                      : "border-border bg-surface text-muted-foreground hover:border-brand/40 hover:text-foreground"
                   }`}
                 >
                   {tag}
@@ -344,11 +348,24 @@ function ShopIndex() {
             </div>
           </div>
         ) : null}
+
+        {collectionItems.length > 12 || tags.length > 12 ? (
+          <button
+            type="button"
+            onClick={() => setExpanded((value) => !value)}
+            aria-expanded={expanded}
+            className="mt-5 inline-flex min-h-10 items-center rounded-xl border border-input bg-surface px-4 text-xs font-semibold text-foreground transition-colors hover:border-brand/50"
+          >
+            {expanded ? "Show fewer filters" : "Show all filters"}
+          </button>
+        ) : null}
+        </div>
       </div>
 
-      <div className="mx-auto w-full max-w-6xl px-5 pb-8 pt-10 sm:px-8">
+
+      <div className="mx-auto w-full max-w-7xl px-5 pb-8 pt-10 sm:px-8">
         {products.isLoading ? (
-          <ul className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
             {[0, 1, 2, 3, 4, 5, 6, 7].map((index) => (
               <li key={index}>
                 <ProductCardSkeleton />
@@ -404,7 +421,7 @@ function ShopIndex() {
             <p className="text-xs text-muted-foreground" aria-live="polite">
               Showing {items.length} of {total} product{total === 1 ? "" : "s"}
             </p>
-            <ul className="mt-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
+            <ul className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
               {items.map((product, index) => (
                 <li key={product.id}>
                   <ProductCard product={product} eager={index < 4} />
@@ -427,7 +444,7 @@ function ShopIndex() {
         )}
 
 
-        <div className="mt-14 rounded-2xl border border-border/70 p-7 sm:p-9">
+        <div className="mt-14 glass-card rounded-3xl p-7 sm:p-9">
           <h2 className="font-display text-2xl text-foreground">Browse by collection</h2>
           <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">
             Collections group the range by how the products are used, which is often a faster way

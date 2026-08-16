@@ -21,8 +21,8 @@ export function formatPrice(
 }
 
 /**
- * Product card. Everything shown comes from synced store data or approved
- * enrichment. No badges, ratings or stock claims are invented.
+ * Marketplace product card. Everything shown comes from synced store data or
+ * approved enrichment. No badges, ratings or stock claims are invented.
  */
 export function ProductCard({
   product,
@@ -32,13 +32,18 @@ export function ProductCard({
   eager?: boolean;
 }) {
   const price = formatPrice(product.price_min, product.price_max, product.currency);
+  const reduced =
+    product.compare_at_price_min != null &&
+    product.price_min != null &&
+    product.compare_at_price_min > product.price_min;
+
   return (
     <Link
       to="/shop/$handle"
       params={{ handle: product.handle }}
-      className="group flex h-full flex-col overflow-hidden rounded-xl border border-border/70 bg-card transition-colors hover:border-gold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+      className="glass-card group flex h-full flex-col overflow-hidden rounded-2xl transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[var(--shadow-lift)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
     >
-      <div className="aspect-square w-full overflow-hidden bg-muted/50">
+      <div className="relative aspect-square w-full overflow-hidden bg-surface-muted">
         {product.image_url ? (
           <img
             src={product.image_url}
@@ -47,33 +52,38 @@ export function ProductCard({
             height={600}
             loading={eager ? "eager" : "lazy"}
             decoding="async"
-            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
           />
         ) : (
           <MissingProductImage />
         )}
+        {reduced ? (
+          <span className="absolute left-3 top-3 rounded-full bg-gold px-2.5 py-1 text-[0.62rem] font-semibold uppercase tracking-[0.12em] text-gold-foreground shadow-sm">
+            Reduced
+          </span>
+        ) : null}
       </div>
       <div className="flex flex-1 flex-col p-4">
         {product.product_type ? (
-          <p className="text-[0.65rem] uppercase tracking-[0.18em] text-muted-foreground">
+          <p className="truncate text-[0.62rem] font-semibold uppercase tracking-[0.16em] text-brand">
             {product.product_type}
           </p>
         ) : null}
-        <h3 className="mt-1.5 font-display text-base leading-snug text-foreground">
+        <h3 className="mt-1.5 line-clamp-2 font-display text-[0.95rem] font-semibold leading-snug text-foreground">
           {product.title}
         </h3>
         {product.summary ? (
-          <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-muted-foreground">
+          <p className="mt-1.5 line-clamp-2 text-[0.8rem] leading-relaxed text-muted-foreground">
             {product.summary}
           </p>
         ) : null}
         {price ? (
-          <p className="mt-auto flex items-baseline gap-2 pt-3 text-sm font-medium text-foreground">
-            <span>{price}</span>
-            {product.compare_at_price_min != null &&
-            product.price_min != null &&
-            product.compare_at_price_min > product.price_min ? (
-              <span className="text-xs font-normal text-muted-foreground line-through">
+          <p className="mt-auto flex items-baseline gap-2 pt-3">
+            <span className="font-display text-lg font-bold tracking-tight text-foreground">
+              {price}
+            </span>
+            {reduced ? (
+              <span className="text-xs text-muted-foreground line-through">
                 {formatPrice(product.compare_at_price_min, null, product.currency)}
               </span>
             ) : null}
@@ -86,11 +96,12 @@ export function ProductCard({
 
 export function ProductCardSkeleton() {
   return (
-    <div className="overflow-hidden rounded-xl border border-border/70">
-      <div className="aspect-square w-full animate-pulse bg-muted/50" />
+    <div className="glass-card overflow-hidden rounded-2xl">
+      <div className="aspect-square w-full animate-pulse bg-surface-muted" />
       <div className="space-y-2 p-4">
-        <div className="h-3 w-1/3 animate-pulse rounded bg-muted/60" />
-        <div className="h-4 w-3/4 animate-pulse rounded bg-muted/60" />
+        <div className="h-3 w-1/3 animate-pulse rounded bg-muted" />
+        <div className="h-4 w-3/4 animate-pulse rounded bg-muted" />
+        <div className="h-5 w-1/4 animate-pulse rounded bg-muted" />
       </div>
     </div>
   );
