@@ -158,6 +158,16 @@ export interface StorefrontApiStatus {
   checkoutHostConflict: boolean;
   /** Dedicated checkout host used to rewrite a conflicting link, when set. */
   checkoutHostOverride: string | null;
+  /** Live result of probing the checkout host. */
+  checkoutHostProbe: CheckoutHostProbe | null;
+  /** Every gate that has to pass before Buy now can go live. */
+  readiness: {
+    storefrontConnected: boolean;
+    checkoutHostConfigured: boolean;
+    checkoutHostServesStore: boolean;
+    buyNowReady: boolean;
+  };
+
   /** Domain suggested from the existing Admin API pairing. */
   suggestedDomain: string | null;
 }
