@@ -72,6 +72,8 @@ function ShopIndex() {
   const search = Route.useSearch();
   const navigate = useNavigate({ from: "/shop/" });
   const [term, setTerm] = useState(search.q ?? "");
+  const [expanded, setExpanded] = useState(false);
+
 
   useEffect(() => {
     setTerm(search.q ?? "");
