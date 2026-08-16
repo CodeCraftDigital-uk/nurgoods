@@ -567,18 +567,26 @@ export interface CartResult {
 }
 
 /**
- * Creates a cart through the official Cart API and returns the checkout link
- * issued by the store. No checkout URL is ever assembled by this platform.
+ * Creates one cart for a whole basket through the official Cart API and
+ * returns the checkout link issued by the store. Every basket line travels in
+ * the same cart, so a shopper is never sent to separate checkouts.
  */
-export async function createStorefrontCart(input: {
-  variantId: string;
-  quantity: number;
+export async function createStorefrontCartLines(input: {
+  lines: { variantId: string; quantity: number }[];
 }): Promise<CartResult> {
   const resolved = await resolveStorefrontCredentials();
   if (!resolved.domain || !resolved.privateToken) {
     throw new Error("Headless checkout is not configured");
   }
-  const quantity = Math.max(1, Math.min(Math.trunc(input.quantity) || 1, 10));
+  const lines = input.lines
+    .filter((line) => Boolean(line.variantId?.trim()))
+    .map((line) => ({
+      merchandiseId: toVariantGid(line.variantId),
+      quantity: Math.max(1, Math.min(Math.trunc(line.quantity) || 1, 10)),
+    }));
+  if (lines.length === 0) throw new Error("There is nothing to order");
+  const requestedQuantity = lines.reduce((sum, line) => sum + line.quantity, 0);
+
   const data = await storefrontGraphql<{
     cartCreate: {
       cart: {
@@ -596,7 +604,7 @@ export async function createStorefrontCart(input: {
       apiVersion: resolved.apiVersion,
     },
     CART_CREATE,
-    { lines: [{ merchandiseId: toVariantGid(input.variantId), quantity }] },
+    { lines },
   );
 
   const errors = data.cartCreate?.userErrors ?? [];
@@ -610,11 +618,22 @@ export async function createStorefrontCart(input: {
   return {
     cartId: cart.id,
     checkoutUrl,
-    totalQuantity: cart.totalQuantity ?? quantity,
+    totalQuantity: cart.totalQuantity ?? requestedQuantity,
     subtotal: amount != null && amount !== "" ? Number(amount) : null,
     currency: cart.cost?.subtotalAmount?.currencyCode ?? null,
   };
 }
+
+/** Single line convenience wrapper kept for the direct Buy now action. */
+export async function createStorefrontCart(input: {
+  variantId: string;
+  quantity: number;
+}): Promise<CartResult> {
+  return createStorefrontCartLines({
+    lines: [{ variantId: input.variantId, quantity: input.quantity }],
+  });
+}
+
 
 /**
  * Final safety gate on the store issued link. The shopper is only ever sent to
