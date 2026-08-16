@@ -62,7 +62,7 @@ export interface PricingAuditRun {
   status: string;
   message: string | null;
   totals: AuditTotals;
-  settings: Record<string, unknown>;
+  settings: Record<string, string | number | boolean | null>;
   created_at: string;
   completed_at: string | null;
 }
