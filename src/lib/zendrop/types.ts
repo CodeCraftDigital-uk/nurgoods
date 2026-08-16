@@ -1,0 +1,199 @@
+/**
+ * Supplier sourcing and pricing types.
+ *
+ * Zendrop stays the supplier and fulfilment layer. This module only automates
+ * the upstream step of moving a supplier catalogue product into the supplier
+ * account so the existing store sync can then pick it up. Nothing here creates
+ * a supplier product directly in the store.
+ */
+
+export const CANDIDATE_STATES = [
+  "candidate",
+  "validated",
+  "priced",
+  "duplicate_checked",
+  "queued",
+  "importing",
+  "imported",
+  "linked",
+  "detected_in_store",
+  "live",
+  "held",
+  "failed",
+] as const;
+
+export type CandidateState = (typeof CANDIDATE_STATES)[number];
+
+export const CANDIDATE_STATE_LABEL: Record<CandidateState, string> = {
+  candidate: "Candidate",
+  validated: "Validated",
+  priced: "Priced",
+  duplicate_checked: "Duplicate checked",
+  queued: "Queued",
+  importing: "Importing",
+  imported: "In supplier products",
+  linked: "Linked to the store",
+  detected_in_store: "Detected by store sync",
+  live: "Live",
+  held: "Held",
+  failed: "Failed",
+};
+
+/** Capability roles the adapter needs. Names are discovered at runtime. */
+export const CAPABILITY_ROLES = [
+  "catalogue_search",
+  "catalogue_product",
+  "my_products_list",
+  "my_products_import",
+  "stores_list",
+] as const;
+
+export type CapabilityRole = (typeof CAPABILITY_ROLES)[number];
+
+export const CAPABILITY_ROLE_LABEL: Record<CapabilityRole, string> = {
+  catalogue_search: "Browse supplier catalogue",
+  catalogue_product: "Read a supplier product",
+  my_products_list: "Read supplier products",
+  my_products_import: "Import into supplier products",
+  stores_list: "Read connected stores",
+};
+
+export interface CapabilityReport {
+  role: CapabilityRole;
+  label: string;
+  actionName: string | null;
+  available: boolean;
+  kind: "read" | "write" | "unknown";
+}
+
+export interface ZendropConnectionStatus {
+  configured: boolean;
+  connectionState: "not_connected" | "connected" | "error";
+  fingerprint: string | null;
+  expiresOn: string | null;
+  expiresInDays: number | null;
+  scopes: string[];
+  storeLabel: string | null;
+  lastTestedAt: string | null;
+  lastError: string | null;
+  capabilities: CapabilityReport[];
+  massImportUnlocked: boolean;
+  testPassedAt: string | null;
+}
+
+export interface PricingSettings {
+  pricing_mode: string;
+  target_margin: number;
+  rounding_mode: "charm_99" | "whole" | "none";
+  min_promo_margin: number;
+  promo_discount: number;
+  shipping_market: string;
+  currency: string;
+  allow_incomplete_pricing: boolean;
+}
+
+export interface SourcingRules {
+  enabled: boolean;
+  allowed_categories: string[];
+  blocked_categories: string[];
+  require_stock: boolean;
+  require_image: boolean;
+  require_uk_shipping: boolean;
+  duplicate_precheck: boolean;
+  min_landed_cost: number | null;
+  max_landed_cost: number | null;
+  max_retail_price: number | null;
+  daily_import_cap: number;
+  batch_size: number;
+}
+
+export interface CatalogueVariant {
+  id: string;
+  title: string;
+  sku: string | null;
+  cost: number | null;
+  shippingCost: number | null;
+  suggestedRetail: number | null;
+  inventory: number | null;
+}
+
+export interface CatalogueItem {
+  id: string;
+  title: string;
+  imageUrl: string | null;
+  category: string | null;
+  cost: number | null;
+  shippingCost: number | null;
+  suggestedRetail: number | null;
+  inventory: number | null;
+  shipsFrom: string | null;
+  deliveryEstimate: string | null;
+  currency: string;
+  variants: CatalogueVariant[];
+}
+
+export interface CatalogueSearchResult {
+  items: CatalogueItem[];
+  nextCursor: string | null;
+  page: number;
+  total: number | null;
+  available: boolean;
+  message: string | null;
+}
+
+export interface PricingBreakdown {
+  supplierCost: number | null;
+  shippingCost: number | null;
+  landedCost: number | null;
+  targetMargin: number;
+  price: number | null;
+  suggestedRetail: number | null;
+  grossProfit: number | null;
+  grossMargin: number | null;
+  promoDiscount: number;
+  promoPrice: number | null;
+  promoMargin: number | null;
+  promoWithinFloor: boolean;
+  complete: boolean;
+  reason: string | null;
+}
+
+export interface CandidateRow {
+  id: string;
+  zendrop_product_id: string;
+  title: string;
+  image_url: string | null;
+  category: string | null;
+  state: CandidateState;
+  hold_reason: string | null;
+  failure_reason: string | null;
+  is_test: boolean;
+  currency: string;
+  supplier_cost: number | null;
+  shipping_cost: number | null;
+  landed_cost: number | null;
+  calculated_price: number | null;
+  suggested_retail: number | null;
+  gross_margin: number | null;
+  pricing_complete: boolean;
+  shopify_product_id: string | null;
+  attempts: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SourcingCounters {
+  total: number;
+  queued: number;
+  importedToday: number;
+  failedOrHeld: number;
+  live: number;
+}
+
+export interface RateLimitSnapshot {
+  readsRemaining: number;
+  writesRemaining: number;
+  readLimit: number;
+  writeLimit: number;
+  windowSeconds: number;
+}
