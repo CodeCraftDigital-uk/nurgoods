@@ -198,7 +198,22 @@ function ProductDetail() {
   };
 
 
-  const price = formatPrice(product.price_min, product.price_max, product.currency);
+  // One shared pricing helper drives every price on the page, so a range can
+  // never be rendered alongside a stale variant price.
+  const display = resolvePriceDisplay(product, selectedVariant);
+  const price = display.primary;
+  const availabilityLabel = selectedVariant
+    ? selectedVariant.available_for_sale === false
+      ? "Currently unavailable"
+      : "Available to order"
+    : product.available_for_sale == null
+      ? null
+      : product.available_for_sale
+        ? product.variant_count > 1
+          ? `Available to order in ${product.variant_count} options`
+          : "Available to order"
+        : "Currently unavailable";
+
   const url = `${BRAND.siteUrl}/shop/${product.handle}`;
 
   const schema: Record<string, unknown>[] = [
