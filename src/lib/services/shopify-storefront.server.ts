@@ -239,21 +239,32 @@ export async function storefrontGraphql<T>(
   query: string,
   variables: Record<string, unknown> = {},
 ): Promise<T> {
+  const url = `https://${credentials.domain}/api/${credentials.apiVersion}/graphql.json`;
+  const body = JSON.stringify({ query, variables });
+  // Shopify accepts exactly one auth header. Private tokens use the private
+  // header, public tokens the access-token header. Sending both is rejected,
+  // so try the likely one first and fall back to the other.
+  const headerNames = credentials.token.startsWith("shpat_")
+    ? ["Shopify-Storefront-Private-Token", "X-Shopify-Storefront-Access-Token"]
+    : ["X-Shopify-Storefront-Access-Token", "Shopify-Storefront-Private-Token"];
+
+  const send = async (headerName: string) =>
+    fetch(url, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        accept: "application/json",
+        [headerName]: credentials.token,
+      },
+      body,
+    });
+
   let response: Response;
   try {
-    response = await fetch(
-      `https://${credentials.domain}/api/${credentials.apiVersion}/graphql.json`,
-      {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          accept: "application/json",
-          "Shopify-Storefront-Private-Token": credentials.token,
-          "X-Shopify-Storefront-Access-Token": credentials.token,
-        },
-        body: JSON.stringify({ query, variables }),
-      },
-    );
+    response = await send(headerNames[0]!);
+    if (response.status === 401 || response.status === 403) {
+      response = await send(headerNames[1]!);
+    }
   } catch {
     throw new Error(`The store at ${credentials.domain} could not be reached.`);
   }
@@ -261,6 +272,7 @@ export async function storefrontGraphql<T>(
   if (response.status === 401 || response.status === 403) {
     throw new Error(`The store rejected the Storefront token. ${SCOPE_ADVICE}`);
   }
+
   if (response.status === 404) {
     throw new Error(
       `No Storefront API was found at ${credentials.domain} for version ${credentials.apiVersion}. Check the .myshopify.com domain and the version.`,
