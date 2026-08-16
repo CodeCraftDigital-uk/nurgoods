@@ -74,18 +74,19 @@ export function ProductCard({
             {product.summary}
           </p>
         ) : null}
-        {price ? (
-          <p className="mt-auto flex items-baseline gap-2 pt-3">
+        {display.primary ? (
+          <p className="mt-auto flex flex-wrap items-baseline gap-2 pt-3">
             <span className="font-display text-lg font-bold tracking-tight text-foreground">
-              {price}
+              {display.primary}
             </span>
-            {reduced ? (
+            {display.compareAt ? (
               <span className="text-xs text-muted-foreground line-through">
-                {formatPrice(product.compare_at_price_min, null, product.currency)}
+                {display.compareAt}
               </span>
             ) : null}
           </p>
         ) : null}
+
       </div>
     </Link>
   );
