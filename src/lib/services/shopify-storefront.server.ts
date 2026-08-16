@@ -608,9 +608,10 @@ export async function createStorefrontCart(input: {
 }
 
 /**
- * Keeps the store issued link intact, only swapping the host when a dedicated
- * checkout host has been recorded. A link on this site's own host is refused
- * rather than handed to the shopper, because it would never resolve.
+ * Final safety gate on the store issued link. The shopper is only ever sent to
+ * a host that has been proven to answer as the store. A link issued on the host
+ * serving this site is rewritten to the recorded checkout host, and only when
+ * that host answers as the store rather than forwarding back here.
  */
 async function finaliseCheckoutUrl(rawUrl: string): Promise<string> {
   let url: URL;
@@ -620,25 +621,32 @@ async function finaliseCheckoutUrl(rawUrl: string): Promise<string> {
     throw new Error("The store did not return a usable checkout link");
   }
 
-  if (isSiteHost(url.host)) {
-    let replacement: string | null = null;
-    try {
-      const settings = await readSettings(await adminClient());
-      const candidate = hostOf(settings.get("checkout_domain") ?? null);
-      if (candidate && !SITE_HOSTS.has(candidate)) replacement = candidate;
-    } catch {
-      replacement = null;
+  if (!isSiteHost(url.host)) {
+    const probe = await probeCheckoutHost(url.host);
+    if (probe && !probe.servesStore && probe.redirectsToSite) {
+      // The store forwards its own checkout host back here, so the link loops.
+      const override = await readCheckoutHostOverride();
+      const overrideProbe = override ? await probeCheckoutHost(override) : null;
+      if (!overrideProbe?.servesStore) throw new Error(CHECKOUT_HOST_CONFLICT);
+      url.host = overrideProbe.host;
     }
-    if (!replacement) throw new Error(CHECKOUT_HOST_CONFLICT);
-    url.host = replacement;
+    return url.toString();
   }
 
+  const replacement = await readCheckoutHostOverride();
+  const replacementProbe = replacement ? await probeCheckoutHost(replacement) : null;
+  if (!replacementProbe?.servesStore) throw new Error(CHECKOUT_HOST_CONFLICT);
+  url.host = replacementProbe.host;
   return url.toString();
 }
 
 let storefrontReadyCache: { ready: boolean; expires: number } | null = null;
 
-/** True when headless credentials exist and the last validation succeeded. */
+/**
+ * True only when the headless credentials are verified and a checkout host has
+ * been proven to answer as the store. Once the store serves the dedicated host,
+ * this flips to true on its own with no code change.
+ */
 export async function isStorefrontCheckoutReady(): Promise<boolean> {
   if (storefrontReadyCache && storefrontReadyCache.expires > Date.now()) {
     return storefrontReadyCache.ready;
@@ -646,15 +654,13 @@ export async function isStorefrontCheckoutReady(): Promise<boolean> {
   let ready = false;
   try {
     const status = await getStorefrontApiStatus();
-    ready =
-      status.configured &&
-      status.connectionState === "connected" &&
-      !(status.checkoutHostConflict && !status.checkoutHostOverride);
+    ready = status.readiness.buyNowReady;
   } catch {
     ready = false;
   }
   storefrontReadyCache = { ready, expires: Date.now() + 60_000 };
   return ready;
 }
+
 
 export { normaliseShopDomain, normaliseApiVersion };
