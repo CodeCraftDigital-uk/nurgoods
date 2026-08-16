@@ -359,34 +359,19 @@ export async function getCheckoutDomain(): Promise<string | null> {
   return value;
 }
 
-let checkoutHealthCache: { ready: boolean; expires: number } | null = null;
-
 /**
  * Confirms the basket host genuinely answers as the store rather than looping
  * back to this site. A store whose primary domain points here will redirect
  * basket links away, so the product page must not offer a link that dead ends.
+ * The single probe is shared with the headless checkout gate.
  */
 export async function isCheckoutReady(domain: string | null): Promise<boolean> {
   if (!domain) return false;
-  if (checkoutHealthCache && checkoutHealthCache.expires > Date.now()) {
-    return checkoutHealthCache.ready;
-  }
-  let ready = false;
-  try {
-    const response = await fetch(`https://${domain}/cart`, {
-      method: "GET",
-      redirect: "follow",
-      headers: { "user-agent": "NURGOODS-storefront/1.0" },
-    });
-    // Store served pages carry a store identifier header. Anything else means
-    // the basket link has been redirected somewhere that cannot take payment.
-    ready = response.ok && Boolean(response.headers.get("x-shopid"));
-  } catch {
-    ready = false;
-  }
-  checkoutHealthCache = { ready, expires: Date.now() + 600_000 };
-  return ready;
+  const { probeCheckoutHost } = await import("@/lib/services/shopify-storefront.server");
+  const probe = await probeCheckoutHost(domain);
+  return probe?.servesStore ?? false;
 }
+
 
 
 /** Store supplied HTML is trimmed to a safe subset before it reaches a page. */
