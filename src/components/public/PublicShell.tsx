@@ -1,9 +1,9 @@
-import { Link } from "@tanstack/react-router";
-import { useState, type ReactNode } from "react";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { useState, type FormEvent, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { listPublicLegalSources } from "@/lib/services/public-content.functions";
-import { Menu } from "lucide-react";
+import { Menu, Search, LifeBuoy, ShoppingBag } from "lucide-react";
 import { BrandLogo, BrandWordmark } from "@/components/admin/BrandLogo";
 import { BRAND } from "@/lib/brand";
 import { ReviewPlacementSlot } from "@/components/public/ReviewPlacementSlot";
@@ -18,10 +18,66 @@ const PRIMARY_NAV = [
   { label: "Contact", to: "/contact" },
 ] as const;
 
+/** Service facts only. Nothing here is a promise the store has not made. */
+const SERVICE_STRIP = [
+  "Secure checkout on the NUR GOODS store",
+  "Listings read from the live store catalogue",
+  `Support from a person at ${BRAND.supportEmail}`,
+] as const;
+
+function SearchField({
+  id,
+  compact = false,
+  onSubmitted,
+}: {
+  id: string;
+  compact?: boolean;
+  onSubmitted?: () => void;
+}) {
+  const navigate = useNavigate();
+  const [term, setTerm] = useState("");
+
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    const q = term.trim();
+    void navigate({ to: "/shop", search: (q ? { q } : {}) as never });
+    onSubmitted?.();
+  };
+
+  return (
+    <form role="search" onSubmit={submit} className="w-full">
+      <label htmlFor={id} className="sr-only">
+        Search products
+      </label>
+      <div className="group relative flex w-full items-center">
+        <Search
+          className="pointer-events-none absolute left-3.5 size-4 text-muted-foreground"
+          aria-hidden
+        />
+        <input
+          id={id}
+          type="search"
+          value={term}
+          onChange={(event) => setTerm(event.target.value)}
+          placeholder="Search the NUR GOODS range"
+          className={`w-full rounded-2xl border border-input bg-surface pl-10 pr-24 text-sm text-foreground shadow-[var(--shadow-card)] outline-none transition-shadow placeholder:text-muted-foreground focus:border-brand focus:ring-4 focus:ring-brand/15 ${
+            compact ? "h-11" : "h-12"
+          }`}
+        />
+        <button
+          type="submit"
+          className="absolute right-1.5 inline-flex h-9 items-center rounded-xl bg-primary px-4 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+        >
+          Search
+        </button>
+      </div>
+    </form>
+  );
+}
+
 /**
- * Shared frame for every customer facing page. One quiet row of navigation on
- * larger screens, a single menu button on small screens, and generous spacing
- * so the content leads.
+ * Shared frame for every customer facing page: a marketplace header with
+ * search at its centre, a category row, and a structured commerce footer.
  */
 export function PublicShell({ children }: { children: ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -45,53 +101,59 @@ export function PublicShell({ children }: { children: ReactNode }) {
         Skip to content
       </a>
 
-      <header className="sticky top-0 z-40 border-b border-border/70 bg-background/90 backdrop-blur">
-        <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-3 px-4 py-3 sm:px-8">
-          <Link to="/" className="flex items-center" aria-label={`${BRAND.name} home`}>
-            <BrandWordmark height={28} className="sm:h-9" />
+      <header className="sticky top-0 z-40 border-b border-border/80 bg-background/85 backdrop-blur-xl">
+        <div className="mx-auto grid w-full max-w-7xl grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 sm:px-6 lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:gap-8">
+          <Link to="/" className="flex min-w-0 items-center" aria-label={`${BRAND.name} home`}>
+            <BrandWordmark height={26} className="sm:h-8" />
           </Link>
 
-          <div className="flex items-center gap-1 sm:gap-2">
-            <nav aria-label="Primary" className="hidden items-center gap-1 md:flex">
-              {PRIMARY_NAV.map((item) => (
-                <Link
-                  key={item.to}
-                  to={item.to}
-                  className="inline-flex min-h-11 items-center rounded-md px-3 text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-                  activeProps={{ className: "text-foreground" }}
-                >
-                  {item.label}
-                </Link>
-              ))}
-            </nav>
+          <div className="hidden lg:block">
+            <SearchField id="header-search" />
+          </div>
 
+          <div className="flex items-center gap-2">
+            <Link
+              to="/contact"
+              className="hidden min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground sm:inline-flex"
+            >
+              <LifeBuoy className="size-4" aria-hidden />
+              Support
+            </Link>
             <a
               href={BRAND.storeUrl}
-              className="inline-flex min-h-11 shrink-0 items-center rounded-lg bg-primary px-4 text-[0.82rem] font-medium text-primary-foreground transition-colors hover:bg-primary/90 sm:text-sm"
+              className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl bg-primary px-4 text-[0.82rem] font-semibold text-primary-foreground transition-colors hover:bg-primary/90 sm:text-sm"
             >
+              <ShoppingBag className="size-4" aria-hidden />
               Store
             </a>
 
             <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
               <SheetTrigger
-                className="inline-flex size-11 shrink-0 items-center justify-center rounded-lg border border-input text-foreground transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring md:hidden"
+                className="inline-flex size-11 shrink-0 items-center justify-center rounded-xl border border-input text-foreground transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring lg:hidden"
                 aria-label="Open menu"
               >
                 <Menu className="size-5" aria-hidden />
               </SheetTrigger>
-              <SheetContent side="right" className="w-[86vw] max-w-sm">
+              <SheetContent side="right" className="w-[88vw] max-w-sm">
                 <SheetHeader className="text-left">
                   <SheetTitle className="sr-only">Menu</SheetTitle>
-                  <BrandWordmark height={30} />
+                  <BrandWordmark height={28} />
                 </SheetHeader>
+                <div className="px-4">
+                  <SearchField
+                    id="menu-search"
+                    compact
+                    onSubmitted={() => setMenuOpen(false)}
+                  />
+                </div>
                 <nav aria-label="Primary mobile" className="mt-2 flex flex-col px-4 pb-6">
                   {PRIMARY_NAV.map((item) => (
                     <Link
                       key={item.to}
                       to={item.to}
                       onClick={() => setMenuOpen(false)}
-                      className="flex min-h-12 items-center border-b border-border/60 font-display text-lg text-foreground"
-                      activeProps={{ className: "text-gold" }}
+                      className="flex min-h-12 items-center border-b border-border/60 font-display text-base font-semibold text-foreground"
+                      activeProps={{ className: "text-brand" }}
                     >
                       {item.label}
                     </Link>
@@ -107,54 +169,114 @@ export function PublicShell({ children }: { children: ReactNode }) {
             </Sheet>
           </div>
         </div>
+
+        <div className="border-t border-border/70 px-4 pb-3 sm:px-6 lg:hidden">
+          <SearchField id="header-search-mobile" compact />
+        </div>
+
+        <div className="hidden border-t border-border/70 lg:block">
+          <div className="mx-auto flex w-full max-w-7xl items-center gap-1 px-6">
+            <nav aria-label="Primary" className="flex items-center gap-1">
+              {PRIMARY_NAV.map((item) => (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  className="inline-flex min-h-10 items-center rounded-lg px-3 text-[0.82rem] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                  activeProps={{ className: "text-brand" }}
+                >
+                  {item.label}
+                </Link>
+              ))}
+            </nav>
+          </div>
+        </div>
       </header>
+
+      <div className="border-b border-border/70 bg-brand-soft/60">
+        <ul className="mx-auto flex w-full max-w-7xl gap-6 overflow-x-auto px-4 py-2 text-[0.72rem] font-medium text-accent-foreground sm:px-6">
+          {SERVICE_STRIP.map((line) => (
+            <li key={line} className="flex shrink-0 items-center gap-2">
+              <span aria-hidden className="size-1.5 rounded-full bg-gold" />
+              {line}
+            </li>
+          ))}
+        </ul>
+      </div>
 
       <main id="main" className="flex-1">
         {children}
       </main>
 
-      <footer className="mt-20 border-t border-border/70">
-        <div className="mx-auto grid w-full max-w-5xl gap-10 px-5 py-14 sm:grid-cols-2 lg:grid-cols-4 sm:px-8">
+      <footer className="mt-20 border-t border-border/70 bg-surface-muted/60">
+        <div className="mx-auto grid w-full max-w-7xl gap-10 px-5 py-14 sm:grid-cols-2 lg:grid-cols-4 sm:px-8">
           <div>
-            <BrandWordmark height={40} />
-            <p className="mt-4 font-display text-lg text-foreground">{BRAND.tagline}</p>
+            <BrandWordmark height={36} />
+            <p className="mt-4 font-display text-lg font-semibold text-foreground">
+              {BRAND.tagline}
+            </p>
+            <p className="mt-3 max-w-xs text-sm leading-relaxed text-muted-foreground">
+              A considered everyday range, listed from the live store and ordered through secure
+              store checkout.
+            </p>
           </div>
-          <nav aria-label="Footer" className="text-sm">
-            <h2 className="text-[0.7rem] font-medium uppercase tracking-[0.2em] text-muted-foreground">
-              Explore
+          <nav aria-label="Shopping" className="text-sm">
+            <h2 className="text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-foreground">
+              Shopping
             </h2>
             <ul className="mt-3 space-y-2.5">
-              {PRIMARY_NAV.map((item) => (
-                <li key={item.to}>
-                  <Link
-                    to={item.to}
-                    className="inline-flex min-h-8 items-center text-muted-foreground hover:text-foreground"
-                  >
-                    {item.label}
-                  </Link>
-                </li>
-              ))}
+              <li>
+                <Link
+                  to="/shop"
+                  className="inline-flex min-h-8 items-center text-muted-foreground hover:text-brand"
+                >
+                  All products
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/collections"
+                  className="inline-flex min-h-8 items-center text-muted-foreground hover:text-brand"
+                >
+                  Shop by category
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/journal"
+                  className="inline-flex min-h-8 items-center text-muted-foreground hover:text-brand"
+                >
+                  Journal
+                </Link>
+              </li>
               <li>
                 <a
                   href={BRAND.storeUrl}
-                  className="inline-flex min-h-8 items-center text-muted-foreground hover:text-foreground"
+                  className="inline-flex min-h-8 items-center text-muted-foreground hover:text-brand"
                 >
-                  Store
+                  Store and checkout
                 </a>
               </li>
             </ul>
           </nav>
-          <nav aria-label="Legal" className="text-sm">
-            <h2 className="text-[0.7rem] font-medium uppercase tracking-[0.2em] text-muted-foreground">
-              Legal
+          <nav aria-label="Help and policies" className="text-sm">
+            <h2 className="text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-foreground">
+              Help and policies
             </h2>
             <ul className="mt-3 space-y-2.5">
+              <li>
+                <Link
+                  to="/contact"
+                  className="inline-flex min-h-8 items-center text-muted-foreground hover:text-brand"
+                >
+                  Customer support
+                </Link>
+              </li>
               {legalLinks.map((doc) => (
                 <li key={doc.slug}>
                   <Link
                     to="/legal/$slug"
                     params={{ slug: doc.slug }}
-                    className="inline-flex min-h-8 items-center text-muted-foreground hover:text-foreground"
+                    className="inline-flex min-h-8 items-center text-muted-foreground hover:text-brand"
                   >
                     {doc.title}
                   </Link>
@@ -163,7 +285,7 @@ export function PublicShell({ children }: { children: ReactNode }) {
               <li>
                 <Link
                   to="/legal"
-                  className="inline-flex min-h-8 items-center text-muted-foreground hover:text-foreground"
+                  className="inline-flex min-h-8 items-center text-muted-foreground hover:text-brand"
                 >
                   All policies
                 </Link>
@@ -171,22 +293,22 @@ export function PublicShell({ children }: { children: ReactNode }) {
             </ul>
           </nav>
           <div className="text-sm">
-            <h2 className="text-[0.7rem] font-medium uppercase tracking-[0.2em] text-muted-foreground">
-              Contact
+            <h2 className="text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-foreground">
+              About and contact
             </h2>
             <ul className="mt-3 space-y-2.5">
               <li>
                 <Link
-                  to="/contact"
-                  className="inline-flex min-h-8 items-center text-muted-foreground hover:text-foreground"
+                  to="/reviews"
+                  className="inline-flex min-h-8 items-center text-muted-foreground hover:text-brand"
                 >
-                  Contact us
+                  Customer reviews
                 </Link>
               </li>
               <li>
                 <a
                   href={`mailto:${BRAND.supportEmail}`}
-                  className="inline-flex min-h-8 items-center text-muted-foreground hover:text-foreground"
+                  className="inline-flex min-h-8 items-center text-muted-foreground hover:text-brand"
                 >
                   {BRAND.supportEmail}
                 </a>
@@ -194,7 +316,7 @@ export function PublicShell({ children }: { children: ReactNode }) {
               <li>
                 <a
                   href={BRAND.tiktokUrl}
-                  className="inline-flex min-h-8 items-center text-muted-foreground hover:text-foreground"
+                  className="inline-flex min-h-8 items-center text-muted-foreground hover:text-brand"
                   rel="me noopener"
                 >
                   TikTok {BRAND.tiktokHandle}
@@ -204,7 +326,7 @@ export function PublicShell({ children }: { children: ReactNode }) {
           </div>
         </div>
         <div className="border-t border-border/70">
-          <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-8">
+          <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-8">
             <div className="flex items-center gap-3">
               <BrandLogo size={24} />
               <p className="text-xs text-muted-foreground">
