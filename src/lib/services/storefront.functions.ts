@@ -72,15 +72,17 @@ export const listStorefrontCollectionsFn = createServerFn({ method: "GET" })
   });
 
 export const getStorefrontCollectionFn = createServerFn({ method: "GET" })
-  .inputValidator((input: { handle: string }) => ({ handle: String(input.handle).slice(0, 120) }))
+  // Supplier handles can be very long, so the guard only caps abuse.
+  .inputValidator((input: { handle: string }) => ({ handle: String(input.handle).slice(0, 255) }))
   .handler(async ({ data }): Promise<StorefrontCollection | null> => {
     const { getStorefrontCollection } = await import("@/lib/public-api/storefront.server");
     return getStorefrontCollection(data.handle);
   });
 
 export const getStorefrontProductFn = createServerFn({ method: "GET" })
-  .inputValidator((input: { handle: string }) => ({ handle: String(input.handle).slice(0, 120) }))
+  .inputValidator((input: { handle: string }) => ({ handle: String(input.handle).slice(0, 255) }))
   .handler(async ({ data }): Promise<StorefrontProductDetail | null> => {
     const { getStorefrontProduct } = await import("@/lib/public-api/storefront.server");
     return getStorefrontProduct(data.handle);
   });
+
