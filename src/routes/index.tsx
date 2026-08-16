@@ -144,7 +144,7 @@ function Index() {
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link
-                to="/shop"
+                to="/store"
                 className="inline-flex min-h-12 items-center rounded-2xl bg-gold px-6 text-sm font-semibold text-gold-foreground transition-transform hover:-translate-y-0.5"
               >
                 Browse the range
@@ -169,7 +169,7 @@ function Index() {
                 Recently added
               </h2>
               <Link
-                to="/shop"
+                to="/store"
                 search={{ sort: "newest" }}
                 className="text-xs font-semibold text-brand hover:underline"
               >
@@ -261,7 +261,7 @@ function Index() {
             </p>
           </div>
           <Link
-            to="/shop"
+            to="/store"
             search={{ sort: "newest" }}
             className="inline-flex min-h-11 items-center text-sm font-medium text-foreground underline decoration-gold underline-offset-4"
           >
@@ -314,7 +314,7 @@ function Index() {
               From the range
             </h2>
             <Link
-              to="/shop"
+              to="/store"
               className="inline-flex min-h-11 items-center text-sm font-medium text-foreground underline decoration-gold underline-offset-4"
             >
               See everything

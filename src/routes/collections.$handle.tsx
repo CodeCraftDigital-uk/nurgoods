@@ -175,7 +175,7 @@ function CollectionDetail() {
               Products appear here as soon as they are grouped into this collection on the store.
             </p>
             <Link
-              to="/shop"
+              to="/store"
               className="mt-6 inline-flex min-h-11 items-center rounded-lg border border-input px-5 text-sm font-medium text-foreground hover:bg-accent"
             >
               Browse the full range

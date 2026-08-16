@@ -10,7 +10,7 @@ import { ReviewPlacementSlot } from "@/components/public/ReviewPlacementSlot";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 
 const PRIMARY_NAV = [
-  { label: "Shop", to: "/shop" },
+  { label: "Store", to: "/store" },
   { label: "Collections", to: "/collections" },
   { label: "Journal", to: "/journal" },
   { label: "Reviews", to: "/reviews" },
@@ -40,7 +40,7 @@ function SearchField({
   const submit = (event: FormEvent) => {
     event.preventDefault();
     const q = term.trim();
-    void navigate({ to: "/shop", search: (q ? { q } : {}) as never });
+    void navigate({ to: "/store", search: (q ? { q } : {}) as never });
     onSubmitted?.();
   };
 
@@ -226,7 +226,7 @@ export function PublicShell({ children }: { children: ReactNode }) {
             <ul className="mt-3 space-y-2.5">
               <li>
                 <Link
-                  to="/shop"
+                  to="/store"
                   className="inline-flex min-h-8 items-center text-muted-foreground hover:text-brand"
                 >
                   All products

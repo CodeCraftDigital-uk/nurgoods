@@ -80,7 +80,7 @@ function ProductNotFound() {
         </p>
         <div className="mt-7 flex flex-wrap justify-center gap-3">
           <Link
-            to="/shop"
+            to="/store"
             className="inline-flex min-h-11 items-center rounded-lg border border-input px-5 text-sm font-medium text-foreground hover:bg-accent"
           >
             Back to the range
@@ -272,7 +272,7 @@ function ProductDetail() {
       <article className="mx-auto w-full max-w-7xl px-5 pt-10 sm:px-8 sm:pt-14">
         <Breadcrumbs
           items={[
-            { label: "Shop", href: "/shop" },
+            { label: "Store", href: "/store" },
             ...product.category_path.map((node) => ({
               label: node.name,
               href: `/shop?category=${encodeURIComponent(node.slug)}`,
@@ -332,7 +332,7 @@ function ProductDetail() {
 
             {product.category_name ? (
               <Link
-                to="/shop"
+                to="/store"
                 search={{ category: product.category_slug ?? undefined } as never}
                 className="inline-flex items-center rounded-full border border-border px-3 py-1 text-[0.7rem] uppercase tracking-[0.14em] text-muted-foreground transition-colors hover:text-foreground"
               >
