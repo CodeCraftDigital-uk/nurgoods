@@ -348,7 +348,7 @@ function ShopIndex() {
 
       <div className="mx-auto w-full max-w-7xl px-5 pb-8 pt-10 sm:px-8">
         {products.isLoading ? (
-          <ul className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
             {[0, 1, 2, 3, 4, 5, 6, 7].map((index) => (
               <li key={index}>
                 <ProductCardSkeleton />
@@ -404,7 +404,7 @@ function ShopIndex() {
             <p className="text-xs text-muted-foreground" aria-live="polite">
               Showing {items.length} of {total} product{total === 1 ? "" : "s"}
             </p>
-            <ul className="mt-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
+            <ul className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
               {items.map((product, index) => (
                 <li key={product.id}>
                   <ProductCard product={product} eager={index < 4} />

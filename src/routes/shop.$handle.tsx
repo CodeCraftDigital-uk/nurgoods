@@ -610,7 +610,7 @@ function ProductDetail() {
         {product.related.length > 0 ? (
           <section className="mt-16">
             <h2 className="font-display text-2xl text-foreground">More like this</h2>
-            <ul className="mt-5 grid grid-cols-2 gap-4 lg:grid-cols-4">
+            <ul className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
               {product.related.map((related) => (
                 <li key={related.id}>
                   <ProductCard product={related} />
