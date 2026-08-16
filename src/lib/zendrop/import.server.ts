@@ -870,3 +870,162 @@ export async function loadCounters(): Promise<SourcingCounters> {
     live: rows.filter((r) => r.state === "live").length,
   };
 }
+
+/* --------------------------- intelligent sourcing -------------------------- */
+
+export interface FunnelCounts {
+  queried: number;
+  restricted: number;
+  categoryExcluded: number;
+  qualityFailed: number;
+  ukUnsuitable: number;
+  pricingFailed: number;
+  duplicateExcluded: number;
+  eligible: number;
+  recommended: number;
+}
+
+export interface ScreenedProduct {
+  productId: string;
+  title: string;
+  imageUrl: string | null;
+  category: string | null;
+  score: number;
+  outcome: string;
+  landedCost: number | null;
+  price: number | null;
+  grossMargin: number | null;
+  blockingReason: string | null;
+  reasons: { code: string; label: string; outcome: string; detail: string }[];
+}
+
+export interface SourcingScreenResult {
+  funnel: FunnelCounts;
+  products: ScreenedProduct[];
+  pagesRead: number;
+  catalogueTotal: number | null;
+  message: string;
+}
+
+/**
+ * Reads and pre-screens supplier catalogue pages without writing anything.
+ * Catalogue cardinality is only reported when the supplier actually returns
+ * it, so the funnel never states a total it cannot evidence.
+ */
+export async function runSourcingScreen(input: {
+  query?: string | undefined;
+  category?: string | undefined;
+  target: number;
+}): Promise<SourcingScreenResult> {
+  const { searchZendropCatalogue } = await import("./catalogue.server");
+  const rules = await loadSourcingRules();
+  const settings = await loadPricingSettings();
+
+  const funnel: FunnelCounts = {
+    queried: 0,
+    restricted: 0,
+    categoryExcluded: 0,
+    qualityFailed: 0,
+    ukUnsuitable: 0,
+    pricingFailed: 0,
+    duplicateExcluded: 0,
+    eligible: 0,
+    recommended: 0,
+  };
+  const products: ScreenedProduct[] = [];
+  const target = Math.max(1, Math.min(input.target, 500));
+  const pageSize = 50;
+  const maxPages = Math.max(1, Math.min(Math.ceil((target * 3) / pageSize), 20));
+
+  let fx: FxQuote | null = null;
+  let catalogueTotal: number | null = null;
+  let pagesRead = 0;
+
+  for (let page = 1; page <= maxPages; page += 1) {
+    const batch = await searchZendropCatalogue({
+      query: input.query,
+      category: input.category,
+      page,
+      limit: pageSize,
+    });
+    pagesRead += 1;
+    if (batch.total !== null) catalogueTotal = batch.total;
+    if (!batch.available || batch.items.length === 0) break;
+
+    for (const item of batch.items) {
+      funnel.queried += 1;
+      if (!fx) {
+        try {
+          fx = await getFxRate(item.currency, settings.currency);
+        } catch {
+          return {
+            funnel,
+            products,
+            pagesRead,
+            catalogueTotal,
+            message: "A live currency rate could not be read, so screening stopped rather than guessing.",
+          };
+        }
+      }
+
+      const duplicateReason = rules.duplicate_precheck ? await duplicatePrecheck(item) : null;
+      const screen = screenCandidate({
+        item,
+        rules,
+        settings,
+        supplierCost: convertAmount(item.cost, fx.rate),
+        shippingCost: convertAmount(item.shippingCost, fx.rate),
+        suggestedRetail: convertAmount(item.suggestedRetail, fx.rate),
+        duplicateReason,
+      });
+
+      for (const reason of screen.reasons) {
+        if (reason.outcome !== "fail") continue;
+        if (reason.code === "restricted") funnel.restricted += 1;
+        else if (reason.code.startsWith("category")) funnel.categoryExcluded += 1;
+        else if (reason.code === "imagery" || reason.code === "stock" || reason.code === "variants") {
+          funnel.qualityFailed += 1;
+        } else if (reason.code === "uk_delivery") funnel.ukUnsuitable += 1;
+        else if (reason.code === "duplicate") funnel.duplicateExcluded += 1;
+        else funnel.pricingFailed += 1;
+      }
+
+      if (screen.outcome === "held" || screen.outcome === "rejected") continue;
+      funnel.eligible += 1;
+      if (screen.score >= rules.min_suitability_score) funnel.recommended += 1;
+
+      products.push({
+        productId: item.id,
+        title: item.title,
+        imageUrl: item.imageUrl,
+        category: item.category,
+        score: screen.score,
+        outcome: screen.outcome,
+        landedCost: screen.landedCost,
+        price: screen.price,
+        grossMargin: screen.grossMargin,
+        blockingReason: screen.blockingReason,
+        reasons: screen.reasons.map((reason) => ({
+          code: reason.code,
+          label: reason.label,
+          outcome: reason.outcome,
+          detail: reason.detail,
+        })),
+      });
+    }
+
+    if (products.length >= target) break;
+  }
+
+  products.sort((a, b) => b.score - a.score);
+  return {
+    funnel,
+    products: products.slice(0, target),
+    pagesRead,
+    catalogueTotal,
+    message:
+      catalogueTotal === null
+        ? `Screened ${funnel.queried} supplier products across ${pagesRead} page(s). The supplier does not report total catalogue size, so none is shown.`
+        : `Screened ${funnel.queried} of ${catalogueTotal} reported supplier products across ${pagesRead} page(s).`,
+  };
+}
