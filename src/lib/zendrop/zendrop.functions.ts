@@ -260,7 +260,7 @@ export const reconcileImportsFn = createServerFn({ method: "POST" })
 
 export const screenSupplierCatalogue = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { query?: string; category?: string; target?: number } | undefined) => ({
+  .inputValidator((input: { query?: string | undefined; category?: string | undefined; target?: number | undefined } | undefined) => ({
     query: input?.query,
     category: input?.category,
     target: Math.max(1, Math.min(Number(input?.target ?? 25), 500)),
