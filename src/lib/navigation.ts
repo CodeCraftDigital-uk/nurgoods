@@ -10,6 +10,7 @@ import {
   Plug,
   Scale,
   Search,
+  ShoppingBag,
   Sparkles,
   Star,
 } from "lucide-react";
