@@ -22,6 +22,8 @@ import {
   zendropAdminClient,
 } from "./client.server";
 import { getZendropProduct } from "./catalogue.server";
+import { convertAmount, getFxRate, type FxQuote } from "./fx.server";
+
 import { getZendropStatus, markOneProductTestPassed } from "./connection.server";
 
 export const DEFAULT_RULES: SourcingRules = {
@@ -200,7 +202,7 @@ export async function selectCandidates(input: {
       continue;
     }
 
-    const item = await getZendropProduct(productId);
+    const item = await getZendropProduct(productId, settings.shipping_market);
     if (!item) {
       result.skipped += 1;
       result.messages.push(`Supplier product ${productId} could not be read`);
@@ -208,12 +210,34 @@ export async function selectCandidates(input: {
     }
 
     const validation = validateCandidate(item, rules);
-    const pricing = computePricing({
-      supplierCost: item.cost,
-      shippingCost: item.shippingCost,
-      suggestedRetail: item.suggestedRetail,
-      settings,
-    });
+    let fx: FxQuote;
+    try {
+      fx = await getFxRate(item.currency, settings.currency);
+    } catch (cause) {
+      result.skipped += 1;
+      result.messages.push(
+        cause instanceof Error ? cause.message : `Currency conversion failed for ${productId}`,
+      );
+      continue;
+    }
+    const pricing = {
+      ...computePricing({
+        supplierCost: convertAmount(item.cost, fx.rate),
+        shippingCost: convertAmount(item.shippingCost, fx.rate),
+        suggestedRetail: convertAmount(item.suggestedRetail, fx.rate),
+        settings,
+      }),
+      fx: {
+        from: fx.from,
+        to: fx.to,
+        rate: fx.rate,
+        asOf: fx.asOf,
+        source: fx.source,
+        supplierCostSource: item.cost,
+        shippingCostSource: item.shippingCost,
+      },
+    };
+
 
     let state: CandidateState = "validated";
     let hold: string | null = null;
@@ -328,6 +352,111 @@ export interface ImportOutcome {
   messages: string[];
 }
 
+/** Reads the connected supplier store so pushes target the right destination. */
+export async function resolveSupplierStore(): Promise<{ id: string; name: string | null } | null> {
+  const roles = await loadCapabilityMap();
+  if (!roles.stores_list) return null;
+  const payload = await callAction(roles.stores_list, {});
+  const list = Array.isArray(payload)
+    ? payload
+    : (payload?.stores ?? payload?.data ?? payload?.results ?? []);
+  const first = Array.isArray(list) ? list[0] : null;
+  if (!first) return null;
+  const id = first.id ?? first.store_id;
+  if (id === undefined || id === null) return null;
+  return { id: String(id), name: first.name ?? first.store_name ?? null };
+}
+
+/**
+ * Sends one candidate through the supplier flow: add it to the supplier
+ * product list, then push that listing into the connected store and wait for
+ * the supplier operation to settle.
+ */
+async function findImportListEntry(
+  productId: string,
+  storeId: string,
+): Promise<any | null> {
+  const roles = await loadCapabilityMap();
+  if (!roles.my_products_list) return null;
+  const numericStore = Number(storeId) || storeId;
+  for (const status of ["imported", "in_store"]) {
+    for (let page = 1; page <= 5; page += 1) {
+      const payload = await callAction(roles.my_products_list, {
+        store_id: numericStore,
+        status,
+        page,
+        limit: 60,
+      });
+      const list = Array.isArray(payload)
+        ? payload
+        : (payload?.products ?? payload?.items ?? payload?.data ?? payload?.results ?? []);
+      if (!Array.isArray(list) || list.length === 0) break;
+      const match = list.find(
+        (row: any) =>
+          String(row?.product_id ?? row?.catalog_product_id ?? row?.zendrop_product_id ?? "") ===
+          String(productId),
+      );
+      if (match) return match;
+      if (list.length < 60) break;
+    }
+  }
+  return null;
+}
+
+async function pushCandidateToSupplier(
+  productId: string,
+  storeId: string,
+): Promise<{ myProductId: string | null; operation: any; response: any }> {
+  const roles = await loadCapabilityMap();
+  if (!roles.my_products_import) throw new CapabilityUnavailableError("my_products_import");
+  if (!roles.my_products_push) throw new CapabilityUnavailableError("my_products_push");
+
+  const numericProduct = Number(productId) || productId;
+  const numericStore = Number(storeId) || storeId;
+
+  const added = await callAction(roles.my_products_import, {
+    product_id: numericProduct,
+    store_id: numericStore,
+  });
+
+  const entry = await findImportListEntry(productId, storeId);
+  const importListId =
+    entry?.import_list_id ?? entry?.id ?? added?.import_list_id ?? added?.id ?? null;
+  if (importListId === null || importListId === undefined) {
+    throw new Error("The supplier import list entry could not be located after adding the product");
+  }
+
+  if (String(entry?.status ?? "").toLowerCase() === "in_store") {
+    return { myProductId: String(importListId), operation: entry, response: added };
+  }
+
+  const pushed = await callAction(roles.my_products_push, {
+    import_list_id: Number(importListId) || importListId,
+  });
+
+  let operation = pushed;
+  const operationId = pushed?.operation_id ?? pushed?.id ?? null;
+  if (operationId && roles.import_operation) {
+    for (let attempt = 0; attempt < 12; attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 2500));
+      operation = await callAction(roles.import_operation, {
+        operation_id: Number(operationId) || operationId,
+      });
+      const status = String(operation?.status ?? operation?.state ?? "").toLowerCase();
+      if (["completed", "complete", "success", "succeeded", "finished"].includes(status)) break;
+      if (["failed", "error", "cancelled", "canceled"].includes(status)) {
+        throw new Error(
+          operation?.error ?? operation?.message ?? "The supplier import operation failed",
+        );
+      }
+    }
+  }
+
+  return { myProductId: String(importListId), operation, response: added };
+}
+
+
+
 /**
  * Drains the queue in bounded batches. The write only runs when the adapter
  * has discovered a genuine supported import operation.
@@ -340,6 +469,14 @@ export async function runImportQueue(limit = 5): Promise<ImportOutcome> {
 
   if (!action) {
     outcome.messages.push(new CapabilityUnavailableError("my_products_import").message);
+    return outcome;
+  }
+
+  const store = await resolveSupplierStore();
+  if (!store) {
+    outcome.messages.push(
+      "No connected supplier store could be read, so nothing was sent to the store.",
+    );
     return outcome;
   }
 
@@ -370,20 +507,20 @@ export async function runImportQueue(limit = 5): Promise<ImportOutcome> {
 
     outcome.processed += 1;
     try {
-      const response = await callAction(action, {
-        product_id: raw.zendrop_product_id,
-        id: raw.zendrop_product_id,
-      });
-      const responseId =
-        response?.id ?? response?.product_id ?? response?.my_product_id ?? null;
+      const pushed = await pushCandidateToSupplier(raw.zendrop_product_id, store.id);
       await supabase
         .from("zendrop_import_candidates")
         .update({
           state: "imported",
           previous_state: "importing",
           imported_at: new Date().toISOString(),
-          write_response: (response ?? {}) as Record<string, unknown>,
-          store_reference: responseId ? String(responseId) : null,
+          write_response: {
+            store_id: store.id,
+            store_name: store.name,
+            added: pushed.response ?? {},
+            operation: pushed.operation ?? {},
+          } as Record<string, unknown>,
+          store_reference: pushed.myProductId,
           locked_at: null,
           lock_token: null,
           failure_reason: null,
@@ -396,8 +533,8 @@ export async function runImportQueue(limit = 5): Promise<ImportOutcome> {
         "importing",
         "imported",
         "import_succeeded",
-        "The supplier accepted the import request",
-        { action: action.name },
+        "The supplier accepted the import and sent it to the connected store",
+        { action: action.name, store_id: store.id },
       );
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : "The supplier import failed";
@@ -430,6 +567,7 @@ export async function runImportQueue(limit = 5): Promise<ImportOutcome> {
   return outcome;
 }
 
+
 /* ------------------------- store linkage detection ------------------------- */
 
 /**
@@ -438,28 +576,66 @@ export async function runImportQueue(limit = 5): Promise<ImportOutcome> {
  */
 export async function reconcileImportedCandidates(): Promise<number> {
   const supabase = await zendropAdminClient();
+  const settings = await loadPricingSettings();
   const { data: rows } = await supabase
     .from("zendrop_import_candidates")
-    .select("id, title, zendrop_product_id, state")
+    .select("id, title, zendrop_product_id, state, write_response, calculated_price, shipping_cost")
     .in("state", ["imported", "linked"])
     .limit(50);
 
   let matched = 0;
   for (const raw of (rows ?? []) as any[]) {
-    const { data: product } = await supabase
-      .from("shopify_products")
-      .select("id, shopify_product_id")
-      .ilike("title", raw.title)
-      .limit(1)
-      .maybeSingle();
+    const storeProductId = raw?.write_response?.operation?.store_product_id
+      ? String(raw.write_response.operation.store_product_id)
+      : null;
+
+    let product: any = null;
+    if (storeProductId) {
+      const { data: byId } = await supabase
+        .from("shopify_products")
+        .select("id, shopify_product_id")
+        .or(
+          `shopify_product_id.eq.${storeProductId},shopify_product_id.eq.gid://shopify/Product/${storeProductId}`,
+        )
+        .limit(1)
+        .maybeSingle();
+      product = byId;
+    }
+    if (!product) {
+      const { data: byTitle } = await supabase
+        .from("shopify_products")
+        .select("id, shopify_product_id")
+        .ilike("title", raw.title)
+        .limit(1)
+        .maybeSingle();
+      product = byTitle;
+    }
     if (!product) continue;
+
+    // The supplier import cannot carry a price, so every variant is priced
+    // from its own cost of goods once the store product exists.
+    let pricingNote = "Pricing was not applied";
+    try {
+      const { applyCalculatedPriceToStore } = await import("./store-pricing.server");
+      const result = await applyCalculatedPriceToStore({
+        shopifyProductId: String(product.shopify_product_id),
+        shippingCost: raw.shipping_cost === null ? null : Number(raw.shipping_cost),
+        settings,
+        fallbackPrice: raw.calculated_price === null ? null : Number(raw.calculated_price),
+      });
+      pricingNote = result.message;
+    } catch (cause) {
+      pricingNote = cause instanceof Error ? cause.message : "The store price could not be set";
+
+    }
+
     await supabase
       .from("zendrop_import_candidates")
       .update({
         state: "detected_in_store",
         previous_state: raw.state,
-        product_id: (product as any).id,
-        shopify_product_id: (product as any).shopify_product_id,
+        product_id: product.id,
+        shopify_product_id: product.shopify_product_id,
         linked_at: new Date().toISOString(),
       } as never)
       .eq("id", raw.id);
@@ -470,9 +646,11 @@ export async function reconcileImportedCandidates(): Promise<number> {
       raw.state,
       "detected_in_store",
       "store_detected",
-      "The existing store sync has picked the product up",
+      `The store product is linked. ${pricingNote}`,
+      { shopify_product_id: product.shopify_product_id },
     );
   }
+
 
   // Anything the intake pipeline has published becomes live.
   const { data: detected } = await supabase

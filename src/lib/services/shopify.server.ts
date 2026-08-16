@@ -1095,7 +1095,7 @@ export async function upsertShopifyProducts(
 
 /* --------------------------- intake fetchers --------------------------- */
 
-async function intakeCredentials(): Promise<{
+export async function intakeCredentials(): Promise<{
   shopDomain: string;
   adminToken: string;
   apiVersion: string;

@@ -158,17 +158,71 @@ export async function searchZendropCatalogue(input: {
   };
 }
 
-export async function getZendropProduct(productId: string): Promise<CatalogueItem | null> {
+export interface ShippingQuote {
+  cost: number | null;
+  service: string | null;
+  estimate: string | null;
+}
+
+/** Quotes supplier shipping into a market. Never guesses when unsupported. */
+export async function quoteZendropShipping(
+  productId: string,
+  countryCode: string,
+): Promise<ShippingQuote> {
+  const roles = await loadCapabilityMap();
+  const action = roles.catalogue_shipping;
+  if (!action) return { cost: null, service: null, estimate: null };
+  const payload = await callAction(action, {
+    product_id: Number(productId) || productId,
+    country_code: countryCode.toLowerCase(),
+  });
+  const options = Array.isArray(payload?.shipping_options)
+    ? payload.shipping_options
+    : Array.isArray(payload)
+      ? payload
+      : [];
+  const priced = (options as any[])
+    .map((option) => ({
+      cost: pickNumber(option, ["price", "cost", "amount", "rate"]),
+      service: pickString(option, ["type", "name", "service", "method"]),
+      estimate: pickString(option, ["estimated_delivery", "delivery_time", "eta"]),
+    }))
+    .filter((option) => option.cost !== null)
+    .sort((a, b) => (a.cost ?? 0) - (b.cost ?? 0));
+  return priced[0] ?? { cost: null, service: null, estimate: null };
+}
+
+export async function getZendropProduct(
+  productId: string,
+  shippingMarket?: string,
+): Promise<CatalogueItem | null> {
   const roles = await loadCapabilityMap();
   const action = roles.catalogue_product ?? roles.catalogue_search;
   if (!action) return null;
-  const payload = await callAction(action, { product_id: productId, id: productId });
+  const payload = await callAction(action, {
+    product_id: Number(productId) || productId,
+    id: Number(productId) || productId,
+  });
   if (!payload) return null;
+  let item: CatalogueItem | null = null;
   if (Array.isArray(payload)) {
     const match = payload.find((row: any) => String(row?.id ?? row?.product_id) === productId);
-    return match ? normaliseCatalogueItem(match) : null;
+    item = match ? normaliseCatalogueItem(match) : null;
+  } else {
+    const single = payload?.product ?? payload?.data ?? payload;
+    const candidate = normaliseCatalogueItem(single);
+    item = candidate.id ? candidate : null;
   }
-  const single = payload?.product ?? payload?.data ?? payload;
-  const item = normaliseCatalogueItem(single);
-  return item.id ? item : null;
+  if (!item) return null;
+
+  if (shippingMarket && item.shippingCost === null) {
+    const quote = await quoteZendropShipping(item.id, shippingMarket);
+    item = {
+      ...item,
+      shippingCost: quote.cost,
+      deliveryEstimate: item.deliveryEstimate ?? quote.estimate,
+    };
+  }
+  return item;
 }
+
