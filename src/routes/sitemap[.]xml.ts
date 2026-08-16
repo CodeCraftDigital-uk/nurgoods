@@ -24,20 +24,26 @@ export const Route = createFileRoute("/sitemap.xml")({
           const { listStorefrontCollections, listStorefrontProducts } = await import(
             "@/lib/public-api/storefront.server"
           );
-          const [articles, documents, importedPolicies, products, collections] = await Promise.all([
+          const [articles, documents, importedPolicies, collections] = await Promise.all([
             listPublicArticles({}),
             listPublicLegalDocuments({}),
             listPublicLegalSources({}),
-            listStorefrontProducts({ limit: 100 }),
             listStorefrontCollections(),
           ]);
-          for (const product of products.items) {
-            entries.push({
-              loc: `${BRAND.siteUrl}/shop/${product.handle}`,
-              lastmod: product.updated_at ?? undefined,
-              priority: "0.8",
-            });
+          // Paged so the whole visible catalogue is listed, bounded so the
+          // sitemap can never turn into an unbounded read.
+          for (let page = 0; page < 20; page += 1) {
+            const batch = await listStorefrontProducts({ limit: 50, offset: page * 50 });
+            for (const product of batch.items) {
+              entries.push({
+                loc: `${BRAND.siteUrl}/shop/${product.handle}`,
+                lastmod: product.updated_at ?? undefined,
+                priority: "0.8",
+              });
+            }
+            if (!batch.hasMore) break;
           }
+
           for (const collection of collections) {
             entries.push({
               loc: `${BRAND.siteUrl}/collections/${collection.handle}`,
