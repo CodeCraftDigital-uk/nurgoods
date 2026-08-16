@@ -116,6 +116,38 @@ async function loadProductCategories(
   return out;
 }
 
+/**
+ * Listings hidden by de-duplication. Only high confidence groups suppress, and
+ * the supplier record is never altered, only the NUR GOODS presentation.
+ */
+async function loadSuppressedProductIds(supabase: any): Promise<string[]> {
+  const { data } = await supabase
+    .from("duplicate_group_members")
+    .select("product_id")
+    .eq("suppressed", true)
+    .limit(5000);
+  return ((data ?? []) as any[]).map((row) => row.product_id as string);
+}
+
+/** Canonical listing for a suppressed product, used for redirects and rel canonical. */
+export async function resolveCanonicalHandle(
+  supabase: any,
+  productId: string,
+): Promise<{ suppressed: boolean; canonical_handle: string | null }> {
+  const { data: member } = await supabase
+    .from("duplicate_group_members")
+    .select("suppressed, group_id")
+    .eq("product_id", productId)
+    .maybeSingle();
+  if (!member || !(member as any).suppressed) return { suppressed: false, canonical_handle: null };
+  const { data: group } = await supabase
+    .from("duplicate_groups")
+    .select("canonical_handle")
+    .eq("id", (member as any).group_id)
+    .maybeSingle();
+  return { suppressed: true, canonical_handle: ((group as any)?.canonical_handle as string | null) ?? null };
+}
+
 function mapCard(
   row: any,
   summary: string | null = null,
@@ -204,6 +236,13 @@ export async function listStorefrontProducts(input: {
     if (productIds.length === 0) return { items: [], total: 0, hasMore: false };
   }
 
+  const suppressed = await loadSuppressedProductIds(supabase);
+  if (suppressed.length > 0 && productIds) {
+    const hidden = new Set(suppressed);
+    productIds = productIds.filter((id) => !hidden.has(id));
+    if (productIds.length === 0) return { items: [], total: 0, hasMore: false };
+  }
+
   let builder = supabase
     .from("shopify_products")
     .select(CARD_COLUMNS, { count: "exact" })
@@ -219,6 +258,9 @@ export async function listStorefrontProducts(input: {
   if (input.productType) builder = builder.eq("product_type", input.productType);
   if (input.tag) builder = builder.contains("tags", [input.tag]);
   if (productIds) builder = builder.in("id", productIds);
+  if (!productIds && suppressed.length > 0) {
+    builder = builder.not("id", "in", `(${suppressed.join(",")})`);
+  }
 
   const { data, error, count } = await builder;
   if (error) throw new Error(error.message);
@@ -277,11 +319,12 @@ export async function listStorefrontFacets(): Promise<StorefrontFacets> {
   // products are offered, so the customer never lands on an empty filter.
   const [{ bySlug, childrenOf }, { data: classified }] = await Promise.all([
     loadTaxonomy(supabase),
-    supabase.from("product_classifications").select("category_slug").limit(3000),
+    supabase.from("product_classifications").select("product_id, category_slug").limit(3000),
   ]);
+  const hiddenIds = new Set(await loadSuppressedProductIds(supabase));
   const direct = new Map<string, number>();
   for (const row of ((classified ?? []) as any[])) {
-    if (!row.category_slug) continue;
+    if (!row.category_slug || hiddenIds.has(row.product_id)) continue;
     direct.set(row.category_slug, (direct.get(row.category_slug) ?? 0) + 1);
   }
   const parentBySlug = new Map<string, string | null>();
@@ -446,6 +489,10 @@ export interface StorefrontProductDetail extends StorefrontProductCard {
   related: StorefrontProductCard[];
   /** Canonical category trail, root first, used for navigation and breadcrumbs. */
   category_path: { slug: string; name: string }[];
+  /** True when de-duplication hides this listing in favour of another. */
+  duplicate_suppressed: boolean;
+  /** Handle of the listing customers and search engines should use instead. */
+  duplicate_canonical_handle: string | null;
   /** Validated search intelligence. Absent when nothing has been published. */
   intelligence: {
     seo_title: string | null;
@@ -614,6 +661,9 @@ export async function getStorefrontProduct(handle: string): Promise<StorefrontPr
       .map((q) => ({ question: q.question as string, answer: q.answer as string }));
   }
 
+  const hiddenProductIds = new Set(await loadSuppressedProductIds(supabase));
+  const duplicateIdentity = await resolveCanonicalHandle(supabase, row.id);
+
   // Canonical category trail. Supplier categories never drive navigation.
   const [{ data: classification }, taxonomy, { data: seoIntel }] = await Promise.all([
     supabase
@@ -625,7 +675,7 @@ export async function getStorefrontProduct(handle: string): Promise<StorefrontPr
     supabase
       .from("product_seo_intelligence")
       .select(
-        "seo_title, meta_description, image_alt_text, entities, keywords, faqs, internal_links, schema_inputs, validation_state, auto_published",
+        "seo_title, meta_description, image_alt, entities, keywords, faqs, internal_links, schema_inputs, validation_state, auto_published",
       )
       .eq("product_id", row.id)
       .maybeSingle(),
@@ -649,7 +699,7 @@ export async function getStorefrontProduct(handle: string): Promise<StorefrontPr
       ? {
           seo_title: (intel.seo_title as string | null) ?? null,
           meta_description: (intel.meta_description as string | null) ?? null,
-          image_alt: (intel.image_alt_text as string | null) ?? null,
+          image_alt: (intel.image_alt as string | null) ?? null,
           entities: stringList(intel.entities),
           keywords: stringList(intel.keywords),
           faqs: pairList(intel.faqs, "question", "answer"),
@@ -677,7 +727,7 @@ export async function getStorefrontProduct(handle: string): Promise<StorefrontPr
       .limit(40);
     const ids = ((sameCategory ?? []) as any[])
       .map((entry) => entry.product_id as string)
-      .filter((id) => id !== row.id)
+      .filter((id) => id !== row.id && !hiddenProductIds.has(id))
       .slice(0, 24);
     if (ids.length > 0) {
       const { data: siblings } = await supabase
@@ -697,7 +747,7 @@ export async function getStorefrontProduct(handle: string): Promise<StorefrontPr
       .limit(60);
     const siblingIds = [
       ...new Set(((siblingJoins ?? []) as any[]).map((join) => join.product_id as string)),
-    ].filter((id) => id !== row.id);
+    ].filter((id) => id !== row.id && !hiddenProductIds.has(id));
     if (siblingIds.length > 0) {
       const { data: siblings } = await supabase
         .from("shopify_products")
@@ -759,6 +809,8 @@ export async function getStorefrontProduct(handle: string): Promise<StorefrontPr
       categoryPath.length > 0 ? categoryPath[categoryPath.length - 1]! : null,
     ),
     category_path: categoryPath,
+    duplicate_suppressed: duplicateIdentity.suppressed,
+    duplicate_canonical_handle: duplicateIdentity.canonical_handle,
     intelligence,
     description: row.description ?? null,
     description_html: sanitiseHtml(row.description_html),

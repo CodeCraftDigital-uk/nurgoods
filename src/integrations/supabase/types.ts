@@ -582,6 +582,172 @@ export type Database = {
         }
         Relationships: []
       }
+      duplicate_audit_events: {
+        Row: {
+          actor: string | null
+          created_at: string
+          detail: Json
+          event_type: string
+          group_id: string | null
+          id: string
+          product_id: string | null
+        }
+        Insert: {
+          actor?: string | null
+          created_at?: string
+          detail?: Json
+          event_type: string
+          group_id?: string | null
+          id?: string
+          product_id?: string | null
+        }
+        Update: {
+          actor?: string | null
+          created_at?: string
+          detail?: Json
+          event_type?: string
+          group_id?: string | null
+          id?: string
+          product_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "duplicate_audit_events_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "duplicate_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      duplicate_group_members: {
+        Row: {
+          available: boolean | null
+          created_at: string
+          evidence: Json
+          group_id: string
+          id: string
+          match_score: number | null
+          price: number | null
+          product_id: string
+          quality_score: number | null
+          role: string
+          suppressed: boolean
+          updated_at: string
+        }
+        Insert: {
+          available?: boolean | null
+          created_at?: string
+          evidence?: Json
+          group_id: string
+          id?: string
+          match_score?: number | null
+          price?: number | null
+          product_id: string
+          quality_score?: number | null
+          role?: string
+          suppressed?: boolean
+          updated_at?: string
+        }
+        Update: {
+          available?: boolean | null
+          created_at?: string
+          evidence?: Json
+          group_id?: string
+          id?: string
+          match_score?: number | null
+          price?: number | null
+          product_id?: string
+          quality_score?: number | null
+          role?: string
+          suppressed?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "duplicate_group_members_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "duplicate_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "duplicate_group_members_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: true
+            referencedRelation: "shopify_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      duplicate_groups: {
+        Row: {
+          admin_decision: string
+          admin_note: string | null
+          auto_suppressed: boolean
+          canonical_handle: string | null
+          canonical_product_id: string | null
+          confidence: number
+          confidence_tier: string
+          created_at: string
+          evidence: Json
+          group_key: string
+          id: string
+          last_elected_at: string | null
+          last_evaluated_at: string | null
+          member_count: number
+          price_spread: number | null
+          suppressed_count: number
+          updated_at: string
+        }
+        Insert: {
+          admin_decision?: string
+          admin_note?: string | null
+          auto_suppressed?: boolean
+          canonical_handle?: string | null
+          canonical_product_id?: string | null
+          confidence?: number
+          confidence_tier?: string
+          created_at?: string
+          evidence?: Json
+          group_key: string
+          id?: string
+          last_elected_at?: string | null
+          last_evaluated_at?: string | null
+          member_count?: number
+          price_spread?: number | null
+          suppressed_count?: number
+          updated_at?: string
+        }
+        Update: {
+          admin_decision?: string
+          admin_note?: string | null
+          auto_suppressed?: boolean
+          canonical_handle?: string | null
+          canonical_product_id?: string | null
+          confidence?: number
+          confidence_tier?: string
+          created_at?: string
+          evidence?: Json
+          group_key?: string
+          id?: string
+          last_elected_at?: string | null
+          last_evaluated_at?: string | null
+          member_count?: number
+          price_spread?: number | null
+          suppressed_count?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "duplicate_groups_canonical_product_id_fkey"
+            columns: ["canonical_product_id"]
+            isOneToOne: false
+            referencedRelation: "shopify_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       editorial_plan_items: {
         Row: {
           angle: string | null
@@ -1244,6 +1410,62 @@ export type Database = {
           },
         ]
       }
+      product_identity_signals: {
+        Row: {
+          attribute_tokens: string[]
+          barcodes: string[]
+          created_at: string
+          identity_fingerprint: string | null
+          image_signatures: string[]
+          model_codes: string[]
+          pack_quantity: number | null
+          product_id: string
+          skus: string[]
+          spec_signature: string | null
+          updated_at: string
+          variant_signature: string | null
+          vendor_key: string | null
+        }
+        Insert: {
+          attribute_tokens?: string[]
+          barcodes?: string[]
+          created_at?: string
+          identity_fingerprint?: string | null
+          image_signatures?: string[]
+          model_codes?: string[]
+          pack_quantity?: number | null
+          product_id: string
+          skus?: string[]
+          spec_signature?: string | null
+          updated_at?: string
+          variant_signature?: string | null
+          vendor_key?: string | null
+        }
+        Update: {
+          attribute_tokens?: string[]
+          barcodes?: string[]
+          created_at?: string
+          identity_fingerprint?: string | null
+          image_signatures?: string[]
+          model_codes?: string[]
+          pack_quantity?: number | null
+          product_id?: string
+          skus?: string[]
+          spec_signature?: string | null
+          updated_at?: string
+          variant_signature?: string | null
+          vendor_key?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_identity_signals_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: true
+            referencedRelation: "shopify_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_seo_intelligence: {
         Row: {
           auto_published: boolean
@@ -1814,6 +2036,7 @@ export type Database = {
       shopify_product_variants: {
         Row: {
           available_for_sale: boolean | null
+          barcode: string | null
           compare_at_price: number | null
           created_at: string
           currency: string | null
@@ -1832,6 +2055,7 @@ export type Database = {
         }
         Insert: {
           available_for_sale?: boolean | null
+          barcode?: string | null
           compare_at_price?: number | null
           created_at?: string
           currency?: string | null
@@ -1850,6 +2074,7 @@ export type Database = {
         }
         Update: {
           available_for_sale?: boolean | null
+          barcode?: string | null
           compare_at_price?: number | null
           created_at?: string
           currency?: string | null

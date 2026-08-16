@@ -41,6 +41,7 @@ export interface ProductBundle {
     available_for_sale: boolean | null;
     selected_options: unknown;
     sku: string | null;
+    barcode?: string | null;
   }>;
   collections: Array<{ handle: string; title: string }>;
 }

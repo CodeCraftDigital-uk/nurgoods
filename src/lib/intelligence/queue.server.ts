@@ -15,7 +15,7 @@ import type { CategoryNode } from "./taxonomy";
 
 type Db = SupabaseClient<any, "public", any>;
 
-export type Stage = "classify" | "seo" | "facts";
+export type Stage = "classify" | "seo" | "facts" | "dedupe" | "elect";
 
 const MAX_ATTEMPTS = 3;
 const LOCK_TIMEOUT_MS = 10 * 60_000;
@@ -32,7 +32,7 @@ export async function loadBundles(db: Db, productIds: string[]): Promise<Product
     db.from("shopify_product_media").select("product_id, url, alt_text, position").in("product_id", productIds),
     db
       .from("shopify_product_variants")
-      .select("product_id, title, price, available_for_sale, selected_options, sku, position")
+      .select("product_id, title, price, available_for_sale, selected_options, sku, barcode, position")
       .in("product_id", productIds),
     db.from("shopify_product_collections").select("product_id, collection_id").in("product_id", productIds),
   ]);
@@ -60,6 +60,7 @@ export async function loadBundles(db: Db, productIds: string[]): Promise<Product
       available_for_sale: row.available_for_sale ?? null,
       selected_options: row.selected_options ?? [],
       sku: row.sku ?? null,
+      barcode: row.barcode ?? null,
     });
     variantsByProduct.set(row.product_id, list);
   }
@@ -163,6 +164,8 @@ export async function planWork(
     if (needsClassify) {
       items.push({ productId: id, stage: "classify", reason, priority: classification ? 100 : 50 });
       counts.classify += 1;
+      // Identifiers, variants or imagery may have moved, so identity is rechecked.
+      items.push({ productId: id, stage: "dedupe", reason, priority: 150 });
     }
     if (needsSeo) {
       items.push({ productId: id, stage: "seo", reason, priority: seo ? 110 : 60 });
@@ -172,6 +175,8 @@ export async function planWork(
       // model run.
       items.push({ productId: id, stage: "facts", reason: "Price or stock change", priority: 40 });
       counts.facts += 1;
+      // Price or availability can change which listing should be canonical.
+      items.push({ productId: id, stage: "elect", reason: "Price or stock change", priority: 45 });
     }
     if (!needsClassify && !needsSeo && !factsChanged) counts.unchanged += 1;
   }
@@ -241,6 +246,8 @@ export interface ProcessResult {
   remaining: number;
   corrections: number;
   fallbacks: number;
+  identityPasses: number;
+  elections: number;
 }
 
 /** Works through a bounded slice of the queue. Safe to call repeatedly. */
@@ -255,9 +262,35 @@ export async function processQueue(db: Db, limit = 8): Promise<ProcessResult> {
     remaining: 0,
     corrections: 0,
     fallbacks: 0,
+    identityPasses: 0,
+    elections: 0,
   };
 
   if (claimed.length > 0) {
+    // Category first, always. Search wording depends on the canonical category,
+    // so a queued search item never runs ahead of a pending classification.
+    const stageOrder: Record<Stage, number> = { classify: 0, dedupe: 1, seo: 2, facts: 3, elect: 4 };
+    claimed.sort((a, b) => stageOrder[a.stage] - stageOrder[b.stage]);
+    const classifiedNow = new Set(
+      claimed.filter((row) => row.stage === "classify").map((row) => row.product_id),
+    );
+    const blockedProducts = new Set<string>();
+    const seoProducts = claimed
+      .filter((row) => row.stage === "seo" || row.stage === "facts")
+      .map((row) => row.product_id)
+      .filter((id) => !classifiedNow.has(id));
+    if (seoProducts.length > 0) {
+      const { data: pendingClassify } = await db
+        .from("intelligence_queue")
+        .select("product_id")
+        .eq("stage", "classify")
+        .in("status", ["queued", "running"])
+        .in("product_id", seoProducts);
+      for (const row of ((pendingClassify ?? []) as any[])) blockedProducts.add(row.product_id as string);
+    }
+    let dedupeDone = false;
+    let electDone = false;
+
     const categories = await loadCategories(db);
     const bySlug = new Map(categories.map((node) => [node.slug, node]));
     const bundles = await loadBundles(db, [...new Set(claimed.map((row) => row.product_id))]);
@@ -266,7 +299,48 @@ export async function processQueue(db: Db, limit = 8): Promise<ProcessResult> {
 
     for (const row of claimed) {
       const bundle = bundleById.get(row.product_id);
+      if (
+        (row.stage === "seo" || row.stage === "facts") &&
+        blockedProducts.has(row.product_id)
+      ) {
+        // Released untouched, with no attempt spent, until the category lands.
+        await db
+          .from("intelligence_queue")
+          .update({ status: "queued", locked_at: null, lock_token: null } as never)
+          .eq("id", row.id);
+        continue;
+      }
       try {
+        if (row.stage === "dedupe" || row.stage === "elect") {
+          const { runDuplicateIdentity, reelectCanonicals } = await import("./dedupe.server");
+          if (row.stage === "dedupe") {
+            // One catalogue wide pass satisfies every queued identity item.
+            if (!dedupeDone) {
+              await runDuplicateIdentity(db);
+              dedupeDone = true;
+            }
+            result.identityPasses = dedupeDone ? 1 : 0;
+          } else {
+            if (!electDone) {
+              await reelectCanonicals(db);
+              electDone = true;
+            }
+            result.elections += 1;
+          }
+          await db
+            .from("intelligence_queue")
+            .update({
+              status: "succeeded",
+              processed_at: new Date().toISOString(),
+              locked_at: null,
+              lock_token: null,
+              last_error: null,
+            } as never)
+            .eq("id", row.id);
+          result.processed += 1;
+          continue;
+        }
+
         if (!bundle) throw new Error("The mirrored product row no longer exists");
 
         if (row.stage === "classify") {

@@ -23,7 +23,9 @@ export type JobKey =
   | "daily_article_publish"
   | "catalogue_intelligence_backfill"
   | "catalogue_intelligence_daily"
-  | "catalogue_quality_audit";
+  | "catalogue_quality_audit"
+  | "catalogue_intelligence_worker"
+  | "catalogue_duplicate_identity";
 
 export interface JobRunResult {
   jobKey: string;
@@ -164,6 +166,10 @@ async function execute(ctx: RunContext, jobKey: string): Promise<JobRunResult> {
       return runIntelligenceJob(ctx, jobKey, `${jobKey}:${new Date().toISOString().slice(0, 10)}`);
     case "catalogue_quality_audit":
       return runIntelligenceJob(ctx, jobKey, `${jobKey}:${isoWeek()}`);
+    case "catalogue_intelligence_worker":
+      return runIntelligenceJob(ctx, jobKey, `${jobKey}:${Date.now()}`);
+    case "catalogue_duplicate_identity":
+      return runIntelligenceJob(ctx, jobKey, `${jobKey}:${Date.now()}`);
     case "article_drafting":
       return {
         jobKey,
@@ -212,9 +218,8 @@ async function runIntelligenceJob(
   }
 
   try {
-    const { runBackfill, runDailyMaintenance, runQualityAudit } = await import(
-      "@/lib/intelligence/jobs.server"
-    );
+    const { runBackfill, runDailyMaintenance, runQualityAudit, runIntelligenceWorker, runIdentityJob } =
+      await import("@/lib/intelligence/jobs.server");
     const { data: job } = await ctx.supabase
       .from("automation_jobs")
       .select("config")
@@ -227,7 +232,11 @@ async function runIntelligenceJob(
         ? await runBackfill(ctx.supabase, batchSize ?? 8)
         : jobKey === "catalogue_intelligence_daily"
           ? await runDailyMaintenance(ctx.supabase, batchSize ?? 12)
-          : await runQualityAudit(ctx.supabase);
+          : jobKey === "catalogue_intelligence_worker"
+            ? await runIntelligenceWorker(ctx.supabase, batchSize ?? 10)
+            : jobKey === "catalogue_duplicate_identity"
+              ? await runIdentityJob(ctx.supabase)
+              : await runQualityAudit(ctx.supabase);
 
     await closeRun(ctx, runId, "succeeded", summary.message, summary.details);
     return { jobKey, status: "succeeded", message: summary.message, details: summary.details };

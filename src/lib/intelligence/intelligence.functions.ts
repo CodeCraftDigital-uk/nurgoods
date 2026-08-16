@@ -426,3 +426,158 @@ export const listTaxonomyFn = createServerFn({ method: "GET" })
       products: counts.get(row.slug) ?? 0,
     }));
   });
+
+/* --------------------------- product identity --------------------------- */
+
+export interface DuplicateMemberRow {
+  product_id: string;
+  handle: string;
+  title: string;
+  price: number | null;
+  available: boolean | null;
+  quality_score: number | null;
+  role: string;
+  suppressed: boolean;
+  match_score: number | null;
+}
+
+export interface DuplicateGroupRow {
+  id: string;
+  confidence: number;
+  confidence_tier: string;
+  auto_suppressed: boolean;
+  admin_decision: string | null;
+  canonical_handle: string | null;
+  price_spread: number | null;
+  evidence: string[];
+  last_elected_at: string | null;
+  members: DuplicateMemberRow[];
+}
+
+export interface DuplicateOverview {
+  totals: {
+    verified_groups: number;
+    suspect_groups: number;
+    suppressed_listings: number;
+    saved_total: number;
+  };
+  verified: DuplicateGroupRow[];
+  suspects: DuplicateGroupRow[];
+  recent_changes: { created_at: string; event_type: string; summary: string }[];
+}
+
+function evidenceList(value: unknown): string[] {
+  if (Array.isArray(value)) return value.filter((item): item is string => typeof item === "string");
+  if (value && typeof value === "object") {
+    const reasons = (value as any).reasons;
+    if (Array.isArray(reasons)) return reasons.filter((item: any) => typeof item === "string");
+  }
+  return [];
+}
+
+/** Monitoring read for verified duplicate groups and suspects awaiting review. */
+export const getDuplicateOverviewFn = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<DuplicateOverview> => {
+    await assertAdmin(context);
+    const db = await admin();
+
+    const [{ data: groups }, { data: events }] = await Promise.all([
+      db
+        .from("duplicate_groups")
+        .select("*")
+        .order("confidence", { ascending: false })
+        .limit(120),
+      db
+        .from("duplicate_audit_events")
+        .select("created_at, event_type, detail")
+        .in("event_type", ["canonical_elected", "canonical_reelected", "admin_merge"])
+        .order("created_at", { ascending: false })
+        .limit(10),
+    ]);
+
+    const groupRows = (groups ?? []) as any[];
+    const ids = groupRows.map((row) => row.id as string);
+    const { data: memberRows } = ids.length
+      ? await db.from("duplicate_group_members").select("*").in("group_id", ids)
+      : { data: [] as any[] };
+    const productIds = ((memberRows ?? []) as any[]).map((row) => row.product_id as string);
+    const { data: productRows } = productIds.length
+      ? await db.from("shopify_products").select("id, handle, title").in("id", productIds)
+      : { data: [] as any[] };
+    const productById = new Map(((productRows ?? []) as any[]).map((row) => [row.id as string, row]));
+
+    const byGroup = new Map<string, DuplicateMemberRow[]>();
+    for (const row of ((memberRows ?? []) as any[])) {
+      const product = productById.get(row.product_id as string);
+      const list = byGroup.get(row.group_id as string) ?? [];
+      list.push({
+        product_id: row.product_id,
+        handle: product?.handle ?? "",
+        title: product?.title ?? "Unavailable listing",
+        price: row.price ?? null,
+        available: row.available ?? null,
+        quality_score: row.quality_score ?? null,
+        role: row.role ?? "member",
+        suppressed: Boolean(row.suppressed),
+        match_score: row.match_score ?? null,
+      });
+      byGroup.set(row.group_id as string, list);
+    }
+
+    const shape = (row: any): DuplicateGroupRow => ({
+      id: row.id,
+      confidence: Number(row.confidence ?? 0),
+      confidence_tier: row.confidence_tier ?? "low",
+      auto_suppressed: Boolean(row.auto_suppressed),
+      admin_decision: row.admin_decision ?? null,
+      canonical_handle: row.canonical_handle ?? null,
+      price_spread: row.price_spread ?? null,
+      evidence: evidenceList(row.evidence),
+      last_elected_at: row.last_elected_at ?? null,
+      members: (byGroup.get(row.id as string) ?? []).sort(
+        (a, b) => Number(b.role === "canonical") - Number(a.role === "canonical"),
+      ),
+    });
+
+    const verified = groupRows.filter((row) => row.auto_suppressed).map(shape);
+    const suspects = groupRows.filter((row) => !row.auto_suppressed).map(shape);
+    const suppressed = verified.reduce(
+      (sum, group) => sum + group.members.filter((member) => member.suppressed).length,
+      0,
+    );
+    const saved = verified.reduce((sum, group) => sum + Number(group.price_spread ?? 0), 0);
+
+    return {
+      totals: {
+        verified_groups: verified.length,
+        suspect_groups: suspects.length,
+        suppressed_listings: suppressed,
+        saved_total: Math.round(saved * 100) / 100,
+      },
+      verified: verified.slice(0, 40),
+      suspects: suspects.slice(0, 40),
+      recent_changes: ((events ?? []) as any[]).map((row) => ({
+        created_at: String(row.created_at),
+        event_type: String(row.event_type),
+        summary:
+          typeof row.detail?.reason === "string" ? row.detail.reason : "Canonical listing updated",
+      })),
+    };
+  });
+
+const duplicateActionSchema = z.object({
+  groupId: z.string().uuid(),
+  action: z.enum(["keep_separate", "merge", "reevaluate"]),
+});
+
+/** Exception controls for a single identity group. High confidence is automatic. */
+export const resolveDuplicateGroupFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => duplicateActionSchema.parse(data))
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context, data }): Promise<{ message: string }> => {
+    await assertAdmin(context);
+    const db = await admin();
+    const { applyGroupDecision } = await import("./dedupe.server");
+    return applyGroupDecision(db, data.groupId, data.action, context.userId);
+  });
