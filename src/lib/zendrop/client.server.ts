@@ -165,15 +165,11 @@ async function rpc(
       }
       if (response.status === 429) {
         const retryAfter = Number(response.headers.get("retry-after") ?? "2");
-        throw new ZendropError(
-          "The supplier rate limit was reached",
-          429,
-          true,
-        ) as ZendropError & { retryAfter?: number },
-          (lastError = new ZendropError("The supplier rate limit was reached", 429, true)),
-          await sleep(Math.min(30_000, (Number.isFinite(retryAfter) ? retryAfter : 2) * 1000));
+        lastError = new ZendropError("The supplier rate limit was reached", 429, true);
+        await sleep(Math.min(30_000, (Number.isFinite(retryAfter) ? retryAfter : 2) * 1000));
         continue;
       }
+
       if (response.status >= 500) {
         lastError = new ZendropError(`The supplier returned ${response.status}`, response.status, true);
         await sleep(Math.min(8_000, 2 ** attempt * 300));
