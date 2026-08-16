@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { createCheckoutFn } from "@/lib/services/shopify-storefront.functions";
 import { PublicShell } from "@/components/public/PublicShell";
@@ -151,16 +152,31 @@ function ProductDetail() {
       : "Currently unavailable";
 
   const [starting, setStarting] = useState(false);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const startCheckout = useServerFn(createCheckoutFn);
   const beginCheckout = async () => {
-    if (!variantId) return;
+    if (!variantId || starting) return;
     setStarting(true);
+    setCheckoutError(null);
     try {
       const result = await startCheckout({ data: { variantId, quantity } });
-      window.location.href = result.checkoutUrl;
-    } catch {
+      if (result?.checkoutUrl) {
+        window.location.assign(result.checkoutUrl);
+        return;
+      }
+      throw new Error("No checkout link");
+    } catch (error) {
       setStarting(false);
-      if (buyHref) window.location.href = buyHref;
+      if (buyHref) {
+        window.location.assign(buyHref);
+        return;
+      }
+      const message =
+        error instanceof Error && error.message && error.message.length < 160
+          ? error.message
+          : "Checkout could not be started. Please try again.";
+      setCheckoutError(message);
+      toast.error(message);
     }
   };
 
@@ -389,6 +405,11 @@ function ProductDetail() {
                 </button>
               )}
             </div>
+            {checkoutError ? (
+              <p role="alert" className="mt-3 text-xs text-destructive">
+                {checkoutError}
+              </p>
+            ) : null}
             {selectedVariant && optionNames.length > 0 ? (
               <p className="mt-3 text-xs text-muted-foreground">
                 Selected: {selectedVariant.selected_options.map((o) => o.value).join(" / ")}
