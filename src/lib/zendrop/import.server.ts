@@ -37,6 +37,12 @@ export const DEFAULT_RULES: SourcingRules = {
   min_landed_cost: null,
   max_landed_cost: null,
   max_retail_price: null,
+  min_retail_price: null,
+  min_suitability_score: 60,
+  restricted_keywords: [],
+  max_variant_count: null,
+  continuous_sourcing: false,
+  target_catalogue_size: null,
   daily_import_cap: 25,
   batch_size: 10,
 };
