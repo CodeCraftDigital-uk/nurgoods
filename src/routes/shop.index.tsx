@@ -21,6 +21,8 @@ interface ShopSearch {
   sort?: string | undefined;
 }
 
+type StorefrontCard = Awaited<ReturnType<typeof listStorefrontProductsFn>>["items"][number];
+
 const SORT_OPTIONS = [
   { value: "featured", label: "Featured" },
   { value: "price_asc", label: "Price, low to high" },
@@ -79,6 +81,16 @@ function ShopIndex() {
   const fetchFacets = useServerFn(listStorefrontFacetsFn);
   const fetchCollections = useServerFn(listStorefrontCollectionsFn);
 
+  const PAGE_SIZE = 48;
+  const [offset, setOffset] = useState(0);
+  const [loaded, setLoaded] = useState<StorefrontCard[]>([]);
+
+  // Any change of search or filter starts the range again from the first page.
+  useEffect(() => {
+    setOffset(0);
+    setLoaded([]);
+  }, [search.q, search.category, search.collection, search.tag, search.sort]);
+
   const products = useQuery({
     queryKey: [
       "storefront-products",
@@ -87,6 +99,7 @@ function ShopIndex() {
       search.collection ?? "",
       search.tag ?? "",
       search.sort ?? "featured",
+      offset,
     ],
     queryFn: () =>
       fetchProducts({
@@ -96,11 +109,24 @@ function ShopIndex() {
           collectionHandle: search.collection,
           tag: search.tag,
           sort: search.sort,
-          limit: 48,
+          limit: PAGE_SIZE,
+          offset,
         },
       }),
     retry: false,
   });
+
+  const pageItems = products.data?.items;
+  useEffect(() => {
+    if (!pageItems) return;
+    setLoaded((previous) => {
+      const seen = new Set(previous.map((item) => item.id));
+      const additions = pageItems.filter((item) => !seen.has(item.id));
+      return additions.length ? [...previous, ...additions] : previous;
+    });
+  }, [pageItems]);
+
+
 
   const collections = useQuery({
     queryKey: ["storefront-collection-filters"],
@@ -132,7 +158,10 @@ function ShopIndex() {
     });
   };
 
-  const items = products.data?.items ?? [];
+  const items = loaded;
+  const total = products.data?.total ?? items.length;
+  const hasMore = items.length > 0 && items.length < total;
+
   const tags = facets.data?.tags ?? [];
   const categories = facets.data?.categories ?? [];
   const collectionItems = [...(collections.data ?? [])].sort(
@@ -373,8 +402,7 @@ function ShopIndex() {
         ) : (
           <>
             <p className="text-xs text-muted-foreground" aria-live="polite">
-              {products.data?.total ?? items.length} product
-              {(products.data?.total ?? items.length) === 1 ? "" : "s"}
+              Showing {items.length} of {total} product{total === 1 ? "" : "s"}
             </p>
             <ul className="mt-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
               {items.map((product, index) => (
@@ -383,8 +411,21 @@ function ShopIndex() {
                 </li>
               ))}
             </ul>
+            {hasMore ? (
+              <div className="mt-10 flex justify-center">
+                <button
+                  type="button"
+                  onClick={() => setOffset(items.length)}
+                  disabled={products.isFetching}
+                  className="inline-flex min-h-11 items-center rounded-lg border border-input px-6 text-sm font-medium text-foreground transition-colors hover:bg-accent disabled:opacity-60"
+                >
+                  {products.isFetching ? "Loading" : "Load more products"}
+                </button>
+              </div>
+            ) : null}
           </>
         )}
+
 
         <div className="mt-14 rounded-2xl border border-border/70 p-7 sm:p-9">
           <h2 className="font-display text-2xl text-foreground">Browse by collection</h2>
