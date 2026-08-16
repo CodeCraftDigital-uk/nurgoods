@@ -2414,6 +2414,307 @@ export type Database = {
         }
         Relationships: []
       }
+      zendrop_capabilities: {
+        Row: {
+          action_name: string
+          available: boolean
+          created_at: string
+          description: string | null
+          id: string
+          input_schema: Json
+          kind: string
+          last_checked_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          action_name: string
+          available?: boolean
+          created_at?: string
+          description?: string | null
+          id?: string
+          input_schema?: Json
+          kind?: string
+          last_checked_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          action_name?: string
+          available?: boolean
+          created_at?: string
+          description?: string | null
+          id?: string
+          input_schema?: Json
+          kind?: string
+          last_checked_at?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      zendrop_import_candidates: {
+        Row: {
+          attempts: number
+          calculated_price: number | null
+          category: string | null
+          created_at: string
+          created_by: string | null
+          currency: string
+          failure_reason: string | null
+          gross_margin: number | null
+          hold_reason: string | null
+          id: string
+          idempotency_key: string
+          image_url: string | null
+          imported_at: string | null
+          is_test: boolean
+          landed_cost: number | null
+          linked_at: string | null
+          live_at: string | null
+          lock_token: string | null
+          locked_at: string | null
+          previous_state: string | null
+          pricing_complete: boolean
+          pricing_snapshot: Json
+          product_id: string | null
+          queued_at: string | null
+          shipping_cost: number | null
+          shopify_product_id: string | null
+          state: string
+          store_reference: string | null
+          suggested_retail: number | null
+          supplier_cost: number | null
+          supplier_payload: Json
+          title: string
+          updated_at: string
+          write_response: Json
+          zendrop_product_id: string
+          zendrop_variant_ids: string[]
+        }
+        Insert: {
+          attempts?: number
+          calculated_price?: number | null
+          category?: string | null
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          failure_reason?: string | null
+          gross_margin?: number | null
+          hold_reason?: string | null
+          id?: string
+          idempotency_key: string
+          image_url?: string | null
+          imported_at?: string | null
+          is_test?: boolean
+          landed_cost?: number | null
+          linked_at?: string | null
+          live_at?: string | null
+          lock_token?: string | null
+          locked_at?: string | null
+          previous_state?: string | null
+          pricing_complete?: boolean
+          pricing_snapshot?: Json
+          product_id?: string | null
+          queued_at?: string | null
+          shipping_cost?: number | null
+          shopify_product_id?: string | null
+          state?: string
+          store_reference?: string | null
+          suggested_retail?: number | null
+          supplier_cost?: number | null
+          supplier_payload?: Json
+          title: string
+          updated_at?: string
+          write_response?: Json
+          zendrop_product_id: string
+          zendrop_variant_ids?: string[]
+        }
+        Update: {
+          attempts?: number
+          calculated_price?: number | null
+          category?: string | null
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          failure_reason?: string | null
+          gross_margin?: number | null
+          hold_reason?: string | null
+          id?: string
+          idempotency_key?: string
+          image_url?: string | null
+          imported_at?: string | null
+          is_test?: boolean
+          landed_cost?: number | null
+          linked_at?: string | null
+          live_at?: string | null
+          lock_token?: string | null
+          locked_at?: string | null
+          previous_state?: string | null
+          pricing_complete?: boolean
+          pricing_snapshot?: Json
+          product_id?: string | null
+          queued_at?: string | null
+          shipping_cost?: number | null
+          shopify_product_id?: string | null
+          state?: string
+          store_reference?: string | null
+          suggested_retail?: number | null
+          supplier_cost?: number | null
+          supplier_payload?: Json
+          title?: string
+          updated_at?: string
+          write_response?: Json
+          zendrop_product_id?: string
+          zendrop_variant_ids?: string[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "zendrop_import_candidates_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "shopify_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      zendrop_import_events: {
+        Row: {
+          candidate_id: string | null
+          created_at: string
+          detail: Json
+          from_state: string | null
+          id: string
+          message: string | null
+          reason_code: string | null
+          to_state: string
+          zendrop_product_id: string | null
+        }
+        Insert: {
+          candidate_id?: string | null
+          created_at?: string
+          detail?: Json
+          from_state?: string | null
+          id?: string
+          message?: string | null
+          reason_code?: string | null
+          to_state: string
+          zendrop_product_id?: string | null
+        }
+        Update: {
+          candidate_id?: string | null
+          created_at?: string
+          detail?: Json
+          from_state?: string | null
+          id?: string
+          message?: string | null
+          reason_code?: string | null
+          to_state?: string
+          zendrop_product_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "zendrop_import_events_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "zendrop_import_candidates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      zendrop_pricing_settings: {
+        Row: {
+          allow_incomplete_pricing: boolean
+          created_at: string
+          currency: string
+          id: string
+          min_promo_margin: number
+          pricing_mode: string
+          promo_discount: number
+          rounding_mode: string
+          shipping_market: string
+          target_margin: number
+          updated_at: string
+        }
+        Insert: {
+          allow_incomplete_pricing?: boolean
+          created_at?: string
+          currency?: string
+          id?: string
+          min_promo_margin?: number
+          pricing_mode?: string
+          promo_discount?: number
+          rounding_mode?: string
+          shipping_market?: string
+          target_margin?: number
+          updated_at?: string
+        }
+        Update: {
+          allow_incomplete_pricing?: boolean
+          created_at?: string
+          currency?: string
+          id?: string
+          min_promo_margin?: number
+          pricing_mode?: string
+          promo_discount?: number
+          rounding_mode?: string
+          shipping_market?: string
+          target_margin?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      zendrop_sourcing_rules: {
+        Row: {
+          allowed_categories: string[]
+          batch_size: number
+          blocked_categories: string[]
+          created_at: string
+          daily_import_cap: number
+          duplicate_precheck: boolean
+          enabled: boolean
+          id: string
+          max_landed_cost: number | null
+          max_retail_price: number | null
+          min_landed_cost: number | null
+          require_image: boolean
+          require_stock: boolean
+          require_uk_shipping: boolean
+          updated_at: string
+        }
+        Insert: {
+          allowed_categories?: string[]
+          batch_size?: number
+          blocked_categories?: string[]
+          created_at?: string
+          daily_import_cap?: number
+          duplicate_precheck?: boolean
+          enabled?: boolean
+          id?: string
+          max_landed_cost?: number | null
+          max_retail_price?: number | null
+          min_landed_cost?: number | null
+          require_image?: boolean
+          require_stock?: boolean
+          require_uk_shipping?: boolean
+          updated_at?: string
+        }
+        Update: {
+          allowed_categories?: string[]
+          batch_size?: number
+          blocked_categories?: string[]
+          created_at?: string
+          daily_import_cap?: number
+          duplicate_precheck?: boolean
+          enabled?: boolean
+          id?: string
+          max_landed_cost?: number | null
+          max_retail_price?: number | null
+          min_landed_cost?: number | null
+          require_image?: boolean
+          require_stock?: boolean
+          require_uk_shipping?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
