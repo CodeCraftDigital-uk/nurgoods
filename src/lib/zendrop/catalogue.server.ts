@@ -67,8 +67,10 @@ export function normaliseCatalogueItem(raw: any): CatalogueItem {
     : Array.isArray(raw?.product_variants)
       ? raw.product_variants
       : [];
-  const variants = variantsRaw.map(normaliseVariant).filter((v: CatalogueVariant) => v.id);
-  const cheapest = variants.reduce<CatalogueVariant | null>((best, variant) => {
+  const variants: CatalogueVariant[] = (variantsRaw as any[])
+    .map((entry) => normaliseVariant(entry))
+    .filter((v) => Boolean(v.id));
+  const cheapest = variants.reduce<CatalogueVariant | null>((best: CatalogueVariant | null, variant: CatalogueVariant) => {
     if (variant.cost === null) return best;
     if (!best || (best.cost ?? Infinity) > variant.cost) return variant;
     return best;
