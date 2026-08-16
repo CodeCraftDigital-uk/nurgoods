@@ -86,6 +86,12 @@ export const ADMIN_NAV: NavItem[] = [
     icon: Scale,
   },
   {
+    to: "/control/sourcing",
+    label: "Sourcing and Pricing",
+    description: "Supplier catalogue, margin pricing policy and controlled imports.",
+    icon: ShoppingBag,
+  },
+  {
     to: "/control/intake",
     label: "Product Intake",
     description: "Automated validation, identity, classification and publishing of new products.",
