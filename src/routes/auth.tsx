@@ -13,7 +13,9 @@ export const Route = createFileRoute("/auth")({
   ssr: false,
   head: () => ({
     meta: [
+      { name: "robots", content: "noindex, nofollow, noarchive" },
       { title: "Sign in | NUR GOODS Platform" },
+
       {
         name: "description",
         content:

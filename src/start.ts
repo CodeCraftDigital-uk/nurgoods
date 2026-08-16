@@ -1,7 +1,74 @@
 import { createStart, createCsrfMiddleware, createMiddleware } from "@tanstack/react-start";
+import { getRequest } from "@tanstack/react-start/server";
 
 import { renderErrorPage } from "./lib/error-page";
 import { attachSupabaseAuth } from "@/integrations/supabase/auth-attacher";
+import {
+  ADMIN_HOST,
+  PUBLIC_HOST,
+  isAdminHost,
+  isAdminPath,
+  isInfrastructurePath,
+  isPublicProductionHost,
+} from "./lib/hosts";
+
+/**
+ * Hostname routing. admin.nurgoods.com is the canonical admin console, the
+ * public storefront stays on nurgoods.com, and neither host indexes admin
+ * surfaces. Preview and local hosts keep /admin working unchanged.
+ */
+const hostRoutingMiddleware = createMiddleware().server(async ({ next }) => {
+  let host = "";
+  let pathname = "/";
+  let method = "GET";
+  let search = "";
+
+  try {
+    const request = getRequest();
+    const url = new URL(request.url);
+    host = request.headers.get("x-forwarded-host") ?? url.host;
+    pathname = url.pathname;
+    search = url.search;
+    method = request.method;
+  } catch {
+    return next();
+  }
+
+  const documentRequest = method === "GET" && !isInfrastructurePath(pathname);
+
+  if (documentRequest) {
+    if (isAdminHost(host) && !isAdminPath(pathname)) {
+      return new Response(null, {
+        status: 302,
+        headers: { location: pathname === "/" ? "/admin" : `https://${PUBLIC_HOST}${pathname}${search}` },
+      });
+    }
+    if (isPublicProductionHost(host) && isAdminPath(pathname)) {
+      return new Response(null, {
+        status: 302,
+        headers: { location: `https://${ADMIN_HOST}${pathname}${search}` },
+      });
+    }
+  }
+
+  const result = await next();
+  if (isAdminHost(host) || isAdminPath(pathname)) {
+    const response: unknown =
+      result instanceof Response
+        ? result
+        : (result as { response?: unknown } | null)?.response;
+    if (response instanceof Response) {
+      try {
+        response.headers.set("x-robots-tag", "noindex, nofollow, noarchive");
+      } catch {
+        // Immutable headers on some runtimes; the route level meta tag still applies.
+      }
+    }
+  }
+  return result;
+
+});
+
 
 const errorMiddleware = createMiddleware().server(async ({ next }) => {
   try {
@@ -27,5 +94,6 @@ const csrfMiddleware = createCsrfMiddleware({
 
 export const startInstance = createStart(() => ({
   functionMiddleware: [attachSupabaseAuth],
-  requestMiddleware: [errorMiddleware, csrfMiddleware],
+  requestMiddleware: [errorMiddleware, hostRoutingMiddleware, csrfMiddleware],
 }));
+
