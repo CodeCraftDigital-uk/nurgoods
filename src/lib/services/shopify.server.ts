@@ -695,7 +695,7 @@ const PRODUCT_FIELDS = /* GraphQL */ `
 const CATALOGUE_QUERY = /* GraphQL */ `
   ${PRODUCT_FIELDS}
   query NurGoodsCatalogue($productCursor: String) {
-    products(first: 25, after: $productCursor) {
+    products(first: 10, after: $productCursor) {
       pageInfo {
         hasNextPage
         endCursor
