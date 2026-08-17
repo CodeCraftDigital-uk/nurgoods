@@ -145,7 +145,7 @@ async function buildIndex(): Promise<CatalogueIndex> {
 
   const [{ data: suppressedRows }, { data: intakeRows }, { data: productRows }, { data: categoryRows }] =
     await Promise.all([
-      supabase.from("duplicate_group_members").select("product_id").eq("suppressed", true).limit(5000),
+      supabase.rpc("public_suppressed_products"),
       supabase.rpc("hidden_intake_product_ids"),
       supabase
         .from("shopify_products")
