@@ -171,26 +171,17 @@ function AiConnectorsPage() {
   return (
     <PublicShell>
       <JsonLd
-        data={[
-          {
-            "@context": "https://schema.org",
-            "@type": "BreadcrumbList",
-            itemListElement: [
-              { "@type": "ListItem", position: 1, name: "Home", item: `${BRAND.siteUrl}/` },
-              { "@type": "ListItem", position: 2, name: "AI Connectors", item: PAGE_URL },
-            ],
-          },
-          {
-            "@context": "https://schema.org",
-            "@type": "FAQPage",
-            mainEntity: FAQS.map((faq) => ({
-              "@type": "Question",
-              name: faq.question,
-              acceptedAnswer: { "@type": "Answer", text: faq.answer },
-            })),
-          },
-        ]}
+        data={{
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          mainEntity: FAQS.map((faq) => ({
+            "@type": "Question",
+            name: faq.question,
+            acceptedAnswer: { "@type": "Answer", text: faq.answer },
+          })),
+        }}
       />
+
 
       {/* Hero */}
       <section className="relative overflow-hidden border-b border-border/70">
