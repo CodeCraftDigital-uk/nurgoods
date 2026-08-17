@@ -258,6 +258,15 @@ export function PublicShell({ children }: { children: ReactNode }) {
                 </Link>
               </li>
               <li>
+                <Link
+                  to="/ai-connectors"
+                  className="inline-flex min-h-8 items-center text-muted-foreground hover:text-brand"
+                >
+                  AI Connectors
+                </Link>
+              </li>
+              <li>
+
                 <a
                   href={BRAND.storeUrl}
                   className="inline-flex min-h-8 items-center text-muted-foreground hover:text-brand"
