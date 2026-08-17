@@ -1,4 +1,5 @@
 import type { ProductBundle } from "@/lib/intelligence/core.server";
+import { screenProhibited } from "@/lib/policy/prohibited";
 import type { IntakeCheck, IntakePolicy } from "./types";
 
 /**
@@ -65,6 +66,32 @@ export function validateIntake(bundle: ProductBundle, policy: IntakePolicy): Val
       ? /^gid:\/\/shopify\/Product\/\d+$/.test(product.shopify_product_id)
       : true,
     product.shopify_product_id ?? undefined,
+  );
+
+  // Prohibited category control. Adult and sexual products can never become
+  // customer facing, whatever else about the record is valid.
+  const prohibited = screenProhibited({
+    title: product.title,
+    description: product.description,
+    descriptionHtml: product.description_html,
+    productType: product.product_type,
+    vendor: product.vendor,
+    tags: product.tags,
+    handle: product.handle,
+    extra: bundle.variants.flatMap((variant) => [
+      variant.title ?? "",
+      ...(Array.isArray(variant.selected_options)
+        ? (variant.selected_options as any[]).map((option) =>
+            [option?.name, option?.value].filter(Boolean).join(" "),
+          )
+        : []),
+    ]),
+  });
+  add(
+    "prohibited_category",
+    "Not a prohibited category",
+    !prohibited.prohibited,
+    prohibited.reason ?? "No prohibited category signal",
   );
 
   const status = (product.status ?? "").toLowerCase();
