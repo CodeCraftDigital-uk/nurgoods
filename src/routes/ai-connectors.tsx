@@ -137,10 +137,9 @@ function Steps({ items }: { items: string[] }) {
 }
 
 function AiConnectorsPage() {
-  const [endpoint, setEndpoint] = useState(`${BRAND.siteUrl}/mcp`);
-  useEffect(() => {
-    setEndpoint(`${window.location.origin}/mcp`);
-  }, []);
+  // Always advertise the canonical NUR GOODS endpoint, never the current host.
+  const endpoint = `${BRAND.siteUrl}/mcp`;
+
 
   const chatgptSteps = [
     "Open ChatGPT on the web and go to Settings.",
