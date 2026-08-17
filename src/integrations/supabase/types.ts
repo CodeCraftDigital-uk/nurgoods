@@ -1958,6 +1958,83 @@ export type Database = {
           },
         ]
       }
+      product_supplier_links: {
+        Row: {
+          created_at: string
+          evidence: Json
+          fx_as_of: string | null
+          fx_rate: number | null
+          id: string
+          match_confidence: string
+          match_method: string
+          product_id: string | null
+          quoted_amount: number | null
+          quoted_currency: string | null
+          shipping_cost: number | null
+          shipping_currency: string
+          shipping_source: string | null
+          shopify_product_id: string
+          supplier: string
+          supplier_import_list_id: string | null
+          supplier_product_id: string
+          updated_at: string
+          variant_map: Json
+          verified_at: string
+        }
+        Insert: {
+          created_at?: string
+          evidence?: Json
+          fx_as_of?: string | null
+          fx_rate?: number | null
+          id?: string
+          match_confidence?: string
+          match_method: string
+          product_id?: string | null
+          quoted_amount?: number | null
+          quoted_currency?: string | null
+          shipping_cost?: number | null
+          shipping_currency?: string
+          shipping_source?: string | null
+          shopify_product_id: string
+          supplier?: string
+          supplier_import_list_id?: string | null
+          supplier_product_id: string
+          updated_at?: string
+          variant_map?: Json
+          verified_at?: string
+        }
+        Update: {
+          created_at?: string
+          evidence?: Json
+          fx_as_of?: string | null
+          fx_rate?: number | null
+          id?: string
+          match_confidence?: string
+          match_method?: string
+          product_id?: string | null
+          quoted_amount?: number | null
+          quoted_currency?: string | null
+          shipping_cost?: number | null
+          shipping_currency?: string
+          shipping_source?: string | null
+          shopify_product_id?: string
+          supplier?: string
+          supplier_import_list_id?: string | null
+          supplier_product_id?: string
+          updated_at?: string
+          variant_map?: Json
+          verified_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_supplier_links_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "shopify_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null

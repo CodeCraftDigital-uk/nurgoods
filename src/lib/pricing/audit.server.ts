@@ -41,28 +41,33 @@ interface ShippingBasis {
 async function loadShippingBasis(): Promise<Map<string, ShippingBasis>> {
   const supabase = await zendropAdminClient();
   const basis = new Map<string, ShippingBasis>();
-  const { data } = await supabase
+
+  const record = (raw: any, source: string) => {
+    const cost = raw.shipping_cost === null ? null : Number(raw.shipping_cost);
+    const entry: ShippingBasis = {
+      cost: Number.isFinite(cost as number) ? (cost as number) : null,
+      source: cost === null ? null : (raw.shipping_source ?? source),
+      linked: true,
+    };
+    if (raw.shopify_product_id) basis.set(String(raw.shopify_product_id), entry);
+    if (raw.product_id) basis.set(`uuid:${raw.product_id}`, entry);
+  };
+
+  const { data: candidates } = await supabase
     .from("zendrop_import_candidates")
     .select("product_id, shopify_product_id, shipping_cost, currency, updated_at")
     .not("shopify_product_id", "is", null)
     .order("updated_at", { ascending: true });
+  for (const raw of (candidates ?? []) as any[]) record(raw, "supplier_shipping_quote");
 
-  for (const raw of (data ?? []) as any[]) {
-    const key = String(raw.shopify_product_id);
-    const cost = raw.shipping_cost === null ? null : Number(raw.shipping_cost);
-    basis.set(key, {
-      cost: Number.isFinite(cost as number) ? (cost as number) : null,
-      source: cost === null ? null : "supplier_shipping_quote",
-      linked: true,
-    });
-    if (raw.product_id) {
-      basis.set(`uuid:${raw.product_id}`, {
-        cost: Number.isFinite(cost as number) ? (cost as number) : null,
-        source: cost === null ? null : "supplier_shipping_quote",
-        linked: true,
-      });
-    }
-  }
+  // Recovered links carry first party supplier evidence, so they take priority.
+  const { data: links } = await supabase
+    .from("product_supplier_links")
+    .select("product_id, shopify_product_id, shipping_cost, shipping_source, match_confidence")
+    .eq("match_confidence", "high")
+    .order("verified_at", { ascending: true });
+  for (const raw of (links ?? []) as any[]) record(raw, "supplier_shipping_quote");
+
   return basis;
 }
 
