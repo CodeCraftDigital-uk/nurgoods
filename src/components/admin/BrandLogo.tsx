@@ -81,21 +81,36 @@ export function BrandLogo({
 export function BrandWordmark({
   className,
   height = 34,
+  width,
+  fullWidth = false,
   surface = "auto",
   treatment = "horizontal",
 }: {
   className?: string;
   height?: number;
+  /** When set, the box is sized by width and height is derived from the
+   *  known aspect ratio, so the wordmark fills a fixed column width. */
+  width?: number;
+  /** When true, the box stretches to 100% of its container width and the
+   *  height is reserved via CSS aspect-ratio, so the logo always fits the
+   *  column it sits in without distortion. */
+  fullWidth?: boolean;
   surface?: Surface;
   treatment?: BrandTreatment;
 }) {
+  const ratio = BRAND_ART_RATIO[treatment];
+  const boxStyle = fullWidth
+    ? { width: "100%", aspectRatio: String(ratio) } as React.CSSProperties
+    : width
+      ? { width, height: Math.round(width / ratio) }
+      : { height, minWidth: Math.round(height * ratio) };
   return (
     <Art
       treatment={treatment}
       surface={surface}
       alt="NUR GOODS"
-      className={cn("h-full w-auto max-w-full object-contain", className)}
-      boxStyle={{ height, minWidth: Math.round(height * BRAND_ART_RATIO[treatment]) }}
+      className={cn("h-full w-full max-w-full object-contain", className)}
+      boxStyle={boxStyle}
     />
   );
 }
