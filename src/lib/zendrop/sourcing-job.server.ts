@@ -160,7 +160,8 @@ export async function runHourlySourcing(db: Db, jobKey: string): Promise<Sourcin
   } catch {
     // A sync failure must not stop the rest of the pass; the next run retries.
   }
-  const linked = await reconcileImportedCandidates();
+  const reconciled = await reconcileImportedCandidates();
+  const linked = reconciled.matched;
 
   // Prohibited category safety net. If anything adult or sexual reached the
   // store through the supplier push, it is unpublished and quarantined in the
