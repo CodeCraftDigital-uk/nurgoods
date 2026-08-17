@@ -73,6 +73,9 @@ export async function runHourlySourcing(db: Db, jobKey: string): Promise<Sourcin
     };
   }
 
+  const { readThrottleStats, resetThrottleStats } = await import("./client.server");
+  resetThrottleStats();
+
   const { getZendropStatus } = await import("./connection.server");
   const status = await getZendropStatus();
   if (!status.configured) {
@@ -116,6 +119,8 @@ export async function runHourlySourcing(db: Db, jobKey: string): Promise<Sourcin
         pricing_failed: screen.funnel.pricingFailed,
         duplicates: screen.funnel.duplicateExcluded,
         imported: 0,
+        rate_limit_retries: readThrottleStats().rateLimitRetries,
+        rate_limit_cooldown_seconds: Math.round(readThrottleStats().cooldownMs / 1000),
       },
     };
   }
