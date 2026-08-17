@@ -940,6 +940,9 @@ export async function runSourcingScreen(input: {
   let fx: FxQuote | null = null;
   let catalogueTotal: number | null = null;
   let pagesRead = 0;
+  let shippingQuotes = 0;
+  const maxShippingQuotes = target * 4;
+
 
   for (let page = 1; page <= maxPages; page += 1) {
     const batch = await searchZendropCatalogue({
@@ -952,11 +955,11 @@ export async function runSourcingScreen(input: {
     if (batch.total !== null) catalogueTotal = batch.total;
     if (!batch.available || batch.items.length === 0) break;
 
-    for (const item of batch.items) {
+    for (const raw of batch.items) {
       funnel.queried += 1;
       if (!fx) {
         try {
-          fx = await getFxRate(item.currency, settings.currency);
+          fx = await getFxRate(raw.currency, settings.currency);
         } catch {
           return {
             funnel,
@@ -968,7 +971,28 @@ export async function runSourcingScreen(input: {
         }
       }
 
+      // Catalogue listings do not carry a destination shipping cost. Quote it
+      // from the supplier for the market in use, within a bounded number of
+      // quotes per pass, so landed cost is evidenced rather than guessed.
+      let item = raw;
+      if (item.shippingCost === null && settings.shipping_market && shippingQuotes < maxShippingQuotes) {
+        shippingQuotes += 1;
+        const { quoteZendropShipping } = await import("./catalogue.server");
+        try {
+          const quote = await quoteZendropShipping(item.id, settings.shipping_market);
+          item = {
+            ...item,
+            shippingCost: quote.cost,
+            deliveryEstimate: item.deliveryEstimate ?? quote.estimate,
+          };
+        } catch {
+          // A failed quote leaves the cost unknown, which the screen treats as
+          // unconfirmed delivery and holds the product.
+        }
+      }
+
       const duplicateReason = rules.duplicate_precheck ? await duplicatePrecheck(item) : null;
+
       const screen = screenCandidate({
         item,
         rules,

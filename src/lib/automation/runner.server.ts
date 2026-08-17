@@ -25,7 +25,9 @@ export type JobKey =
   | "catalogue_intelligence_daily"
   | "catalogue_quality_audit"
   | "catalogue_intelligence_worker"
-  | "catalogue_duplicate_identity";
+  | "catalogue_duplicate_identity"
+  | "catalogue_seo_sweep"
+  | "supplier_sourcing_hourly";
 
 export interface JobRunResult {
   jobKey: string;
@@ -170,6 +172,10 @@ async function execute(ctx: RunContext, jobKey: string): Promise<JobRunResult> {
       return runIntelligenceJob(ctx, jobKey, `${jobKey}:${Date.now()}`);
     case "catalogue_duplicate_identity":
       return runIntelligenceJob(ctx, jobKey, `${jobKey}:${Date.now()}`);
+    case "catalogue_seo_sweep":
+      return runIntelligenceJob(ctx, jobKey, `${jobKey}:${Date.now()}`);
+    case "supplier_sourcing_hourly":
+      return runSourcingJob(ctx, jobKey);
     case "product_intake_delta_sync":
     case "product_intake_worker":
       return runIntakeJob(ctx, jobKey);
@@ -222,8 +228,14 @@ async function runIntelligenceJob(
   }
 
   try {
-    const { runBackfill, runDailyMaintenance, runQualityAudit, runIntelligenceWorker, runIdentityJob } =
-      await import("@/lib/intelligence/jobs.server");
+    const {
+      runBackfill,
+      runDailyMaintenance,
+      runQualityAudit,
+      runIntelligenceWorker,
+      runIdentityJob,
+      runSeoSweep,
+    } = await import("@/lib/intelligence/jobs.server");
     const { data: job } = await ctx.supabase
       .from("automation_jobs")
       .select("config")
@@ -240,12 +252,42 @@ async function runIntelligenceJob(
             ? await runIntelligenceWorker(ctx.supabase, batchSize ?? 10)
             : jobKey === "catalogue_duplicate_identity"
               ? await runIdentityJob(ctx.supabase)
-              : await runQualityAudit(ctx.supabase);
+              : jobKey === "catalogue_seo_sweep"
+                ? await runSeoSweep(ctx.supabase, batchSize ?? 10)
+                : await runQualityAudit(ctx.supabase);
 
     await closeRun(ctx, runId, "succeeded", summary.message, summary.details);
     return { jobKey, status: "succeeded", message: summary.message, details: summary.details };
   } catch (cause) {
     const message = cause instanceof Error ? cause.message : "The intelligence job failed";
+    await closeRun(ctx, runId, "failed", message);
+    throw new Error(message);
+  }
+}
+
+/**
+ * Hourly supplier sourcing. The run key is dated to the hour so a repeated
+ * scheduler call inside the same hour reports the work already happened rather
+ * than sourcing twice.
+ */
+async function runSourcingJob(ctx: RunContext, jobKey: string): Promise<JobRunResult> {
+  const runKey = `${jobKey}:${new Date().toISOString().slice(0, 13)}`;
+  const runId = await claimRun(ctx, jobKey, runKey);
+  if (!runId) {
+    return {
+      jobKey,
+      status: "skipped",
+      message: "A sourcing run has already happened for this hour.",
+      details: {},
+    };
+  }
+  try {
+    const { runHourlySourcing } = await import("@/lib/zendrop/sourcing-job.server");
+    const summary = await runHourlySourcing(ctx.supabase, jobKey);
+    await closeRun(ctx, runId, "succeeded", summary.message, summary.details);
+    return { jobKey, status: "succeeded", message: summary.message, details: summary.details };
+  } catch (cause) {
+    const message = cause instanceof Error ? cause.message : "The sourcing job failed";
     await closeRun(ctx, runId, "failed", message);
     throw new Error(message);
   }
