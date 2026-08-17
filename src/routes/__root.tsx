@@ -13,6 +13,12 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { Toaster } from "@/components/ui/sonner";
 import { BasketProvider } from "@/lib/basket/BasketProvider";
+import { BRAND } from "@/lib/brand";
+import { BRAND_ICONS, BRAND_SOCIAL_IMAGE } from "@/lib/brand-assets";
+
+/** Absolute URL for social crawlers, which reject relative image paths. */
+const SOCIAL_IMAGE_URL = `${BRAND.siteUrl}${BRAND_SOCIAL_IMAGE.path}`;
+
 
 function NotFoundComponent() {
   return (
@@ -95,15 +101,15 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:type", content: "website" },
       { property: "og:site_name", content: "NUR GOODS" },
       { property: "og:locale", content: "en_GB" },
-      { property: "og:image", content: "https://nurgoods.com/og-image.jpg" },
-      { property: "og:image:secure_url", content: "https://nurgoods.com/og-image.jpg" },
-      { property: "og:image:type", content: "image/jpeg" },
-      { property: "og:image:width", content: "1200" },
-      { property: "og:image:height", content: "630" },
-      { property: "og:image:alt", content: "NUR GOODS. Good things, brought to light." },
+      { property: "og:image", content: SOCIAL_IMAGE_URL },
+      { property: "og:image:secure_url", content: SOCIAL_IMAGE_URL },
+      { property: "og:image:type", content: BRAND_SOCIAL_IMAGE.type },
+      { property: "og:image:width", content: String(BRAND_SOCIAL_IMAGE.width) },
+      { property: "og:image:height", content: String(BRAND_SOCIAL_IMAGE.height) },
+      { property: "og:image:alt", content: BRAND_SOCIAL_IMAGE.alt },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:image", content: "https://nurgoods.com/og-image.jpg" },
-      { name: "twitter:image:alt", content: "NUR GOODS. Good things, brought to light." },
+      { name: "twitter:image", content: SOCIAL_IMAGE_URL },
+      { name: "twitter:image:alt", content: BRAND_SOCIAL_IMAGE.alt },
       { name: "theme-color", content: "#001E31" },
       { name: "apple-mobile-web-app-title", content: "NUR GOODS" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
@@ -115,10 +121,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         rel: "stylesheet",
         href: appCss,
       },
-      { rel: "icon", href: "/favicon.png", type: "image/png" },
-      { rel: "icon", href: "/icon-192.png", type: "image/png", sizes: "192x192" },
-      { rel: "icon", href: "/icon-512.png", type: "image/png", sizes: "512x512" },
-      { rel: "apple-touch-icon", href: "/apple-touch-icon.png", sizes: "180x180" },
+      { rel: "icon", href: BRAND_ICONS.faviconIco, sizes: "any" },
+      { rel: "icon", href: BRAND_ICONS.favicon, type: "image/png", sizes: "256x256" },
+      { rel: "icon", href: BRAND_ICONS.icon192, type: "image/png", sizes: "192x192" },
+      { rel: "icon", href: BRAND_ICONS.icon512, type: "image/png", sizes: "512x512" },
+      { rel: "shortcut icon", href: BRAND_ICONS.faviconIco },
+      { rel: "apple-touch-icon", href: BRAND_ICONS.appleTouch, sizes: "180x180" },
+
       { rel: "manifest", href: "/site.webmanifest" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
