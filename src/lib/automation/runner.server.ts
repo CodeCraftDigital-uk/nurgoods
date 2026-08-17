@@ -28,7 +28,10 @@ export type JobKey =
   | "catalogue_duplicate_identity"
   | "catalogue_seo_sweep"
   | "supplier_sourcing_hourly"
-  | "prohibited_category_sweep";
+  | "prohibited_category_sweep"
+  | "live_pricing_integrity"
+  | "product_intake_delta_sync"
+  | "product_intake_worker";
 
 export interface JobRunResult {
   jobKey: string;
