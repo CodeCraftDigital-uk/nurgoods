@@ -135,6 +135,22 @@ export function BasketProvider({ children }: { children: ReactNode }) {
       }
       const result = await createBasketCheckoutFn({ data: { lines } });
       if (!result?.checkoutUrl) throw new Error("No checkout link");
+      // The store may refuse individual lines. Only those are removed, the
+      // rest of the basket carries on to checkout.
+      const refused = new Set(result.unavailable ?? []);
+      if (refused.size > 0) {
+        const dropped = stateRef.current.lines.filter((line) => refused.has(line.variantId));
+        setState((prev) =>
+          dropped.reduce((next, line) => removeLine(next, line.variantId), prev),
+        );
+        if (dropped.length > 0) {
+          toast.warning(
+            dropped.length === 1
+              ? `${dropped[0]!.productTitle} is no longer available and was removed from your basket.`
+              : `${dropped.length} items are no longer available and were removed from your basket.`,
+          );
+        }
+      }
       window.location.assign(result.checkoutUrl);
     } catch (error) {
       const message =
@@ -142,6 +158,7 @@ export function BasketProvider({ children }: { children: ReactNode }) {
           ? error.message
           : "Checkout could not be started. Please try again.";
       toast.error(message);
+      void refresh();
     } finally {
       setBusy(false);
     }
