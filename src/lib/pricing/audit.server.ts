@@ -27,7 +27,7 @@ function margin(price: number | null, landed: number | null): number | null {
   return round2((price - landed) / price * 10000) / 10000;
 }
 
-interface ShippingBasis {
+export interface ShippingBasis {
   cost: number | null;
   source: string | null;
   linked: boolean;
@@ -38,7 +38,7 @@ interface ShippingBasis {
  * time. Listings that predate the supplier integration carry no such record,
  * so they are reported as unlinked rather than given a stand-in figure.
  */
-async function loadShippingBasis(): Promise<Map<string, ShippingBasis>> {
+export async function loadShippingBasis(): Promise<Map<string, ShippingBasis>> {
   const supabase = await zendropAdminClient();
   const basis = new Map<string, ShippingBasis>();
 
