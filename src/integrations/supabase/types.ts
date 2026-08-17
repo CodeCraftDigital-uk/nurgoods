@@ -3077,12 +3077,23 @@ export type Database = {
           product_id: string
         }[]
       }
+      public_product_categories: {
+        Args: never
+        Returns: {
+          category_slug: string
+          product_id: string
+        }[]
+      }
       public_suppressed_products: {
         Args: never
         Returns: {
           canonical_handle: string
           product_id: string
         }[]
+      }
+      refresh_product_price_range: {
+        Args: { _product_id: string }
+        Returns: undefined
       }
       set_integration_secret: {
         Args: { _name: string; _secret: string }

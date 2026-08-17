@@ -105,7 +105,7 @@ async function loadProductCategories(
 ): Promise<Map<string, { slug: string; name: string }>> {
   if (productIds.length === 0) return new Map();
   const [{ data: classifications }, taxonomy] = await Promise.all([
-    supabase.from("product_classifications").select("product_id, category_slug").in("product_id", productIds),
+    supabase.rpc("public_product_categories").in("product_id", productIds),
     loadTaxonomy(supabase),
   ]);
   const out = new Map<string, { slug: string; name: string }>();
@@ -232,8 +232,7 @@ export async function listStorefrontProducts(input: {
     if (!bySlug.has(input.category)) return { items: [], total: 0, hasMore: false };
     const branch = categoryBranch(input.category, childrenOf);
     const { data: classified } = await supabase
-      .from("product_classifications")
-      .select("product_id")
+      .rpc("public_product_categories")
       .in("category_slug", branch);
     const categoryIds = ((classified ?? []) as any[]).map((row) => row.product_id as string);
     if (categoryIds.length === 0) return { items: [], total: 0, hasMore: false };
@@ -331,7 +330,7 @@ export async function listStorefrontFacets(): Promise<StorefrontFacets> {
   // products are offered, so the customer never lands on an empty filter.
   const [{ bySlug, childrenOf }, { data: classified }] = await Promise.all([
     loadTaxonomy(supabase),
-    supabase.from("product_classifications").select("product_id, category_slug").limit(3000),
+    supabase.rpc("public_product_categories").limit(3000),
   ]);
   const hiddenIds = hiddenFacetIds;
   const direct = new Map<string, number>();
@@ -684,8 +683,7 @@ export async function getStorefrontProduct(handle: string): Promise<StorefrontPr
   // Canonical category trail. Supplier categories never drive navigation.
   const [{ data: classification }, taxonomy, { data: seoIntel }] = await Promise.all([
     supabase
-      .from("product_classifications")
-      .select("category_slug")
+      .rpc("public_product_categories")
       .eq("product_id", row.id)
       .maybeSingle(),
     loadTaxonomy(supabase),
@@ -738,8 +736,7 @@ export async function getStorefrontProduct(handle: string): Promise<StorefrontPr
   if (canonicalSlug) {
     const branch = categoryBranch(canonicalSlug, taxonomy.childrenOf);
     const { data: sameCategory } = await supabase
-      .from("product_classifications")
-      .select("product_id")
+      .rpc("public_product_categories")
       .in("category_slug", branch)
       .limit(40);
     const ids = ((sameCategory ?? []) as any[])

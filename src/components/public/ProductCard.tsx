@@ -30,7 +30,9 @@ export function ProductCard({
   product: StorefrontProductCard;
   eager?: boolean;
 }) {
-  const display = productPriceDisplay(product);
+  // Multi price products advertise the lowest currently sellable price, so a
+  // card can never imply a price the shopper cannot actually buy at.
+  const display = productPriceDisplay(product, { rangeStyle: "from" });
   const reduced = display.compareAt != null;
 
 

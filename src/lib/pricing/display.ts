@@ -139,9 +139,10 @@ export function variantPriceDisplay(
 export function resolvePriceDisplay(
   product: PriceRangeInput,
   variant: VariantPriceInput | null | undefined,
+  options: { rangeStyle?: "range" | "from" } = {},
 ): PriceDisplay {
   if (variant && isMoney(variant.price)) return variantPriceDisplay(variant, product.currency);
-  return productPriceDisplay(product);
+  return productPriceDisplay(product, options);
 }
 
 /** Line total for a basket line, using the exact selected variant price. */
