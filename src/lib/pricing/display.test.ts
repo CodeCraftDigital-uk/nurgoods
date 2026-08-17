@@ -117,3 +117,33 @@ describe("savingPercent", () => {
     expect(savingPercent(50, 40)).toBeNull();
   });
 });
+
+describe("advertised card and product page pricing", () => {
+  it("advertises a multi price product as a From price", () => {
+    const display = productPriceDisplay(
+      { price_min: 12.99, price_max: 39.99, currency: "GBP" },
+      { rangeStyle: "from" },
+    );
+    expect(display.primary).toBe("From £12.99");
+    expect(display.isRange).toBe(true);
+  });
+
+  it("advertises a single price product as the exact price", () => {
+    expect(
+      productPriceDisplay({ price_min: 24.99, price_max: 24.99, currency: "GBP" }, { rangeStyle: "from" })
+        .primary,
+    ).toBe("£24.99");
+  });
+
+  it("replaces the From price with the exact selected variant price", () => {
+    const product = { price_min: 12.99, price_max: 39.99, currency: "GBP" };
+    expect(resolvePriceDisplay(product, null, { rangeStyle: "from" }).primary).toBe("From £12.99");
+    expect(resolvePriceDisplay(product, { price: 39.99 }, { rangeStyle: "from" }).primary).toBe(
+      "£39.99",
+    );
+  });
+
+  it("keeps charm endings intact through formatting", () => {
+    expect(formatMoney(97.99, "GBP")).toBe("£97.99");
+  });
+});

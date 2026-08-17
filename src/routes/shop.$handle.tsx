@@ -222,7 +222,7 @@ function ProductDetail() {
 
   // One shared pricing helper drives every price on the page, so a range can
   // never be rendered alongside a stale variant price.
-  const display = resolvePriceDisplay(product, selectedVariant);
+  const display = resolvePriceDisplay(product, selectedVariant, { rangeStyle: "from" });
 
   const availabilityLabel = selectedVariant
     ? selectedVariant.available_for_sale === false
