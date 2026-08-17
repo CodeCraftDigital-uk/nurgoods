@@ -228,7 +228,7 @@ function AiConnectorsPage() {
       </section>
 
       <div className="mx-auto w-full max-w-4xl px-5 py-10 sm:px-8 sm:py-14">
-        <Breadcrumbs items={[{ label: "Home", to: "/" }, { label: "AI Connectors" }]} />
+        <Breadcrumbs items={[{ label: "AI Connectors" }]} />
 
         {/* What it does */}
         <section className="mt-8">
