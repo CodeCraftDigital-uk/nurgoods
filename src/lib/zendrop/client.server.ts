@@ -13,10 +13,22 @@ import { CAPABILITY_ROLES, CAPABILITY_ROLE_LABEL } from "./types";
 export const ZENDROP_ENDPOINT = "https://app.zendrop.com/mcp/v1";
 export const ZENDROP_VAULT_SECRET = "zendrop_api_token";
 
-/** Published supplier limits. Kept deliberately under the ceiling. */
-const READ_LIMIT = 110;
-const WRITE_LIMIT = 25;
+/**
+ * Supplier pacing.
+ *
+ * The published supplier ceiling is 120 reads and 30 writes per minute. We
+ * deliberately run well underneath it so polling, retries and any concurrent
+ * admin action still fit inside the real budget rather than tipping the
+ * account into a rate limit part way through a sourcing pass.
+ */
+const READ_LIMIT = 75;
+const WRITE_LIMIT = 18;
 const WINDOW_MS = 60_000;
+
+/** Bounds on the shared cooldown applied after a supplier rate limit. */
+const MIN_COOLDOWN_MS = 5_000;
+const MAX_COOLDOWN_MS = 90_000;
+
 
 type AdminClient = SupabaseClient<any, "public", any>;
 
@@ -78,9 +90,60 @@ export function rateLimitSnapshot(): RateLimitSnapshot {
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+/**
+ * Shared cooldown. A rate limit is an account wide signal, so once the
+ * supplier pushes back every subsequent call waits, not just the one that was
+ * refused. Retries pass back through the limiter, so a retry can never jump
+ * the queue.
+ */
+let cooldownUntil = 0;
+
+const throttleStats = {
+  rateLimitRetries: 0,
+  cooldownMs: 0,
+  serverRetries: 0,
+};
+
+export type ThrottleStats = typeof throttleStats;
+
+export function readThrottleStats(): ThrottleStats {
+  return { ...throttleStats };
+}
+
+export function resetThrottleStats(): void {
+  throttleStats.rateLimitRetries = 0;
+  throttleStats.cooldownMs = 0;
+  throttleStats.serverRetries = 0;
+}
+
+function enterCooldown(retryAfterSeconds: number | null, attempt: number): number {
+  const backoff = Math.min(MAX_COOLDOWN_MS, MIN_COOLDOWN_MS * 2 ** Math.max(0, attempt - 1));
+  const jitter = Math.floor(Math.random() * 1_500);
+  const fromHeader =
+    retryAfterSeconds !== null && Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0
+      ? retryAfterSeconds * 1000
+      : 0;
+  const wait = Math.min(MAX_COOLDOWN_MS, Math.max(MIN_COOLDOWN_MS, fromHeader, backoff) + jitter);
+  cooldownUntil = Math.max(cooldownUntil, Date.now() + wait);
+  throttleStats.rateLimitRetries += 1;
+  throttleStats.cooldownMs += wait;
+  return wait;
+}
+
+async function waitForCooldown(): Promise<void> {
+  // Loop rather than sleep once, because another in flight call may extend the
+  // cooldown while this one is waiting.
+  for (let guard = 0; guard < 40; guard += 1) {
+    const remaining = cooldownUntil - Date.now();
+    if (remaining <= 0) return;
+    await sleep(Math.min(remaining, 5_000));
+  }
+}
+
 async function reserve(kind: "read" | "write"): Promise<void> {
   const limit = kind === "read" ? READ_LIMIT : WRITE_LIMIT;
-  for (let attempt = 0; attempt < 60; attempt += 1) {
+  for (let attempt = 0; attempt < 120; attempt += 1) {
+    await waitForCooldown();
     prune(kind);
     if (buckets[kind].stamps.length < limit) {
       buckets[kind].stamps.push(Date.now());
@@ -91,6 +154,7 @@ async function reserve(kind: "read" | "write"): Promise<void> {
   }
   throw new Error("The supplier rate limit is saturated. Try again shortly.");
 }
+
 
 /* --------------------------------- errors --------------------------------- */
 
@@ -131,12 +195,13 @@ async function rpc(
   const token = await readZendropToken();
   if (!token) throw new ZendropError("The supplier account is not connected", 401, false);
 
-  await reserve(kind);
-
-  const maxAttempts = 4;
+  const maxAttempts = 5;
   let lastError: ZendropError | null = null;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    // Every attempt, including a retry, is paced by the limiter and waits out
+    // any shared cooldown first.
+    await reserve(kind);
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 25_000);
     try {
@@ -164,17 +229,24 @@ async function rpc(
         );
       }
       if (response.status === 429) {
-        const retryAfter = Number(response.headers.get("retry-after") ?? "2");
-        lastError = new ZendropError("The supplier rate limit was reached", 429, true);
-        await sleep(Math.min(30_000, (Number.isFinite(retryAfter) ? retryAfter : 2) * 1000));
+        const header = response.headers.get("retry-after");
+        const retryAfter = header === null ? null : Number(header);
+        const wait = enterCooldown(retryAfter, attempt);
+        lastError = new ZendropError(
+          `The supplier rate limit was reached. Paused for ${Math.round(wait / 1000)}s before retrying.`,
+          429,
+          true,
+        );
         continue;
       }
 
       if (response.status >= 500) {
+        throttleStats.serverRetries += 1;
         lastError = new ZendropError(`The supplier returned ${response.status}`, response.status, true);
-        await sleep(Math.min(8_000, 2 ** attempt * 300));
+        await sleep(Math.min(10_000, 2 ** attempt * 400 + Math.floor(Math.random() * 500)));
         continue;
       }
+
       if (!response.ok) {
         throw new ZendropError(`The supplier returned ${response.status}`, response.status, false);
       }

@@ -43,8 +43,8 @@ export const Route = createFileRoute("/api/public/hooks/automation")({
           "product_intake_worker",
           "catalogue_seo_sweep",
           "supplier_sourcing_hourly",
-
-
+          "prohibited_category_sweep",
+          "live_pricing_integrity",
         ]);
         if (!allowed.has(jobKey)) {
           return Response.json({ error: "Unknown job" }, { status: 400 });

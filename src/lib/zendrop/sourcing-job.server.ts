@@ -73,6 +73,9 @@ export async function runHourlySourcing(db: Db, jobKey: string): Promise<Sourcin
     };
   }
 
+  const { readThrottleStats, resetThrottleStats } = await import("./client.server");
+  resetThrottleStats();
+
   const { getZendropStatus } = await import("./connection.server");
   const status = await getZendropStatus();
   if (!status.configured) {
@@ -116,6 +119,8 @@ export async function runHourlySourcing(db: Db, jobKey: string): Promise<Sourcin
         pricing_failed: screen.funnel.pricingFailed,
         duplicates: screen.funnel.duplicateExcluded,
         imported: 0,
+        rate_limit_retries: readThrottleStats().rateLimitRetries,
+        rate_limit_cooldown_seconds: Math.round(readThrottleStats().cooldownMs / 1000),
       },
     };
   }
@@ -160,7 +165,8 @@ export async function runHourlySourcing(db: Db, jobKey: string): Promise<Sourcin
   } catch {
     // A sync failure must not stop the rest of the pass; the next run retries.
   }
-  const linked = await reconcileImportedCandidates();
+  const reconciled = await reconcileImportedCandidates();
+  const linked = reconciled.matched;
 
   // Prohibited category safety net. If anything adult or sexual reached the
   // store through the supplier push, it is unpublished and quarantined in the
@@ -208,8 +214,10 @@ export async function runHourlySourcing(db: Db, jobKey: string): Promise<Sourcin
     seoQueued = (await planWork(db, productIds, "New supplier listing")).queued;
   }
 
+  const throttle = readThrottleStats();
+
   return {
-    message: `Screened ${screen.funnel.queried} supplier products, imported ${imported} of ${queued} queued and booked ${seoQueued} intelligence items. Pricing integrity corrected ${repriced} variant price(s) and held ${heldForPricing} product(s).${
+    message: `Screened ${screen.funnel.queried} supplier products, imported ${imported} of ${queued} queued and booked ${seoQueued} intelligence items. ${reconciled.intakeMessage} Pricing integrity corrected ${repriced} variant price(s) and held ${heldForPricing} product(s).${
       messages.length > 0 ? ` Issues: ${messages.slice(0, 3).join("; ")}` : ""
     }`,
     details: {
@@ -229,11 +237,16 @@ export async function runHourlySourcing(db: Db, jobKey: string): Promise<Sourcin
       imported,
       failed,
       linked,
+      intake_enqueued: reconciled.intakeEnqueued,
+      intake_failed: reconciled.intakeFailed,
       seo_queued: seoQueued,
       prohibited_quarantined: quarantined,
       pricing_variants_repriced: repriced,
       pricing_products_held: heldForPricing,
       pricing_non_charm_remaining: nonCharmAfter,
+      rate_limit_retries: throttle.rateLimitRetries,
+      rate_limit_cooldown_seconds: Math.round(throttle.cooldownMs / 1000),
+      supplier_server_retries: throttle.serverRetries,
     },
   };
 }
