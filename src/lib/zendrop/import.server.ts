@@ -8,7 +8,7 @@
  * unless the adapter has confirmed a real supported import operation.
  */
 import { computePricing, DEFAULT_PRICING } from "./pricing";
-import { screenCandidate } from "./screening";
+import { preScreenCheap, screenCandidate } from "./screening";
 import type {
   CandidateState,
   CatalogueItem,
