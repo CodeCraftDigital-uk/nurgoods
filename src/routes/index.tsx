@@ -131,7 +131,11 @@ function Index() {
           aria-hidden
           className="absolute -right-24 top-[-10rem] size-[28rem] rounded-full bg-brand/35 blur-3xl"
         />
-        <div className="relative mx-auto grid w-full max-w-7xl items-center gap-10 px-5 pb-14 pt-12 sm:px-8 sm:pb-20 sm:pt-16 lg:grid-cols-[1.05fr_1fr] lg:gap-14">
+        <div className="relative">
+          <AiConnectorBanner />
+        </div>
+        <div className="relative mx-auto grid w-full max-w-7xl items-center gap-10 px-5 pb-14 pt-8 sm:px-8 sm:pb-20 sm:pt-10 lg:grid-cols-[1.05fr_1fr] lg:gap-14">
+
           <div className="min-w-0">
             <span className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-navy-foreground backdrop-blur">
               <span aria-hidden className="size-1.5 rounded-full bg-gold" />
