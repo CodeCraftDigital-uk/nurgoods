@@ -174,6 +174,25 @@ export async function runHourlySourcing(db: Db, jobKey: string): Promise<Sourcin
   }
 
 
+  // Pricing integrity safety net. The supplier pushes products into the store
+  // itself, at its own raw price, so a listing can be live and mispriced
+  // before this pass ever sees it. Every active price is therefore checked
+  // against the formula in the same pass: anything evidenced is corrected and
+  // anything that cannot be evidenced is taken off sale rather than left at a
+  // price nobody can justify.
+  let repriced = 0;
+  let heldForPricing = 0;
+  let nonCharmAfter = -1;
+  try {
+    const { enforceLivePricingIntegrity } = await import("@/lib/pricing/integrity.server");
+    const integrity = await enforceLivePricingIntegrity({ userId: null });
+    repriced = integrity.variantsRepriced;
+    heldForPricing = integrity.productsHeld;
+    nonCharmAfter = integrity.nonCharmAfter;
+  } catch {
+    // Reported by the dedicated integrity job; never blocks the rest of the pass.
+  }
+
   // Book search intelligence for the listings that reached the store mirror,
   // so a new listing is optimised as part of the same pipeline.
   let seoQueued = 0;
@@ -190,7 +209,7 @@ export async function runHourlySourcing(db: Db, jobKey: string): Promise<Sourcin
   }
 
   return {
-    message: `Screened ${screen.funnel.queried} supplier products, imported ${imported} of ${queued} queued and booked ${seoQueued} intelligence items.${
+    message: `Screened ${screen.funnel.queried} supplier products, imported ${imported} of ${queued} queued and booked ${seoQueued} intelligence items. Pricing integrity corrected ${repriced} variant price(s) and held ${heldForPricing} product(s).${
       messages.length > 0 ? ` Issues: ${messages.slice(0, 3).join("; ")}` : ""
     }`,
     details: {
@@ -212,6 +231,9 @@ export async function runHourlySourcing(db: Db, jobKey: string): Promise<Sourcin
       linked,
       seo_queued: seoQueued,
       prohibited_quarantined: quarantined,
+      pricing_variants_repriced: repriced,
+      pricing_products_held: heldForPricing,
+      pricing_non_charm_remaining: nonCharmAfter,
     },
   };
 }

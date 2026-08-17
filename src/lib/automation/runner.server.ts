@@ -190,6 +190,28 @@ async function execute(ctx: RunContext, jobKey: string): Promise<JobRunResult> {
         },
       };
     }
+    case "live_pricing_integrity": {
+      // Reads prices straight from the commerce system rather than the local
+      // mirror, so a supplier push that lands after the last sync cannot leave
+      // an unjustified price on sale until someone notices.
+      const { enforceLivePricingIntegrity } = await import("@/lib/pricing/integrity.server");
+      const report = await enforceLivePricingIntegrity({ userId: ctx.userId });
+      return {
+        jobKey,
+        status: report.failures > 0 || report.nonCharmAfter > 0 ? "failed" : "succeeded",
+        message: report.message,
+        details: {
+          active_products: report.activeProducts,
+          active_variants: report.activeVariants,
+          non_charm_before: report.nonCharmBefore,
+          non_charm_after: report.nonCharmAfter,
+          variants_repriced: report.variantsRepriced,
+          products_held: report.productsHeld,
+          read_back_mismatches: report.readBackMismatches,
+          failures: report.failures,
+        },
+      };
+    }
     case "supplier_sourcing_hourly":
       return runSourcingJob(ctx, jobKey);
     case "product_intake_delta_sync":

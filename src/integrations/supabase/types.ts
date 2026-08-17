@@ -3037,7 +3037,29 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      public_product_categories: {
+        Row: {
+          category_slug: string | null
+          product_id: string | null
+        }
+        Insert: {
+          category_slug?: string | null
+          product_id?: string | null
+        }
+        Update: {
+          category_slug?: string | null
+          product_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_classifications_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: true
+            referencedRelation: "shopify_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       delete_integration_secret: { Args: { _name: string }; Returns: undefined }
