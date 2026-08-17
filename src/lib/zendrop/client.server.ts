@@ -13,10 +13,22 @@ import { CAPABILITY_ROLES, CAPABILITY_ROLE_LABEL } from "./types";
 export const ZENDROP_ENDPOINT = "https://app.zendrop.com/mcp/v1";
 export const ZENDROP_VAULT_SECRET = "zendrop_api_token";
 
-/** Published supplier limits. Kept deliberately under the ceiling. */
-const READ_LIMIT = 110;
-const WRITE_LIMIT = 25;
+/**
+ * Supplier pacing.
+ *
+ * The published supplier ceiling is 120 reads and 30 writes per minute. We
+ * deliberately run well underneath it so polling, retries and any concurrent
+ * admin action still fit inside the real budget rather than tipping the
+ * account into a rate limit part way through a sourcing pass.
+ */
+const READ_LIMIT = 75;
+const WRITE_LIMIT = 18;
 const WINDOW_MS = 60_000;
+
+/** Bounds on the shared cooldown applied after a supplier rate limit. */
+const MIN_COOLDOWN_MS = 5_000;
+const MAX_COOLDOWN_MS = 90_000;
+
 
 type AdminClient = SupabaseClient<any, "public", any>;
 
