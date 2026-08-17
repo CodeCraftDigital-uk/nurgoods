@@ -312,13 +312,14 @@
 }
 
 @utility brand-gradient {
-  /* Navy to blue only. Gold is layered as a translucent glow rather than
-     blended into the blue, because mixing the two hues drifts to green. */
+  /* Navy to blue only. Warm gold or ivory light over a dark blue field reads
+     olive, so the highlight stays inside the blue family and gold appears only
+     as solid accents such as the star, badges and buttons. */
   background-image:
     radial-gradient(
       120% 90% at 92% 8%,
-      color-mix(in srgb, color-mix(in srgb, var(--gold) 45%, white) 16%, transparent) 0%,
-      transparent 58%
+      color-mix(in srgb, var(--brand) 55%, transparent) 0%,
+      transparent 60%
     ),
     linear-gradient(
       135deg,

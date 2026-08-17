@@ -125,11 +125,11 @@ function Index() {
       {/* Hero */}
       <section className="relative overflow-hidden border-b border-border/70">
         <div aria-hidden className="brand-gradient absolute inset-0" />
-        {/* Warm highlight only. A saturated gold orb over navy reads olive, so
-            the glow is an ivory tint that keeps the field navy and blue. */}
+        {/* Cool highlight. Warm light over navy reads olive, so the glow stays
+            in the brand blue family and gold is reserved for solid accents. */}
         <div
           aria-hidden
-          className="absolute -right-24 top-[-10rem] size-[28rem] rounded-full bg-ivory/12 blur-3xl"
+          className="absolute -right-24 top-[-10rem] size-[28rem] rounded-full bg-brand/35 blur-3xl"
         />
         <div className="relative mx-auto grid w-full max-w-7xl items-center gap-10 px-5 pb-14 pt-12 sm:px-8 sm:pb-20 sm:pt-16 lg:grid-cols-[1.05fr_1fr] lg:gap-14">
           <div className="min-w-0">
