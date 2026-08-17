@@ -74,14 +74,66 @@ export interface PriceRangeInput {
   price_max: number | null;
   currency: string | null;
   compare_at_price_min?: number | null;
+  /** Genuine previous NUR GOODS advertised price, when one has been recorded. */
+  previous_price_min?: number | null;
   variant_count?: number;
+}
+
+interface ReferencePrice {
+  compareAt: string | null;
+  compareAtBasis: "rrp" | "previous_price" | null;
+  compareAtLabel: string | null;
+  isReduced: boolean;
+  savingPercent: number | null;
+}
+
+const NO_REFERENCE: ReferencePrice = {
+  compareAt: null,
+  compareAtBasis: null,
+  compareAtLabel: null,
+  isReduced: false,
+  savingPercent: null,
+};
+
+/**
+ * Decides what the struck through price actually represents.
+ *
+ * A genuine previous NUR GOODS selling price always wins and is the only case
+ * where the product may be marked as reduced. Otherwise a supplier compare at
+ * value is shown strictly as an RRP, never as a saving against us.
+ */
+function referencePrice(
+  price: number,
+  compareAt: number | null,
+  previousPrice: number | null,
+  currency: string,
+): ReferencePrice {
+  if (isMoney(previousPrice) && previousPrice > price) {
+    return {
+      compareAt: formatMoney(previousPrice, currency),
+      compareAtBasis: "previous_price",
+      compareAtLabel: "Was",
+      isReduced: true,
+      savingPercent: savingPercent(price, previousPrice),
+    };
+  }
+  if (isMoney(compareAt) && compareAt > price) {
+    return {
+      compareAt: formatMoney(compareAt, currency),
+      compareAtBasis: "rrp",
+      compareAtLabel: "RRP",
+      isReduced: false,
+      savingPercent: null,
+    };
+  }
+  return NO_REFERENCE;
 }
 
 /**
  * Price shown before a variant is chosen.
  *
  * When several variants differ in price the range is the only price shown: a
- * range plus a compare at value cannot be compared like for like, so the
+ * range plus a reference value cannot be compared like for like, so the
  * struck through price is deliberately withheld until a variant is selected.
  */
 export function productPriceDisplay(
@@ -99,24 +151,25 @@ export function productPriceDisplay(
 
   if (isRange) {
     return {
+      ...EMPTY,
       primary:
         options.rangeStyle === "from"
           ? `From ${formatMoney(low, currency)}`
           : `${formatMoney(low, currency)} to ${formatMoney(high, currency)}`,
-      compareAt: null,
-      savingPercent: null,
       isRange: true,
       amount: low,
       currency,
     };
   }
 
-  const compare = isMoney(product.compare_at_price_min) ? product.compare_at_price_min : null;
-  const percent = compare != null ? savingPercent(low, compare) : null;
   return {
+    ...referencePrice(
+      low,
+      isMoney(product.compare_at_price_min) ? product.compare_at_price_min : null,
+      isMoney(product.previous_price_min) ? product.previous_price_min : null,
+      currency,
+    ),
     primary: formatMoney(low, currency),
-    compareAt: percent != null ? formatMoney(compare as number, currency) : null,
-    savingPercent: percent,
     isRange: false,
     amount: low,
     currency,
@@ -126,6 +179,8 @@ export function productPriceDisplay(
 export interface VariantPriceInput {
   price: number | null;
   compare_at_price?: number | null;
+  /** Genuine previous NUR GOODS advertised price for this variant. */
+  previous_price?: number | null;
   currency?: string | null;
 }
 
@@ -136,17 +191,20 @@ export function variantPriceDisplay(
 ): PriceDisplay {
   const currency = variant.currency ?? fallbackCurrency ?? DEFAULT_CURRENCY;
   if (!isMoney(variant.price)) return { ...EMPTY, currency };
-  const compare = isMoney(variant.compare_at_price) ? variant.compare_at_price : null;
-  const percent = compare != null ? savingPercent(variant.price, compare) : null;
   return {
+    ...referencePrice(
+      variant.price,
+      isMoney(variant.compare_at_price) ? variant.compare_at_price : null,
+      isMoney(variant.previous_price) ? variant.previous_price : null,
+      currency,
+    ),
     primary: formatMoney(variant.price, currency),
-    compareAt: percent != null ? formatMoney(compare as number, currency) : null,
-    savingPercent: percent,
     isRange: false,
     amount: variant.price,
     currency,
   };
 }
+
 
 /**
  * Price for a product page: the selected variant when there is one, otherwise
