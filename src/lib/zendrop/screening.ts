@@ -65,7 +65,69 @@ function matches(haystack: string, needles: string[]): string | null {
   return null;
 }
 
+/**
+ * Cheap deterministic exclusions.
+ *
+ * Everything here is decided from fields the catalogue listing already
+ * carries, so an obviously unsuitable product is dropped before any paid or
+ * rate limited supplier call such as a live shipping quote. It never decides
+ * that a product IS suitable, only that it is definitely not.
+ */
+export function preScreenCheap(
+  item: CatalogueItem,
+  rules: SourcingRules,
+): { blocked: boolean; code: string; detail: string } {
+  const prohibited = screenProhibited({
+    title: item.title,
+    category: item.category,
+    extra: [item.shipsFrom, ...item.variants.map((variant) => variant.title)],
+  });
+  if (prohibited.prohibited) {
+    return { blocked: true, code: "prohibited_category", detail: prohibited.reason ?? "Prohibited category" };
+  }
+
+  const restricted = matches(
+    [item.title, item.category ?? ""].join(" "),
+    [...DEFAULT_RESTRICTED_KEYWORDS, ...(rules.restricted_keywords ?? [])],
+  );
+  if (restricted) {
+    return { blocked: true, code: "restricted", detail: `The product matches the restricted term "${restricted}"` };
+  }
+
+  const category = (item.category ?? "").toLowerCase();
+  if (category && rules.blocked_categories.some((blocked) => category.includes(blocked.toLowerCase()))) {
+    return { blocked: true, code: "category_blocked", detail: "That category is blocked by policy" };
+  }
+  if (
+    rules.allowed_categories.length > 0 &&
+    !rules.allowed_categories.some((allowed) => category.includes(allowed.toLowerCase()))
+  ) {
+    return { blocked: true, code: "category_allowed", detail: "That category is not in the allowed list" };
+  }
+
+  if (rules.require_image && !item.imageUrl) {
+    return { blocked: true, code: "imagery", detail: "No supplier image is available" };
+  }
+  if (rules.require_stock && item.inventory !== null && item.inventory <= 0) {
+    return { blocked: true, code: "stock", detail: "The supplier reports no available stock" };
+  }
+  if (
+    rules.max_variant_count !== null &&
+    rules.max_variant_count !== undefined &&
+    item.variants.length > rules.max_variant_count
+  ) {
+    return {
+      blocked: true,
+      code: "variants",
+      detail: `${item.variants.length} variants exceeds the configured maximum of ${rules.max_variant_count}`,
+    };
+  }
+
+  return { blocked: false, code: "pass", detail: "No cheap exclusion applied" };
+}
+
 export interface ScreenInput {
+
   item: CatalogueItem;
   rules: SourcingRules;
   settings: PricingSettings;
