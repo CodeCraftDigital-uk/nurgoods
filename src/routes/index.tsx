@@ -2,6 +2,8 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { PublicShell } from "@/components/public/PublicShell";
+import { AiConnectorBanner } from "@/components/public/AiConnectorBanner";
+
 import { JsonLd } from "@/components/public/JsonLd";
 import { ReviewPlacementSlot } from "@/components/public/ReviewPlacementSlot";
 import { ProductCard, ProductCardSkeleton } from "@/components/public/ProductCard";
