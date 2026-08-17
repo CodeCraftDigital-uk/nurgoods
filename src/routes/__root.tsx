@@ -104,7 +104,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:image", content: "https://nurgoods.com/og-image.jpg" },
       { name: "twitter:image:alt", content: "NUR GOODS. Good things, brought to light." },
-      { name: "theme-color", content: "#121e32" },
+      { name: "theme-color", content: "#001E31" },
       { name: "apple-mobile-web-app-title", content: "NUR GOODS" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
