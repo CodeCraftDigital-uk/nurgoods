@@ -404,14 +404,18 @@ function ProductDetail() {
                 </span>
                 {display.compareAt ? (
                   <>
-                    <span className="text-base text-muted-foreground line-through">
-                      {display.compareAt}
+                    <span className="text-base text-muted-foreground">
+                      {display.compareAtLabel}{" "}
+                      <span className="line-through">{display.compareAt}</span>
                     </span>
-                    <span className="rounded-full bg-gold px-2.5 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-gold-foreground">
-                      Save {display.savingPercent}%
-                    </span>
+                    {display.isReduced && display.savingPercent ? (
+                      <span className="rounded-full bg-gold px-2.5 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-gold-foreground">
+                        Save {display.savingPercent}%
+                      </span>
+                    ) : null}
                   </>
                 ) : null}
+
               </p>
             ) : null}
             {display.isRange ? (

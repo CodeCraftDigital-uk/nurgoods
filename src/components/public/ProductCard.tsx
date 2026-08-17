@@ -33,7 +33,8 @@ export function ProductCard({
   // Multi price products advertise the lowest currently sellable price, so a
   // card can never imply a price the shopper cannot actually buy at.
   const display = productPriceDisplay(product, { rangeStyle: "from" });
-  const reduced = display.compareAt != null;
+  const reduced = display.isReduced;
+
 
 
   return (
@@ -82,10 +83,12 @@ export function ProductCard({
               {display.primary}
             </span>
             {display.compareAt ? (
-              <span className="text-xs text-muted-foreground line-through">
-                {display.compareAt}
+              <span className="text-xs text-muted-foreground">
+                {display.compareAtLabel}{" "}
+                <span className="line-through">{display.compareAt}</span>
               </span>
             ) : null}
+
           </p>
         ) : null}
 

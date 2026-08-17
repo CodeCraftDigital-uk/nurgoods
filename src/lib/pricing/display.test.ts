@@ -41,7 +41,7 @@ describe("productPriceDisplay", () => {
     ).toBe("From £32.99");
   });
 
-  it("shows a single price with a genuine saving", () => {
+  it("shows a supplier reference price as RRP and never as a saving", () => {
     const display = productPriceDisplay({
       price_min: 24,
       price_max: 24,
@@ -50,10 +50,26 @@ describe("productPriceDisplay", () => {
     });
     expect(display.primary).toBe("£24.00");
     expect(display.compareAt).toBe("£32.00");
+    expect(display.compareAtLabel).toBe("RRP");
+    expect(display.isReduced).toBe(false);
+    expect(display.savingPercent).toBeNull();
+  });
+
+  it("marks a genuine reduction against our own previous price", () => {
+    const display = productPriceDisplay({
+      price_min: 24,
+      price_max: 24,
+      currency: "GBP",
+      compare_at_price_min: 40,
+      previous_price_min: 32,
+    });
+    expect(display.compareAt).toBe("£32.00");
+    expect(display.compareAtLabel).toBe("Was");
+    expect(display.isReduced).toBe(true);
     expect(display.savingPercent).toBe(25);
   });
 
-  it("ignores a compare at price that is not a saving", () => {
+  it("ignores a reference price that is not above the selling price", () => {
     const display = productPriceDisplay({
       price_min: 24,
       price_max: 24,
@@ -62,6 +78,7 @@ describe("productPriceDisplay", () => {
     });
     expect(display.compareAt).toBeNull();
   });
+
 
   it("renders nothing when the store has no price", () => {
     expect(productPriceDisplay({ price_min: null, price_max: null, currency: null }).primary).toBe(
@@ -89,12 +106,26 @@ describe("variant selection", () => {
     expect(display.compareAt).toBeNull();
   });
 
-  it("shows the variant saving when the variant is genuinely reduced", () => {
+  it("shows a variant supplier reference price as RRP", () => {
     const display = variantPriceDisplay({ price: 35, compare_at_price: 70, currency: "GBP" });
     expect(display.primary).toBe("£35.00");
     expect(display.compareAt).toBe("£70.00");
+    expect(display.compareAtLabel).toBe("RRP");
+    expect(display.savingPercent).toBeNull();
+  });
+
+  it("shows the variant saving when we have genuinely reduced our price", () => {
+    const display = variantPriceDisplay({
+      price: 35,
+      compare_at_price: 90,
+      previous_price: 70,
+      currency: "GBP",
+    });
+    expect(display.compareAt).toBe("£70.00");
+    expect(display.compareAtLabel).toBe("Was");
     expect(display.savingPercent).toBe(50);
   });
+
 
   it("falls back to the range when the variant has no price", () => {
     expect(resolvePriceDisplay(product, { price: null }).primary).toBe("£32.99 to £122.99");
