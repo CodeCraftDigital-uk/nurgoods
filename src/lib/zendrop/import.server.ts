@@ -770,8 +770,12 @@ export async function reconcileImportedCandidates(): Promise<ReconcileResult> {
     );
   }
 
+  // Every freshly linked product enters intake immediately rather than waiting
+  // for the low frequency delta fallback.
+  const intake = await enqueueDetectedIntoIntake();
 
   // Anything the intake pipeline has published becomes live.
+
   const { data: detected } = await supabase
     .from("zendrop_import_candidates")
     .select("id, product_id, zendrop_product_id")
