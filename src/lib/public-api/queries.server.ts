@@ -207,18 +207,12 @@ export async function getProduct(handle: string): Promise<PublicProductDetail | 
 
   // A suppressed duplicate resolves to the listing customers actually see, so
   // assistants and public API callers only ever receive the canonical record.
-  const { data: member } = await supabase
-    .from("duplicate_group_members")
-    .select("suppressed, group_id")
-    .eq("product_id", (data as any).id)
-    .maybeSingle();
-  if (member && (member as any).suppressed) {
-    const { data: group } = await supabase
-      .from("duplicate_groups")
-      .select("canonical_handle")
-      .eq("id", (member as any).group_id)
-      .maybeSingle();
-    const canonicalHandle = (group as any)?.canonical_handle as string | null | undefined;
+  const { data: suppressed } = await supabase.rpc("public_suppressed_products");
+  const member = ((suppressed ?? []) as any[]).find(
+    (row) => row.product_id === (data as any).id,
+  );
+  if (member) {
+    const canonicalHandle = member.canonical_handle as string | null | undefined;
     if (canonicalHandle && canonicalHandle !== handle) return getProduct(canonicalHandle);
     return null;
   }
