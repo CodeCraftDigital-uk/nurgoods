@@ -27,7 +27,8 @@ export type JobKey =
   | "catalogue_intelligence_worker"
   | "catalogue_duplicate_identity"
   | "catalogue_seo_sweep"
-  | "supplier_sourcing_hourly";
+  | "supplier_sourcing_hourly"
+  | "prohibited_category_sweep";
 
 export interface JobRunResult {
   jobKey: string;
@@ -174,6 +175,21 @@ async function execute(ctx: RunContext, jobKey: string): Promise<JobRunResult> {
       return runIntelligenceJob(ctx, jobKey, `${jobKey}:${Date.now()}`);
     case "catalogue_seo_sweep":
       return runIntelligenceJob(ctx, jobKey, `${jobKey}:${Date.now()}`);
+    case "prohibited_category_sweep": {
+      const { quarantineProhibitedCatalogue } = await import("@/lib/policy/quarantine.server");
+      const report = await quarantineProhibitedCatalogue();
+      return {
+        jobKey,
+        status: "succeeded",
+        message: `Scanned ${report.scanned} products. ${report.flagged} prohibited, ${report.quarantined} quarantined.`,
+        details: {
+          scanned: report.scanned,
+          flagged: report.flagged,
+          quarantined: report.quarantined,
+          failures: report.failures,
+        },
+      };
+    }
     case "supplier_sourcing_hourly":
       return runSourcingJob(ctx, jobKey);
     case "product_intake_delta_sync":
