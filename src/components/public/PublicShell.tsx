@@ -266,8 +266,8 @@ export function PublicShell({ children }: { children: ReactNode }) {
                 </Link>
               </li>
               <li>
-
                 <a
+
                   href={BRAND.storeUrl}
                   className="inline-flex min-h-8 items-center text-muted-foreground hover:text-brand"
                 >
