@@ -12,9 +12,21 @@ export const DEFAULT_CURRENCY = "GBP";
 export interface PriceDisplay {
   /** The one price string a surface is allowed to show as the main price. */
   primary: string | null;
-  /** Struck through original price, only when a genuine saving applies. */
+  /** Struck through reference price, only when a genuine reference exists. */
   compareAt: string | null;
-  /** Whole percent saved, only when compareAt is present. */
+  /**
+   * What the struck through price actually is.
+   * "rrp" is a supplier recommended retail price and must never be presented
+   * as a previous NUR GOODS selling price. "previous_price" is a genuine
+   * previous NUR GOODS advertised price, which is the only case where the
+   * product may be marked as reduced.
+   */
+  compareAtBasis: "rrp" | "previous_price" | null;
+  /** Short label shown next to the struck through price. */
+  compareAtLabel: string | null;
+  /** True only for a genuine reduction against our own previous price. */
+  isReduced: boolean;
+  /** Whole percent saved, only for a genuine reduction. */
   savingPercent: number | null;
   /** True when the primary string covers several variant prices. */
   isRange: boolean;
@@ -26,11 +38,15 @@ export interface PriceDisplay {
 const EMPTY: PriceDisplay = {
   primary: null,
   compareAt: null,
+  compareAtBasis: null,
+  compareAtLabel: null,
+  isReduced: false,
   savingPercent: null,
   isRange: false,
   amount: null,
   currency: DEFAULT_CURRENCY,
 };
+
 
 function isMoney(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value) && value >= 0;
