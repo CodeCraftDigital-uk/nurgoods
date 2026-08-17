@@ -86,7 +86,13 @@ function keyedFetch(key: string) {
     // Pin the credential explicitly so no ambient request token (for example a
     // signed in visitor's bearer token) can ever be applied to these reads.
     headers.set("apikey", key);
-    headers.set("Authorization", `Bearer ${key}`);
+    if (key.startsWith("sb_")) {
+      // Current API keys are opaque strings, not bearer tokens. Sending one as
+      // a bearer makes the API reject the request while trying to parse it.
+      headers.delete("Authorization");
+    } else {
+      headers.set("Authorization", `Bearer ${key}`);
+    }
     return fetch(input, { ...init, headers });
   };
 }
