@@ -217,7 +217,7 @@ export function PublicShell({ children }: { children: ReactNode }) {
       <footer className="mt-20 border-t border-border/70 bg-surface-muted/60">
         <div className="mx-auto grid w-full max-w-7xl gap-10 px-5 py-14 sm:grid-cols-2 lg:grid-cols-4 sm:px-8">
           <div>
-            <BrandWordmark fullWidth className="max-w-[280px]" />
+            <BrandWordmark fullWidth />
             <p className="mt-4 font-display text-lg font-semibold text-foreground">
               {BRAND.tagline}
             </p>
