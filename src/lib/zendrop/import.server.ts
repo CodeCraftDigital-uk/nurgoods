@@ -593,11 +593,96 @@ export async function runImportQueue(limit = 5): Promise<ImportOutcome> {
 
 /* ------------------------- store linkage detection ------------------------- */
 
+export interface ReconcileResult {
+  matched: number;
+  intakeEnqueued: number;
+  intakeFailed: number;
+  intakeMessage: string;
+}
+
+/**
+ * Hands linked supplier products straight into the existing product intake
+ * pipeline. This creates no second catalogue: it reuses the same detection
+ * entry point the store webhook and the delta sync already use, so every
+ * prohibited category, classification, duplicate, search and pricing control
+ * still applies. It is idempotent, because detection ignores a product that is
+ * already recorded at the same version.
+ */
+export async function enqueueDetectedIntoIntake(
+  limit = 100,
+): Promise<{ enqueued: number; failed: number; message: string }> {
+  const supabase = await zendropAdminClient();
+  const { data: candidates } = await supabase
+    .from("zendrop_import_candidates")
+    .select("product_id, shopify_product_id, title")
+    .eq("state", "detected_in_store")
+    .not("product_id", "is", null)
+    .limit(limit);
+
+  const rows = ((candidates ?? []) as any[]).filter((row) => row.shopify_product_id);
+  if (rows.length === 0) return { enqueued: 0, failed: 0, message: "Nothing was waiting to enter intake." };
+
+  const shopifyIds = [...new Set(rows.map((row) => String(row.shopify_product_id)))];
+  const { data: existing } = await supabase
+    .from("product_intake_records")
+    .select("shopify_product_id")
+    .in("shopify_product_id", shopifyIds);
+  const known = new Set(((existing ?? []) as any[]).map((row) => String(row.shopify_product_id)));
+
+  const pending = rows.filter((row) => !known.has(String(row.shopify_product_id)));
+  if (pending.length === 0) {
+    return { enqueued: 0, failed: 0, message: "Every linked supplier product is already in intake." };
+  }
+
+  const { data: products } = await supabase
+    .from("shopify_products")
+    .select("id, shopify_product_id, title, handle, updated_at")
+    .in(
+      "shopify_product_id",
+      pending.map((row) => String(row.shopify_product_id)),
+    );
+  const byShopifyId = new Map(((products ?? []) as any[]).map((row) => [String(row.shopify_product_id), row]));
+
+  try {
+    const { detectProducts } = await import("@/lib/intake/intake.server");
+    const detection = await detectProducts(
+      supabase as never,
+      pending.map((row) => {
+        const product = byShopifyId.get(String(row.shopify_product_id));
+        return {
+          shopifyProductId: String(row.shopify_product_id),
+          title: (product?.title ?? row.title ?? null) as string | null,
+          handle: (product?.handle ?? null) as string | null,
+          productId: (product?.id ?? row.product_id ?? null) as string | null,
+          updatedAt: (product?.updated_at ?? null) as string | null,
+          source: "backfill" as const,
+        };
+      }),
+    );
+    const enqueued = detection.created + detection.requeued;
+    return {
+      enqueued,
+      failed: 0,
+      message: `${enqueued} supplier product(s) entered the intake pipeline.`,
+    };
+  } catch (cause) {
+    return {
+      enqueued: 0,
+      failed: pending.length,
+      message:
+        cause instanceof Error
+          ? `Intake handoff failed and will be retried: ${cause.message}`
+          : "Intake handoff failed and will be retried.",
+    };
+  }
+}
+
 /**
  * Reconciles imported candidates against the store mirror the existing sync
  * already maintains. No product is ever created in the store from here.
  */
-export async function reconcileImportedCandidates(): Promise<number> {
+export async function reconcileImportedCandidates(): Promise<ReconcileResult> {
+
   const supabase = await zendropAdminClient();
   const settings = await loadPricingSettings();
   const { data: rows } = await supabase
