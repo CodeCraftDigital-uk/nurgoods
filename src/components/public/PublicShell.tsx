@@ -104,8 +104,18 @@ export function PublicShell({ children }: { children: ReactNode }) {
 
       <header className="sticky top-0 z-40 border-b border-border/80 bg-background/85 backdrop-blur-xl">
         <div className="mx-auto grid w-full max-w-7xl grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 sm:px-6 lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:gap-8">
-          <Link to="/" className="flex min-w-0 items-center" aria-label={`${BRAND.name} home`}>
-            <BrandWordmark height={26} className="sm:h-8" />
+          <Link
+            to="/"
+            className="flex min-w-0 items-center rounded-lg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
+            aria-label={`${BRAND.name} home`}
+          >
+            {/* Compact square master below sm, horizontal master from sm up. */}
+            <span className="sm:hidden">
+              <BrandWordmark treatment="compact" height={34} />
+            </span>
+            <span className="hidden sm:inline-flex">
+              <BrandWordmark height={32} />
+            </span>
           </Link>
 
           <div className="hidden lg:block">
