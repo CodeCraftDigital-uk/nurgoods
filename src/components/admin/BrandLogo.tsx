@@ -1,27 +1,59 @@
 import { cn } from "@/lib/utils";
-import squareLight from "@/assets/square-light.png.asset.json";
-import squareDark from "@/assets/square-dark.png.asset.json";
-import wordmarkLight from "@/assets/wordmark-light.png.asset.json";
-import wordmarkDark from "@/assets/wordmark-dark.png.asset.json";
+import {
+  BRAND_ART,
+  BRAND_ART_RATIO,
+  type BrandSurface,
+  type BrandTreatment,
+} from "@/lib/brand-assets";
 
 /**
- * Approved NUR GOODS artwork. Two sets are supplied: the light set (navy
- * letterforms) sits on light surfaces, the dark set (white letterforms) sits on
- * navy or dark surfaces. "auto" follows the active theme.
+ * Approved NUR GOODS artwork. Two master sets are supplied: the light set
+ * (navy NUR letterforms) sits on light or ivory surfaces, the dark set (white
+ * NUR letterforms) sits on navy or dark surfaces. "auto" follows the active
+ * theme by rendering both masters and toggling visibility, so no CSS filter is
+ * ever used to approximate a variant.
  */
-type Surface = "auto" | "light" | "dark";
+type Surface = BrandSurface;
 
-function pair(surface: Surface, light: string, dark: string, className: string, alt: string) {
-  if (surface === "light") return <img src={light} alt={alt} className={className} loading="eager" />;
-  if (surface === "dark") return <img src={dark} alt={alt} className={className} loading="eager" />;
+function Art({
+  treatment,
+  surface,
+  className,
+  boxStyle,
+  alt,
+}: {
+  treatment: BrandTreatment;
+  surface: Surface;
+  className: string;
+  boxStyle: React.CSSProperties;
+  alt: string;
+}) {
+  const { light, dark } = BRAND_ART[treatment];
+  const common = { className, loading: "eager" as const, decoding: "async" as const };
+
   return (
-    <>
-      <img src={light} alt={alt} className={cn(className, "dark:hidden")} loading="eager" />
-      <img src={dark} alt="" aria-hidden className={cn(className, "hidden dark:block")} loading="eager" />
-    </>
+    <span className="inline-flex shrink-0 items-center justify-center" style={boxStyle}>
+      {surface === "light" ? (
+        <img src={light} alt={alt} {...common} />
+      ) : surface === "dark" ? (
+        <img src={dark} alt={alt} {...common} />
+      ) : (
+        <>
+          <img src={light} alt={alt} {...common} className={cn(className, "dark:hidden")} />
+          <img
+            src={dark}
+            alt=""
+            aria-hidden
+            {...common}
+            className={cn(className, "hidden dark:block")}
+          />
+        </>
+      )}
+    </span>
   );
 }
 
+/** Square / app / avatar treatment of the master identity. */
 export function BrandLogo({
   className,
   size = 32,
@@ -31,30 +63,39 @@ export function BrandLogo({
   size?: number;
   surface?: Surface;
 }) {
-  const cls = cn("h-full w-full object-contain", className);
   return (
-    <span
-      className="inline-flex shrink-0 items-center justify-center"
-      style={{ width: size, height: size }}
-    >
-      {pair(surface, squareLight.url, squareDark.url, cls, "NUR GOODS")}
-    </span>
+    <Art
+      treatment="square"
+      surface={surface}
+      alt="NUR GOODS"
+      className={cn("h-full w-full object-contain", className)}
+      boxStyle={{ width: size, height: size }}
+    />
   );
 }
 
+/**
+ * Horizontal master wordmark for full headers and footers. Space is reserved
+ * from the known aspect ratio so the logo never causes layout shift.
+ */
 export function BrandWordmark({
   className,
   height = 34,
   surface = "auto",
+  treatment = "horizontal",
 }: {
   className?: string;
   height?: number;
   surface?: Surface;
+  treatment?: BrandTreatment;
 }) {
-  const cls = cn("h-full w-auto object-contain", className);
   return (
-    <span className="inline-flex shrink-0 items-center" style={{ height }}>
-      {pair(surface, wordmarkLight.url, wordmarkDark.url, cls, "NUR GOODS")}
-    </span>
+    <Art
+      treatment={treatment}
+      surface={surface}
+      alt="NUR GOODS"
+      className={cn("h-full w-auto max-w-full object-contain", className)}
+      boxStyle={{ height, minWidth: Math.round(height * BRAND_ART_RATIO[treatment]) }}
+    />
   );
 }

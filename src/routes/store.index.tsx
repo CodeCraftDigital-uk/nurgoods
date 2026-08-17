@@ -230,7 +230,7 @@ function StoreIndex() {
     <PublicShell>
       <div className="mx-auto w-full max-w-7xl px-5 pt-12 sm:px-8 sm:pt-16">
         <Breadcrumbs items={[{ label: "Store", href: "/store" }]} />
-        <h1 className="mt-4 font-display text-4xl leading-tight text-foreground sm:text-5xl">
+        <h1 className="mt-4 font-brand text-4xl leading-tight text-foreground sm:text-5xl">
           The {BRAND.name} store
         </h1>
         <p className="mt-4 max-w-2xl text-base leading-relaxed text-muted-foreground">

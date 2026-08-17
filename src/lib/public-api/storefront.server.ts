@@ -124,7 +124,9 @@ async function loadProductCategories(
  */
 export async function loadHiddenProductIds(supabase: any): Promise<string[]> {
   const [{ data: duplicates }, { data: intake }] = await Promise.all([
-    supabase.from("duplicate_group_members").select("product_id").eq("suppressed", true).limit(5000),
+    // Minimal suppression projection. Internal duplicate evidence, pricing
+    // analysis and admin decisions stay private to staff tooling.
+    supabase.rpc("public_suppressed_products"),
     supabase.rpc("hidden_intake_product_ids"),
   ]);
   const ids = new Set<string>();
@@ -147,18 +149,10 @@ export async function resolveCanonicalHandle(
   supabase: any,
   productId: string,
 ): Promise<{ suppressed: boolean; canonical_handle: string | null }> {
-  const { data: member } = await supabase
-    .from("duplicate_group_members")
-    .select("suppressed, group_id")
-    .eq("product_id", productId)
-    .maybeSingle();
-  if (!member || !(member as any).suppressed) return { suppressed: false, canonical_handle: null };
-  const { data: group } = await supabase
-    .from("duplicate_groups")
-    .select("canonical_handle")
-    .eq("id", (member as any).group_id)
-    .maybeSingle();
-  return { suppressed: true, canonical_handle: ((group as any)?.canonical_handle as string | null) ?? null };
+  const { data } = await supabase.rpc("public_suppressed_products");
+  const match = ((data ?? []) as any[]).find((row) => row.product_id === productId);
+  if (!match) return { suppressed: false, canonical_handle: null };
+  return { suppressed: true, canonical_handle: (match.canonical_handle as string | null) ?? null };
 }
 
 function mapCard(
