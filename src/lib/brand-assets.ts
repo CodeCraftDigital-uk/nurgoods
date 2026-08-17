@@ -51,14 +51,30 @@ export const BRAND_ART_RATIO: Record<BrandTreatment, number> = {
 };
 
 
-/** Static brand mark used for favicon, PWA and app icon placements. */
+/**
+ * Static brand marks used for favicon, PWA, app icon and social placements.
+ * Every file below is derived from the approved master artwork by cropping,
+ * padding and resizing only. Filenames are versioned so browsers and social
+ * crawlers request the current artwork rather than a cached predecessor.
+ */
 export const BRAND_ICONS = {
-  favicon: "/favicon.png",
-  appleTouch: "/apple-touch-icon.png",
-  icon192: "/icon-192.png",
-  icon512: "/icon-512.png",
-  maskable512: "/icon-maskable-512.png",
+  faviconIco: "/favicon.ico",
+  favicon: "/favicon-nurgoods-v2.png",
+  appleTouch: "/apple-touch-icon-nurgoods-v2.png",
+  icon192: "/icon-nurgoods-192-v2.png",
+  icon512: "/icon-nurgoods-512-v2.png",
+  maskable512: "/icon-nurgoods-maskable-512-v2.png",
 } as const;
+
+/** Landscape share card for link previews. Absolute URL required by crawlers. */
+export const BRAND_SOCIAL_IMAGE = {
+  path: "/og-nurgoods-v2.jpg",
+  type: "image/jpeg",
+  width: 1200,
+  height: 630,
+  alt: "NUR GOODS. Good things, brought to light.",
+} as const;
+
 
 export function brandArt(treatment: BrandTreatment, surface: Exclude<BrandSurface, "auto">) {
   return BRAND_ART[treatment][surface];

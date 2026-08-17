@@ -9,6 +9,8 @@ import { ReviewPlacementSlot } from "@/components/public/ReviewPlacementSlot";
 import { ProductCard, ProductCardSkeleton } from "@/components/public/ProductCard";
 import { CollectionTile, CollectionTileSkeleton } from "@/components/public/CollectionTile";
 import { BRAND } from "@/lib/brand";
+import { BRAND_ICONS, BRAND_SOCIAL_IMAGE } from "@/lib/brand-assets";
+
 import { listPublicArticles } from "@/lib/services/public-content.functions";
 import {
   listStorefrontCollectionsFn,
@@ -104,7 +106,15 @@ function Index() {
             url: BRAND.siteUrl,
             slogan: BRAND.tagline,
             email: BRAND.supportEmail,
+            logo: {
+              "@type": "ImageObject",
+              url: `${BRAND.siteUrl}${BRAND_ICONS.icon512}`,
+              width: 512,
+              height: 512,
+            },
+            image: `${BRAND.siteUrl}${BRAND_SOCIAL_IMAGE.path}`,
             sameAs: [BRAND.tiktokUrl],
+
             contactPoint: [
               {
                 "@type": "ContactPoint",

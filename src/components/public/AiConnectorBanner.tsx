@@ -1,9 +1,11 @@
 import { Link } from "@tanstack/react-router";
-import { Sparkles } from "lucide-react";
+
+import { ClaudeMark, OpenAiMark } from "@/components/public/AiPlatformMarks";
 
 /**
  * Glass announcement for the AI Connectors page. Sits above the hero on the
- * homepage and stays quiet: no autoplay motion, one clear action.
+ * homepage and stays quiet: no autoplay motion, one clear action. The two
+ * assistant marks are the vendors' official glyphs.
  */
 export function AiConnectorBanner() {
   return (
@@ -16,8 +18,13 @@ export function AiConnectorBanner() {
           aria-hidden
           className="pointer-events-none absolute -left-16 top-1/2 size-48 -translate-y-1/2 rounded-full bg-gold/20 blur-3xl transition-opacity duration-500 group-hover:opacity-80"
         />
-        <span className="relative inline-flex size-10 shrink-0 items-center justify-center rounded-xl border border-white/25 bg-white/15 text-gold sm:size-11">
-          <Sparkles aria-hidden className="size-5" />
+        <span className="relative flex shrink-0 items-center -space-x-2">
+          <span className="inline-flex size-10 items-center justify-center rounded-xl border border-white/25 bg-white/90 text-[#0D0D0D] shadow-sm sm:size-11">
+            <OpenAiMark className="size-5 sm:size-[1.35rem]" />
+          </span>
+          <span className="inline-flex size-10 items-center justify-center rounded-xl border border-white/25 bg-white/90 text-[#D97757] shadow-sm sm:size-11">
+            <ClaudeMark className="size-5 sm:size-[1.35rem]" />
+          </span>
         </span>
         <span className="relative min-w-0 flex-1">
           <span className="inline-flex items-center gap-2 text-[0.62rem] font-semibold uppercase tracking-[0.2em] text-gold">
@@ -30,6 +37,7 @@ export function AiConnectorBanner() {
             conversation.
           </span>
         </span>
+
         <span className="relative inline-flex min-h-10 shrink-0 items-center justify-center rounded-xl border border-white/30 bg-white/15 px-4 text-sm font-semibold text-navy-foreground transition-colors group-hover:bg-white/25">
           Set up AI Connectors
           <span aria-hidden className="ml-2 transition-transform group-hover:translate-x-0.5">
