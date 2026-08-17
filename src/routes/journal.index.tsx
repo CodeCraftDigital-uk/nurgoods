@@ -55,7 +55,7 @@ function JournalIndex() {
           <span className="px-1.5">/</span>
           <span className="text-foreground">Journal</span>
         </nav>
-        <h1 className="mt-4 font-display text-4xl leading-tight text-foreground sm:text-5xl">
+        <h1 className="mt-4 font-brand text-4xl leading-tight text-foreground sm:text-5xl">
           Journal
         </h1>
         <p className="mt-4 max-w-2xl text-base leading-relaxed text-muted-foreground">

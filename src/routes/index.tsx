@@ -135,7 +135,7 @@ function Index() {
               <span aria-hidden className="size-1.5 rounded-full bg-gold" />
               {BRAND.name} marketplace
             </span>
-            <h1 className="mt-5 max-w-2xl font-display text-[2.3rem] font-extrabold leading-[1.03] text-navy-foreground sm:text-5xl lg:text-6xl">
+            <h1 className="mt-5 max-w-2xl font-brand text-[2.6rem] font-semibold leading-[1.02] text-navy-foreground sm:text-5xl lg:text-6xl">
               {BRAND.tagline}
             </h1>
             <p className="mt-5 max-w-xl text-base leading-relaxed text-navy-foreground/80 sm:text-lg">
@@ -219,7 +219,7 @@ function Index() {
       <section className="mx-auto mt-16 w-full max-w-7xl px-5 sm:mt-24 sm:px-8" aria-labelledby="categories">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h2 id="categories" className="font-display text-2xl text-foreground sm:text-3xl">
+            <h2 id="categories" className="font-brand text-[1.7rem] text-foreground sm:text-[2rem]">
               Shop by category
             </h2>
             <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">
@@ -253,7 +253,7 @@ function Index() {
       <section className="mx-auto mt-16 w-full max-w-7xl px-5 sm:mt-24 sm:px-8" aria-labelledby="new-in">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h2 id="new-in" className="font-display text-2xl text-foreground sm:text-3xl">
+            <h2 id="new-in" className="font-brand text-[1.7rem] text-foreground sm:text-[2rem]">
               Recently added
             </h2>
             <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">
@@ -310,7 +310,7 @@ function Index() {
           aria-labelledby="from-the-range"
         >
           <div className="flex flex-wrap items-end justify-between gap-3">
-            <h2 id="from-the-range" className="font-display text-2xl text-foreground sm:text-3xl">
+            <h2 id="from-the-range" className="font-brand text-[1.7rem] text-foreground sm:text-[2rem]">
               From the range
             </h2>
             <Link
@@ -348,7 +348,7 @@ function Index() {
       {/* Journal */}
       <section className="mx-auto mt-16 w-full max-w-7xl px-5 sm:mt-24 sm:px-8" aria-labelledby="journal">
         <div className="flex flex-wrap items-end justify-between gap-3">
-          <h2 id="journal" className="font-display text-2xl text-foreground sm:text-3xl">
+          <h2 id="journal" className="font-brand text-[1.7rem] text-foreground sm:text-[2rem]">
             From the Journal
           </h2>
           <Link
