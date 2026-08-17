@@ -1,0 +1,11 @@
+import { zendropAdminClient } from "../../src/lib/zendrop/client.server";
+const sb = await zendropAdminClient();
+const { data: links } = await sb.from("product_supplier_links").select("shopify_product_id");
+const linked = new Set((links ?? []).map((l: any) => l.shopify_product_id));
+const { data: prods } = await sb.from("shopify_products").select("shopify_product_id,title,status");
+const missing = (prods ?? []).filter((p: any) => !linked.has(p.shopify_product_id));
+console.log("unlinked store products:", missing.length);
+for (const p of missing) console.log("-", p.title, "|", p.status);
+const my = JSON.parse(await Bun.file("scripts/tmp/my-products.json").text());
+console.log("supplier records without store id:");
+for (const m of my.filter((x: any) => !x.store_product_id)) console.log("*", m.product_name);

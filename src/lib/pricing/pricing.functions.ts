@@ -101,6 +101,14 @@ export const syncVariantCostsFn = createServerFn({ method: "POST" })
     return syncVariantCosts();
   });
 
+export const recoverSupplierLinkageFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context);
+    const { recoverSupplierLinkage } = await import("./linkage.server");
+    return recoverSupplierLinkage();
+  });
+
 export const runPricingAuditFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {

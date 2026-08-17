@@ -20,6 +20,7 @@ import {
 import {
   applyPricingAuditFn,
   getPricingAudit,
+  recoverSupplierLinkageFn,
   runPricingAuditFn,
   syncVariantCostsFn,
 } from "@/lib/pricing/pricing.functions";
@@ -78,6 +79,16 @@ function CataloguePricingPage() {
     onError: (error: Error) => toast.error(error.message),
   });
 
+  const linkageFn = useServerFn(recoverSupplierLinkageFn);
+  const recoverLinkage = useMutation({
+    mutationFn: () => linkageFn({}),
+    onSuccess: (result) => {
+      toast.success(result.message);
+      invalidate();
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
   const runFn = useServerFn(runPricingAuditFn);
   const runAudit = useMutation({
     mutationFn: () => runFn({}),
@@ -126,6 +137,15 @@ function CataloguePricingPage() {
             <Button variant="outline" size="sm" onClick={() => syncCosts.mutate()} disabled={syncCosts.isPending}>
               <RefreshCw className="mr-2 h-4 w-4" />
               {syncCosts.isPending ? "Reading costs" : "Refresh cost data"}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => recoverLinkage.mutate()}
+              disabled={recoverLinkage.isPending}
+            >
+              <RefreshCw className="mr-2 h-4 w-4" />
+              {recoverLinkage.isPending ? "Rebuilding links" : "Rebuild supplier links"}
             </Button>
             <Button size="sm" onClick={() => runAudit.mutate()} disabled={runAudit.isPending}>
               <Calculator className="mr-2 h-4 w-4" />
