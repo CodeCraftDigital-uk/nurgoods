@@ -12,10 +12,13 @@
  * correct master file is always served directly. CSS filters are never used to
  * fake one from another.
  */
-import squareLight from "@/assets/square-light-master.png.asset.json";
-import squareDark from "@/assets/square-dark-master.png.asset.json";
-import wordmarkLight from "@/assets/wordmark-light-master.png.asset.json";
-import wordmarkDark from "@/assets/wordmark-dark-master.png.asset.json";
+/** Exact owner supplied master files, served byte for byte from public/brand. */
+const MASTERS = {
+  horizontalLight: "/brand/nur-goods-horizontal-light.png",
+  horizontalDark: "/brand/nur-goods-horizontal-dark.png",
+  squareLight: "/brand/nur-goods-square-light.png",
+  squareDark: "/brand/nur-goods-square-dark.png",
+} as const;
 
 export type BrandSurface = "auto" | "light" | "dark";
 
@@ -33,9 +36,9 @@ type MasterPair = { light: string; dark: string };
 export const BRAND_ART_IS_FALLBACK = false;
 
 export const BRAND_ART: Record<BrandTreatment, MasterPair> = {
-  horizontal: { light: wordmarkLight.url, dark: wordmarkDark.url },
-  compact: { light: squareLight.url, dark: squareDark.url },
-  square: { light: squareLight.url, dark: squareDark.url },
+  horizontal: { light: MASTERS.horizontalLight, dark: MASTERS.horizontalDark },
+  compact: { light: MASTERS.squareLight, dark: MASTERS.squareDark },
+  square: { light: MASTERS.squareLight, dark: MASTERS.squareDark },
 };
 
 /** Intrinsic aspect ratios, used to reserve space and avoid layout shift. */
