@@ -150,7 +150,18 @@ export async function runHourlySourcing(db: Db, jobKey: string): Promise<Sourcin
     await new Promise((resolve) => setTimeout(resolve, 1500));
   }
 
+  // The supplier pushes into the store asynchronously, so the catalogue mirror
+  // is refreshed first. Without this, a freshly pushed product cannot be
+  // matched and would sit in the store at the raw supplier price until the
+  // next manual sync, which is exactly how unrounded prices reached shoppers.
+  try {
+    const { syncCatalogue } = await import("@/lib/services/shopify.server");
+    await syncCatalogue(db as never);
+  } catch {
+    // A sync failure must not stop the rest of the pass; the next run retries.
+  }
   const linked = await reconcileImportedCandidates();
+
 
   // Book search intelligence for the listings that reached the store mirror,
   // so a new listing is optimised as part of the same pipeline.

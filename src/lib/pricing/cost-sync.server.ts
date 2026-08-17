@@ -61,6 +61,7 @@ export async function syncVariantCosts(): Promise<CostSyncResult> {
       const currency = node?.inventoryItem?.unitCost?.currencyCode ?? null;
       if (cost !== null) withCost += 1;
 
+      const price = numeric(node?.price);
       const { data: rows } = await supabase
         .from("shopify_product_variants")
         .update({
@@ -68,9 +69,13 @@ export async function syncVariantCosts(): Promise<CostSyncResult> {
           unit_cost_currency: currency,
           cost_source: cost === null ? null : "store_inventory_unit_cost",
           cost_synced_at: now,
+          // The live selling price is read back at the same time so the audit
+          // always compares against the commerce system of record.
+          ...(price === null ? {} : { price }),
         } as never)
         .eq("shopify_variant_id", variantId)
         .select("id");
+
       updated += (rows ?? []).length;
     }
 

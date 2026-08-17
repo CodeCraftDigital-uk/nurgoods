@@ -664,7 +664,7 @@ const PRODUCT_FIELDS = /* GraphQL */ `
     variantsCount {
       count
     }
-    variants(first: 50) {
+    variants(first: 100) {
       nodes {
         id
         title
@@ -695,7 +695,7 @@ const PRODUCT_FIELDS = /* GraphQL */ `
 const CATALOGUE_QUERY = /* GraphQL */ `
   ${PRODUCT_FIELDS}
   query NurGoodsCatalogue($productCursor: String) {
-    products(first: 25, after: $productCursor) {
+    products(first: 10, after: $productCursor) {
       pageInfo {
         hasNextPage
         endCursor
@@ -860,7 +860,10 @@ export async function syncCatalogue(
 
   const products: GraphQlProduct[] = [];
   let cursor: string | null = null;
-  for (let page = 0; page < 40; page += 1) {
+  // Smaller product pages keep the variant connection deep enough to mirror
+  // every option of a wide product, so the page budget is raised to match.
+  for (let page = 0; page < 200; page += 1) {
+
     const data: any = await shopifyGraphql(credentials, CATALOGUE_QUERY, { productCursor: cursor });
     products.push(...(data.products.nodes as GraphQlProduct[]));
     if (!data.products.pageInfo.hasNextPage) break;

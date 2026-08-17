@@ -19,6 +19,37 @@ export interface ValidationOutcome {
   summary: string;
 }
 
+/**
+ * The approved retail rounding rule for NUR GOODS is charm_99, so every
+ * customer facing price must end in .99. This is evaluated per variant and is
+ * deliberately free of any exception, so an unrounded price is held rather
+ * than published.
+ */
+export function retailRoundingOutcome(bundle: ProductBundle): {
+  passed: boolean;
+  detail: string;
+} {
+  const purchasable = bundle.variants.filter((variant) => variant.available_for_sale !== false);
+  const priced = purchasable.filter(
+    (variant) => typeof variant.price === "number" && Number.isFinite(variant.price),
+  );
+  if (priced.length === 0) return { passed: true, detail: "no priced variant to check" };
+
+  const offenders = priced.filter(
+    (variant) => Math.round((variant.price as number) * 100) % 100 !== 99,
+  );
+  if (offenders.length === 0) {
+    return { passed: true, detail: `${priced.length} variant price(s) end in .99` };
+  }
+  const example = Number(offenders[0]?.price ?? 0).toFixed(2);
+  return {
+    passed: false,
+    detail: `${offenders.length} of ${priced.length} variant price(s) do not end in .99, for example ${example}`,
+  };
+
+}
+
+
 export function validateIntake(bundle: ProductBundle, policy: IntakePolicy): ValidationOutcome {
   const product = bundle.product as any;
   const checks: IntakeCheck[] = [];
@@ -77,6 +108,16 @@ export function validateIntake(bundle: ProductBundle, policy: IntakePolicy): Val
       prices.length > 0 ? `${currency || "GBP"} ${Math.min(...prices).toFixed(2)}` : "no price",
     );
   }
+
+  // Retail rounding gate. A listing may never become customer facing with an
+  // arbitrary pence ending such as .37 or .50, because that means the approved
+  // pricing formula and rounding rule were not applied to it. Every
+  // purchasable variant is checked individually so a multi variant product
+  // cannot slip through on the strength of its cheapest option.
+  const rounding = retailRoundingOutcome(bundle);
+  add("retail_rounding", "Retail prices follow the approved rounding rule", rounding.passed, rounding.detail);
+
+
 
   if (policy.require_description) {
     const description = plainText(product.description ?? product.description_html);
