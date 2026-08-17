@@ -971,9 +971,20 @@ export async function runSourcingScreen(input: {
         }
       }
 
+      // Cheap deterministic exclusions run first so an obviously unsuitable
+      // product never costs a supplier shipping quote.
+      const cheap = preScreenCheap(raw, rules);
+      if (cheap.blocked) {
+        if (cheap.code === "prohibited_category" || cheap.code === "restricted") funnel.restricted += 1;
+        else if (cheap.code.startsWith("category")) funnel.categoryExcluded += 1;
+        else funnel.qualityFailed += 1;
+        continue;
+      }
+
       // Catalogue listings do not carry a destination shipping cost. Quote it
-      // from the supplier for the market in use, within a bounded number of
-      // quotes per pass, so landed cost is evidenced rather than guessed.
+      // from the supplier for the market in use, only for products that have
+      // already survived the cheap screen, so landed cost is evidenced rather
+      // than guessed and supplier traffic stays low.
       let item = raw;
       if (item.shippingCost === null && settings.shipping_market && shippingQuotes < maxShippingQuotes) {
         shippingQuotes += 1;
@@ -992,6 +1003,11 @@ export async function runSourcingScreen(input: {
       }
 
       const duplicateReason = rules.duplicate_precheck ? await duplicatePrecheck(item) : null;
+      if (duplicateReason) {
+        funnel.duplicateExcluded += 1;
+        continue;
+      }
+
 
       const screen = screenCandidate({
         item,
