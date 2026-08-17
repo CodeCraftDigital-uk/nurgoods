@@ -564,12 +564,64 @@ export interface CartResult {
   totalQuantity: number;
   subtotal: number | null;
   currency: string | null;
+  /** Numeric variant ids the store refused, so the basket can drop just those. */
+  rejected: string[];
+}
+
+const VARIANT_NODES = /* GraphQL */ `
+  query NurGoodsVariantPurchasability($ids: [ID!]!) {
+    nodes(ids: $ids) {
+      ... on ProductVariant {
+        id
+        availableForSale
+        currentlyNotInStock
+      }
+    }
+  }
+`;
+
+/**
+ * Asks the store itself which variants can actually be bought on the headless
+ * sales channel. A mirrored record is not proof of purchasability, so this is
+ * the authority used before a cart is created.
+ */
+export async function checkVariantPurchasability(
+  gids: string[],
+): Promise<{ purchasable: Set<string>; refused: Set<string> }> {
+  const unique = [...new Set(gids)];
+  const purchasable = new Set<string>();
+  const refused = new Set<string>(unique);
+  if (unique.length === 0) return { purchasable, refused };
+
+  const resolved = await resolveStorefrontCredentials();
+  if (!resolved.domain || !resolved.privateToken) {
+    throw new Error("Headless checkout is not configured");
+  }
+
+  const data = await storefrontGraphql<{
+    nodes: Array<{ id: string; availableForSale: boolean | null } | null>;
+  }>(
+    { domain: resolved.domain, token: resolved.privateToken, apiVersion: resolved.apiVersion },
+    VARIANT_NODES,
+    { ids: unique },
+  );
+
+  for (const node of data.nodes ?? []) {
+    if (!node?.id) continue;
+    if (node.availableForSale !== false) {
+      purchasable.add(node.id);
+      refused.delete(node.id);
+    }
+  }
+  return { purchasable, refused };
 }
 
 /**
  * Creates one cart for a whole basket through the official Cart API and
  * returns the checkout link issued by the store. Every basket line travels in
- * the same cart, so a shopper is never sent to separate checkouts.
+ * the same cart, so a shopper is never sent to separate checkouts. If the
+ * store refuses individual lines, only those lines are dropped and the cart is
+ * created again for the rest.
  */
 export async function createStorefrontCartLines(input: {
   lines: { variantId: string; quantity: number }[];
@@ -578,16 +630,21 @@ export async function createStorefrontCartLines(input: {
   if (!resolved.domain || !resolved.privateToken) {
     throw new Error("Headless checkout is not configured");
   }
-  const lines = input.lines
-    .filter((line) => Boolean(line.variantId?.trim()))
-    .map((line) => ({
-      merchandiseId: toVariantGid(line.variantId),
-      quantity: Math.max(1, Math.min(Math.trunc(line.quantity) || 1, 10)),
-    }));
+  const { buildCartLines, parseRejectedMerchandise, variantNumericId } = await import(
+    "@/lib/basket/checkout-lines"
+  );
+  const built = buildCartLines(input.lines);
+  let lines = built.lines;
+  const rejected = new Set<string>(built.invalid);
   if (lines.length === 0) throw new Error("There is nothing to order");
-  const requestedQuantity = lines.reduce((sum, line) => sum + line.quantity, 0);
 
-  const data = await storefrontGraphql<{
+  const credentials = {
+    domain: resolved.domain,
+    token: resolved.privateToken,
+    apiVersion: resolved.apiVersion,
+  };
+
+  type CartCreateData = {
     cartCreate: {
       cart: {
         id: string;
@@ -595,24 +652,35 @@ export async function createStorefrontCartLines(input: {
         totalQuantity: number;
         cost: { subtotalAmount: { amount: string; currencyCode: string } | null } | null;
       } | null;
-      userErrors: Array<{ message: string }>;
+      userErrors: Array<{ message: string; field?: string[] | null }>;
     };
-  }>(
-    {
-      domain: resolved.domain,
-      token: resolved.privateToken,
-      apiVersion: resolved.apiVersion,
-    },
-    CART_CREATE,
-    { lines },
-  );
+  };
 
-  const errors = data.cartCreate?.userErrors ?? [];
-  if (errors.length > 0) throw new Error(errors.map((e) => e.message).join("; "));
-  const cart = data.cartCreate?.cart;
+  let attempt = 0;
+  let data: CartCreateData | null = null;
+  // Two attempts at most: one clean run, and one after dropping the exact
+  // lines the store named as unusable.
+  while (attempt < 2) {
+    attempt += 1;
+    data = await storefrontGraphql<CartCreateData>(credentials, CART_CREATE, { lines });
+    const errors = data.cartCreate?.userErrors ?? [];
+    if (errors.length === 0 && data.cartCreate?.cart?.checkoutUrl) break;
+
+    const refused = parseRejectedMerchandise(errors);
+    if (refused.length === 0 || attempt === 2) {
+      if (errors.length > 0) throw new Error(errors.map((e) => e.message).join("; "));
+      break;
+    }
+    for (const gid of refused) rejected.add(variantNumericId(gid));
+    lines = lines.filter((line) => !refused.includes(line.merchandiseId));
+    if (lines.length === 0) throw new Error("Nothing in the basket can be ordered right now");
+  }
+
+  const cart = data?.cartCreate?.cart;
   if (!cart?.checkoutUrl) throw new Error("The store did not return a checkout link");
 
   const checkoutUrl = await finaliseCheckoutUrl(cart.checkoutUrl);
+  const requestedQuantity = lines.reduce((sum, line) => sum + line.quantity, 0);
 
   const amount = cart.cost?.subtotalAmount?.amount;
   return {
@@ -621,8 +689,10 @@ export async function createStorefrontCartLines(input: {
     totalQuantity: cart.totalQuantity ?? requestedQuantity,
     subtotal: amount != null && amount !== "" ? Number(amount) : null,
     currency: cart.cost?.subtotalAmount?.currencyCode ?? null,
+    rejected: [...rejected],
   };
 }
+
 
 /** Single line convenience wrapper kept for the direct Buy now action. */
 export async function createStorefrontCart(input: {
