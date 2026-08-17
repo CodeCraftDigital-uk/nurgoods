@@ -713,31 +713,42 @@ function ProductDetail() {
         </section>
       </article>
 
+      {/* Mobile buy bar. Basket first, with the direct checkout kept secondary
+          so the verified multi line basket flow stays the default path. */}
       <div className="sticky bottom-0 z-30 mt-16 border-t border-border/70 bg-background/95 px-5 py-3 backdrop-blur sm:hidden">
         {canBuy ? (
-          headlessReady ? (
+          <div className="flex items-center gap-3">
             <button
               type="button"
-              onClick={() => void beginCheckout()}
-              disabled={starting}
-              className="flex w-full min-h-12 items-center justify-center rounded-lg bg-primary px-5 text-sm font-medium text-primary-foreground disabled:opacity-70"
+              onClick={addToBasket}
+              className="flex min-h-12 flex-1 items-center justify-center rounded-2xl bg-primary px-4 text-sm font-semibold text-primary-foreground"
             >
-              {starting ? "Opening checkout" : "Buy now"}
+              Add to basket
             </button>
-          ) : (
-            <a
-              href={buyHref!}
-              className="flex min-h-12 items-center justify-center rounded-lg bg-primary px-5 text-sm font-medium text-primary-foreground"
-            >
-              Buy now
-            </a>
-          )
+            {headlessReady ? (
+              <button
+                type="button"
+                onClick={() => void beginCheckout()}
+                disabled={starting}
+                className="flex min-h-12 shrink-0 items-center justify-center rounded-2xl border border-input bg-surface px-4 text-sm font-semibold text-foreground disabled:opacity-70"
+              >
+                {starting ? "Opening" : "Buy now"}
+              </button>
+            ) : (
+              <a
+                href={buyHref!}
+                className="flex min-h-12 shrink-0 items-center justify-center rounded-2xl border border-input bg-surface px-4 text-sm font-semibold text-foreground"
+              >
+                Buy now
+              </a>
+            )}
+          </div>
         ) : (
           <button
             type="button"
             disabled
             aria-disabled="true"
-            className="flex w-full min-h-12 cursor-not-allowed items-center justify-center rounded-lg border border-input px-5 text-sm font-medium text-muted-foreground"
+            className="flex w-full min-h-12 cursor-not-allowed items-center justify-center rounded-2xl border border-input px-5 text-sm font-medium text-muted-foreground"
           >
             {unavailableReason}
           </button>

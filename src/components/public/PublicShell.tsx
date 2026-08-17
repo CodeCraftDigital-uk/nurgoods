@@ -60,7 +60,7 @@ function SearchField({
           type="search"
           value={term}
           onChange={(event) => setTerm(event.target.value)}
-          placeholder="Search the NUR GOODS range"
+          placeholder={compact ? "Search products" : "Search the NUR GOODS range"}
           className={`w-full rounded-2xl border border-input bg-surface pl-10 pr-24 text-sm text-foreground shadow-[var(--shadow-card)] outline-none transition-shadow placeholder:text-muted-foreground focus:border-brand focus:ring-4 focus:ring-brand/15 ${
             compact ? "h-11" : "h-12"
           }`}

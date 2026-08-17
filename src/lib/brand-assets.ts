@@ -1,5 +1,14 @@
 /**
- * Central registry for the official NUR GOODS master artwork.
+ * Central registry for the NUR GOODS logo artwork.
+ *
+ * ASSET STATUS: TEMPORARY FALLBACK.
+ * The four owner approved master PNGs (square light, square dark, wordmark
+ * light, wordmark dark) have not yet been delivered into this repository. The
+ * files referenced below are the earlier artwork and are in place only so that
+ * every surface keeps rendering. They must not be treated as final brand
+ * masters, and they must never be redrawn or approximated. When the approved
+ * masters arrive, drop them in and repoint the four imports below. Nothing
+ * else needs to change, because every surface resolves through this module.
  *
  * Every surface resolves its logo through this module so that when a master
  * variant is replaced the change lands everywhere at once. Two complete sets
@@ -23,6 +32,9 @@ export type BrandSurface = "auto" | "light" | "dark";
 export type BrandTreatment = "horizontal" | "compact" | "square";
 
 type MasterPair = { light: string; dark: string };
+
+/** True until the owner approved master PNGs replace the fallback artwork. */
+export const BRAND_ART_IS_FALLBACK = true;
 
 export const BRAND_ART: Record<BrandTreatment, MasterPair> = {
   horizontal: { light: wordmarkLight.url, dark: wordmarkDark.url },
