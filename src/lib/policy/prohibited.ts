@@ -104,7 +104,6 @@ const SEXUAL_QUALIFIERS: RegExp[] = [
   /\bsex\b/,
   /\bsexual(?:ly)?\b/,
   /\bsexy\b/,
-  /\badult\b/,
   /\bintimate\b/,
   /\bintimacy\b/,
   /\bpleasure\b/,
