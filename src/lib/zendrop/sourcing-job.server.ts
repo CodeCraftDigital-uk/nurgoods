@@ -162,6 +162,17 @@ export async function runHourlySourcing(db: Db, jobKey: string): Promise<Sourcin
   }
   const linked = await reconcileImportedCandidates();
 
+  // Prohibited category safety net. If anything adult or sexual reached the
+  // store through the supplier push, it is unpublished and quarantined in the
+  // same pass rather than waiting for a person to notice it.
+  let quarantined = 0;
+  try {
+    const { quarantineProhibitedCatalogue } = await import("@/lib/policy/quarantine.server");
+    quarantined = (await quarantineProhibitedCatalogue()).quarantined;
+  } catch {
+    // Reported by the next run; never blocks the rest of the pass.
+  }
+
 
   // Book search intelligence for the listings that reached the store mirror,
   // so a new listing is optimised as part of the same pipeline.
@@ -200,6 +211,7 @@ export async function runHourlySourcing(db: Db, jobKey: string): Promise<Sourcin
       failed,
       linked,
       seo_queued: seoQueued,
+      prohibited_quarantined: quarantined,
     },
   };
 }
