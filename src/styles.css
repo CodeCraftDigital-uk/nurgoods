@@ -188,9 +188,10 @@
   --gold: oklch(0.712 0.131 83.7);
   --gold-soft: oklch(0.955 0.028 85);
   --gold-foreground: oklch(0.224 0.052 240.3);
-  --ivory: oklch(0.98 0.007 80.7);
+  /* Retained token name. The storefront neutral is now crisp white. */
+  --ivory: oklch(1 0 0);
 
-  --background: oklch(0.98 0.007 80.7);
+  --background: oklch(1 0 0);
   --foreground: oklch(0.224 0.052 240.3);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.224 0.052 240.3);
@@ -198,27 +199,28 @@
   --popover-foreground: oklch(0.224 0.052 240.3);
 
   --surface: oklch(1 0 0);
-  --surface-muted: oklch(0.962 0.008 81);
+  --surface-muted: oklch(0.972 0.003 240);
 
   --brand: oklch(0.281 0.056 241.5);
-  --brand-soft: oklch(0.947 0.012 240);
+  --brand-soft: oklch(0.958 0.009 240);
   --brand-foreground: oklch(0.99 0.005 81);
 
   --primary: oklch(0.224 0.052 240.3);
-  --primary-foreground: oklch(0.98 0.007 81);
-  --secondary: oklch(0.955 0.009 81);
+  --primary-foreground: oklch(0.99 0.002 240);
+  --secondary: oklch(0.968 0.003 240);
   --secondary-foreground: oklch(0.224 0.052 240.3);
-  --muted: oklch(0.958 0.008 81);
+  --muted: oklch(0.969 0.003 240);
   --muted-foreground: oklch(0.472 0.028 241);
-  --accent: oklch(0.947 0.012 240);
+  --accent: oklch(0.958 0.009 240);
   --accent-foreground: oklch(0.281 0.056 241.5);
   --destructive: oklch(0.53 0.19 27);
   --destructive-foreground: oklch(0.99 0.003 81);
   --success: oklch(0.52 0.1 158);
   --warning: oklch(0.68 0.12 72);
-  --border: oklch(0.908 0.01 82);
-  --input: oklch(0.885 0.012 82);
+  --border: oklch(0.916 0.005 240);
+  --input: oklch(0.888 0.006 240);
   --ring: oklch(0.712 0.131 83.7);
+
 
   --sidebar: oklch(0.224 0.052 240.3);
   --sidebar-foreground: oklch(0.93 0.008 81);

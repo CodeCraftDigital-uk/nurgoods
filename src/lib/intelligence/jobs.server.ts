@@ -373,3 +373,81 @@ export async function runIdentityJob(db: Db): Promise<JobSummary> {
     },
   };
 }
+
+/**
+ * Recurring catalogue search intelligence sweep.
+ *
+ * Requeues only listings whose search intelligence is missing, rejected,
+ * version drifted or stale, then processes a bounded slice. Wording is only
+ * regenerated when the underlying product content genuinely changed, so the
+ * sweep is idempotent and never rewrites settled metadata for its own sake.
+ * No factual claim, specification or price is altered here.
+ */
+export async function runSeoSweep(db: Db, batchSize = 10): Promise<JobSummary> {
+  const reasons: string[] = [];
+  let queued = 0;
+
+  // Listings that carry no search intelligence at all.
+  const { data: allProducts } = await db.from("shopify_products").select("id").limit(2000);
+  const productIds = ((allProducts ?? []) as any[]).map((row) => row.id as string);
+  const { data: haveSeo } = await db
+    .from("product_seo_intelligence")
+    .select("product_id")
+    .in("product_id", productIds.slice(0, 1000));
+  const covered = new Set(((haveSeo ?? []) as any[]).map((row) => row.product_id as string));
+  const missing = productIds.filter((id) => !covered.has(id)).slice(0, 50);
+  if (missing.length > 0) {
+    queued += await enqueue(
+      db,
+      missing.map((id) => ({
+        productId: id,
+        stage: "seo" as const,
+        reason: "No search intelligence recorded",
+        priority: 60,
+      })),
+    );
+    reasons.push(`${missing.length} without search intelligence`);
+  }
+
+  // Rejected, version drifted or stale records.
+  const staleBefore = new Date(Date.now() - STALE_DAYS * 24 * 3600_000).toISOString();
+  const { data: stale } = await db
+    .from("product_seo_intelligence")
+    .select("product_id")
+    .or(
+      `validation_state.eq.rejected,intelligence_version.neq.${SEO_VERSION},last_analysed_at.lt.${staleBefore}`,
+    )
+    .limit(50);
+  const staleIds = ((stale ?? []) as any[]).map((row) => row.product_id as string);
+  if (staleIds.length > 0) {
+    queued += await enqueue(
+      db,
+      staleIds.map((id) => ({
+        productId: id,
+        stage: "seo" as const,
+        reason: "Search intelligence is stale, rejected or version drifted",
+        priority: 140,
+      })),
+    );
+    reasons.push(`${staleIds.length} stale or rejected`);
+  }
+
+  const processed = await processQueue(db, batchSize);
+  const progress = await backfillProgress(db);
+
+  return {
+    message:
+      queued === 0 && processed.processed === 0
+        ? "Search intelligence is current across the catalogue."
+        : `Queued ${queued} search items (${reasons.join(", ") || "no new reasons"}) and processed ${processed.processed}.`,
+    details: {
+      queued,
+      processed: processed.processed,
+      optimised: processed.optimised,
+      failed: processed.failed,
+      remaining: progress.queued,
+      optimised_total: progress.optimised,
+      total: progress.total,
+    },
+  };
+}

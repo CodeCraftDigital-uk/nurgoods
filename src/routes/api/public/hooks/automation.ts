@@ -41,6 +41,9 @@ export const Route = createFileRoute("/api/public/hooks/automation")({
           "catalogue_duplicate_identity",
           "product_intake_delta_sync",
           "product_intake_worker",
+          "catalogue_seo_sweep",
+          "supplier_sourcing_hourly",
+
 
         ]);
         if (!allowed.has(jobKey)) {
