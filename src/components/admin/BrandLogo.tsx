@@ -81,21 +81,29 @@ export function BrandLogo({
 export function BrandWordmark({
   className,
   height = 34,
+  width,
   surface = "auto",
   treatment = "horizontal",
 }: {
   className?: string;
   height?: number;
+  /** When set, the box is sized by width and height is derived from the
+   *  known aspect ratio, so the wordmark fills a fixed column width. */
+  width?: number;
   surface?: Surface;
   treatment?: BrandTreatment;
 }) {
+  const ratio = BRAND_ART_RATIO[treatment];
+  const boxStyle = width
+    ? { width, height: Math.round(width / ratio) }
+    : { height, minWidth: Math.round(height * ratio) };
   return (
     <Art
       treatment={treatment}
       surface={surface}
       alt="NUR GOODS"
       className={cn("h-full w-auto max-w-full object-contain", className)}
-      boxStyle={{ height, minWidth: Math.round(height * BRAND_ART_RATIO[treatment]) }}
+      boxStyle={boxStyle}
     />
   );
 }
