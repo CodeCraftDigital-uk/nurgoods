@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import squareLight from "@/assets/square-light-master.png.asset.json";
+import { brandArt } from "@/lib/brand-assets";
 
 /**
  * Neutral treatment for a product with no synced photography. It is clearly a
@@ -14,7 +14,7 @@ export function MissingProductImage({ className }: { className?: string }) {
         className,
       )}
     >
-      <img src={squareLight.url} alt="" aria-hidden className="h-10 w-10 opacity-30" />
+      <img src={brandArt("square", "light")} alt="" aria-hidden className="h-10 w-10 opacity-30" />
       <span className="text-[0.65rem] uppercase tracking-[0.18em] text-muted-foreground">
         Photography to follow
       </span>
