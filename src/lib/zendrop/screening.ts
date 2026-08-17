@@ -97,6 +97,25 @@ export function screenCandidate(input: ScreenInput): ScreenResult {
   const haystack = [item.title, item.category ?? ""].join(" ");
   const restricted = [...DEFAULT_RESTRICTED_KEYWORDS, ...(rules.restricted_keywords ?? [])];
   const restrictedHit = matches(haystack, restricted);
+
+  // Prohibited category control. Adult and sexual products are never suitable
+  // for NUR GOODS, so the multi field screen runs before anything else and its
+  // failure can never be scored away.
+  const prohibited = screenProhibited({
+    title: item.title,
+    category: item.category,
+    extra: [
+      item.shipsFrom,
+      ...item.variants.map((variant) => variant.title),
+      ...item.variants.map((variant) => variant.sku ?? ""),
+    ],
+  });
+  if (prohibited.prohibited) {
+    add("prohibited_category", "Prohibited category", "fail", prohibited.reason ?? "Prohibited category", 0);
+  } else {
+    add("prohibited_category", "Prohibited category", "pass", "No prohibited category signal", 6);
+  }
+
   if (restrictedHit) {
     add(
       "restricted",
@@ -108,6 +127,7 @@ export function screenCandidate(input: ScreenInput): ScreenResult {
   } else {
     add("restricted", "Restricted category", "pass", "No restricted category signal", 10);
   }
+
 
   const category = (item.category ?? "").toLowerCase();
   if (category && rules.blocked_categories.some((b) => category.includes(b.toLowerCase()))) {
