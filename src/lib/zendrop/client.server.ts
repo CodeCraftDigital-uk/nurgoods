@@ -195,12 +195,13 @@ async function rpc(
   const token = await readZendropToken();
   if (!token) throw new ZendropError("The supplier account is not connected", 401, false);
 
-  await reserve(kind);
-
-  const maxAttempts = 4;
+  const maxAttempts = 5;
   let lastError: ZendropError | null = null;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    // Every attempt, including a retry, is paced by the limiter and waits out
+    // any shared cooldown first.
+    await reserve(kind);
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 25_000);
     try {
@@ -228,17 +229,24 @@ async function rpc(
         );
       }
       if (response.status === 429) {
-        const retryAfter = Number(response.headers.get("retry-after") ?? "2");
-        lastError = new ZendropError("The supplier rate limit was reached", 429, true);
-        await sleep(Math.min(30_000, (Number.isFinite(retryAfter) ? retryAfter : 2) * 1000));
+        const header = response.headers.get("retry-after");
+        const retryAfter = header === null ? null : Number(header);
+        const wait = enterCooldown(retryAfter, attempt);
+        lastError = new ZendropError(
+          `The supplier rate limit was reached. Paused for ${Math.round(wait / 1000)}s before retrying.`,
+          429,
+          true,
+        );
         continue;
       }
 
       if (response.status >= 500) {
+        throttleStats.serverRetries += 1;
         lastError = new ZendropError(`The supplier returned ${response.status}`, response.status, true);
-        await sleep(Math.min(8_000, 2 ** attempt * 300));
+        await sleep(Math.min(10_000, 2 ** attempt * 400 + Math.floor(Math.random() * 500)));
         continue;
       }
+
       if (!response.ok) {
         throw new ZendropError(`The supplier returned ${response.status}`, response.status, false);
       }
