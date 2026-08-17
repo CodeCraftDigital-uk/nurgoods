@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AdminRouteImport } from './routes/admin'
+import { Route as AiConnectorsRouteImport } from './routes/ai-connectors'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as McpRouteImport } from './routes/mcp'
@@ -74,6 +75,11 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
 const AdminRoute = AdminRouteImport.update({
   id: '/admin',
   path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AiConnectorsRoute = AiConnectorsRouteImport.update({
+  id: '/ai-connectors',
+  path: '/ai-connectors',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
@@ -347,6 +353,7 @@ const ApiPublicV1ProductsHandleRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
+  '/ai-connectors': typeof AiConnectorsRoute
   '/auth': typeof AuthRoute
   '/contact': typeof ContactRoute
   '/mcp': typeof McpRoute
@@ -400,6 +407,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
+  '/ai-connectors': typeof AiConnectorsRoute
   '/auth': typeof AuthRoute
   '/contact': typeof ContactRoute
   '/mcp': typeof McpRoute
@@ -453,6 +461,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/admin': typeof AdminRouteWithChildren
+  '/ai-connectors': typeof AiConnectorsRoute
   '/auth': typeof AuthRoute
   '/contact': typeof ContactRoute
   '/mcp': typeof McpRoute
@@ -508,6 +517,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/admin'
+    | '/ai-connectors'
     | '/auth'
     | '/contact'
     | '/mcp'
@@ -561,6 +571,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/admin'
+    | '/ai-connectors'
     | '/auth'
     | '/contact'
     | '/mcp'
@@ -613,6 +624,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/admin'
+    | '/ai-connectors'
     | '/auth'
     | '/contact'
     | '/mcp'
@@ -668,6 +680,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AdminRoute: typeof AdminRouteWithChildren
+  AiConnectorsRoute: typeof AiConnectorsRoute
   AuthRoute: typeof AuthRoute
   ContactRoute: typeof ContactRoute
   McpRoute: typeof McpRoute
@@ -719,6 +732,13 @@ declare module '@tanstack/react-router' {
       path: '/admin'
       fullPath: '/admin'
       preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ai-connectors': {
+      id: '/ai-connectors'
+      path: '/ai-connectors'
+      fullPath: '/ai-connectors'
+      preLoaderRoute: typeof AiConnectorsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth': {
@@ -1172,6 +1192,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AdminRoute: AdminRouteWithChildren,
+  AiConnectorsRoute: AiConnectorsRoute,
   AuthRoute: AuthRoute,
   ContactRoute: ContactRoute,
   McpRoute: McpRoute,

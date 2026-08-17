@@ -4,6 +4,26 @@ import { getRequest } from "@tanstack/react-start/server";
 import { renderErrorPage } from "./lib/error-page";
 import { attachSupabaseAuth } from "@/integrations/supabase/auth-attacher";
 import { isAdminPath } from "./lib/hosts";
+import { connectorGuard, isConnectorPath } from "./lib/mcp/guard.server";
+
+/**
+ * Volume and payload limits for the public connector endpoint. Placed ahead of
+ * the handler so abusive traffic never reaches the database.
+ */
+const connectorGuardMiddleware = createMiddleware().server(async ({ next }) => {
+  let request: Request | null = null;
+  try {
+    request = getRequest();
+  } catch {
+    return next();
+  }
+  if (request && isConnectorPath(new URL(request.url).pathname)) {
+    const blocked = connectorGuard(request);
+    if (blocked) return blocked;
+  }
+  return next();
+});
+
 
 /**
  * The admin console lives at /control inside this single application. This
@@ -60,6 +80,6 @@ const csrfMiddleware = createCsrfMiddleware({
 
 export const startInstance = createStart(() => ({
   functionMiddleware: [attachSupabaseAuth],
-  requestMiddleware: [errorMiddleware, adminRobotsMiddleware, csrfMiddleware],
+  requestMiddleware: [errorMiddleware, connectorGuardMiddleware, adminRobotsMiddleware, csrfMiddleware],
 }));
 
