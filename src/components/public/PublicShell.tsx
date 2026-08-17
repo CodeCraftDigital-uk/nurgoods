@@ -15,9 +15,11 @@ const PRIMARY_NAV = [
   { label: "Collections", to: "/collections" },
   { label: "Journal", to: "/journal" },
   { label: "Reviews", to: "/reviews" },
+  { label: "AI Connectors", to: "/ai-connectors" },
   { label: "Policies", to: "/legal" },
   { label: "Contact", to: "/contact" },
 ] as const;
+
 
 /** Service facts only. Nothing here is a promise the store has not made. */
 const SERVICE_STRIP = [
