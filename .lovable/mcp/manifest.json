@@ -8,14 +8,14 @@
   "mcp": {
     "server": {
       "name": "nur-goods",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "title": "NUR GOODS"
     },
     "tools": [
       {
         "name": "search_products",
         "title": "Search NUR GOODS products",
-        "description": "Search active NUR GOODS products by keyword, product type or tag. Returns titles, pricing where synced, and canonical store links.",
+        "description": "Search the published NUR GOODS catalogue by keyword, category, product type or tag. Returns titles, short summaries, images, current customer facing GBP prices, availability and product page links. Read only.",
         "annotations": {
           "readOnlyHint": true,
           "idempotentHint": true,
@@ -29,6 +29,11 @@
               "minLength": 2,
               "maxLength": 120,
               "description": "Free text search term."
+            },
+            "category": {
+              "type": "string",
+              "maxLength": 80,
+              "description": "Category slug or name filter."
             },
             "product_type": {
               "type": "string",
@@ -58,7 +63,7 @@
       {
         "name": "get_product",
         "title": "Get a NUR GOODS product",
-        "description": "Retrieve one active NUR GOODS product by handle, including published benefits, use cases, specifications, delivery notes and questions.",
+        "description": "Retrieve one published NUR GOODS product by handle. Returns the shopper facing description, images, categories, availability, the active variants with their options and current GBP prices, and the product page link. Read only.",
         "annotations": {
           "readOnlyHint": true,
           "idempotentHint": true,
@@ -71,7 +76,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 120,
-              "description": "Product handle."
+              "description": "Product handle, as returned by search_products."
             }
           },
           "required": [

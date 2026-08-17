@@ -18,9 +18,10 @@ import getAnswers from "./tools/get-answers";
 export default defineMcp({
   name: "nur-goods",
   title: "NUR GOODS",
-  version: "1.0.0",
+  version: "1.1.0",
   instructions:
-    "Read only access to public NUR GOODS knowledge: active store products, categories, published Journal articles, approved answers and published store policies. Checkout, orders, accounts and stock changes are not available here, so send shoppers to the canonical store links returned by these tools. Never state a policy, price or availability that these tools have not returned.",
+    "Read only shopping connector for the NUR GOODS store (nurgoods.com). Use search_products to find items by keyword, category, product type or tag, and get_product for full details of one product including its images, categories, availability, active variants and current customer facing GBP prices. Prices are in pounds sterling and reflect the live published catalogue. search_categories lists the store categories, search_articles and get_article cover the NUR GOODS Journal, get_policy and get_store_information cover published policies and contact routes, and get_answers returns approved question and answer pairs. Unpublished, draft and unavailable products are never returned. This connector cannot add to a basket, create a checkout, place an order or change anything: always send the shopper to the product_url so they can buy through the normal NUR GOODS checkout. Never state a price, availability or policy that these tools have not returned.",
+
   // The SDK's tool type does not model exactOptionalPropertyTypes, so the list is
   // asserted to the definition's own tools type.
   tools: [

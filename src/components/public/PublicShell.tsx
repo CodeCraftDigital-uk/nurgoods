@@ -15,9 +15,11 @@ const PRIMARY_NAV = [
   { label: "Collections", to: "/collections" },
   { label: "Journal", to: "/journal" },
   { label: "Reviews", to: "/reviews" },
+  { label: "AI Connectors", to: "/ai-connectors" },
   { label: "Policies", to: "/legal" },
   { label: "Contact", to: "/contact" },
 ] as const;
+
 
 /** Service facts only. Nothing here is a promise the store has not made. */
 const SERVICE_STRIP = [
@@ -256,7 +258,16 @@ export function PublicShell({ children }: { children: ReactNode }) {
                 </Link>
               </li>
               <li>
+                <Link
+                  to="/ai-connectors"
+                  className="inline-flex min-h-8 items-center text-muted-foreground hover:text-brand"
+                >
+                  AI Connectors
+                </Link>
+              </li>
+              <li>
                 <a
+
                   href={BRAND.storeUrl}
                   className="inline-flex min-h-8 items-center text-muted-foreground hover:text-brand"
                 >
