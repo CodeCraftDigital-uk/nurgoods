@@ -3055,6 +3055,13 @@ export type Database = {
           product_id: string
         }[]
       }
+      public_suppressed_products: {
+        Args: never
+        Returns: {
+          canonical_handle: string
+          product_id: string
+        }[]
+      }
       set_integration_secret: {
         Args: { _name: string; _secret: string }
         Returns: undefined
