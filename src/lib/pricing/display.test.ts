@@ -106,12 +106,26 @@ describe("variant selection", () => {
     expect(display.compareAt).toBeNull();
   });
 
-  it("shows the variant saving when the variant is genuinely reduced", () => {
+  it("shows a variant supplier reference price as RRP", () => {
     const display = variantPriceDisplay({ price: 35, compare_at_price: 70, currency: "GBP" });
     expect(display.primary).toBe("£35.00");
     expect(display.compareAt).toBe("£70.00");
+    expect(display.compareAtLabel).toBe("RRP");
+    expect(display.savingPercent).toBeNull();
+  });
+
+  it("shows the variant saving when we have genuinely reduced our price", () => {
+    const display = variantPriceDisplay({
+      price: 35,
+      compare_at_price: 90,
+      previous_price: 70,
+      currency: "GBP",
+    });
+    expect(display.compareAt).toBe("£70.00");
+    expect(display.compareAtLabel).toBe("Was");
     expect(display.savingPercent).toBe(50);
   });
+
 
   it("falls back to the range when the variant has no price", () => {
     expect(resolvePriceDisplay(product, { price: null }).primary).toBe("£32.99 to £122.99");
