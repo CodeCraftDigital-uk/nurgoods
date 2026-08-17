@@ -266,8 +266,10 @@ export function screenCandidate(input: ScreenInput): ScreenResult {
 
   const failed = reasons.some((reason) => reason.outcome === "fail");
   const threshold = rules.min_suitability_score ?? 60;
-  const outcome: ScreenOutcome = failed
-    ? "held"
+  const outcome: ScreenOutcome = prohibited.prohibited
+    ? "rejected"
+    : failed
+      ? "held"
     : score >= threshold
       ? "recommended"
       : "eligible";
