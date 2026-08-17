@@ -83,10 +83,12 @@ export function ProductCard({
               {display.primary}
             </span>
             {display.compareAt ? (
-              <span className="text-xs text-muted-foreground line-through">
-                {display.compareAt}
+              <span className="text-xs text-muted-foreground">
+                {display.compareAtLabel}{" "}
+                <span className="line-through">{display.compareAt}</span>
               </span>
             ) : null}
+
           </p>
         ) : null}
 
