@@ -62,7 +62,9 @@ export const revalidateBasketFn = createServerFn({ method: "POST" })
 
 /**
  * Creates ONE store cart containing every basket line and returns the checkout
- * link the store issued. No checkout URL is assembled here.
+ * link the store issued. No checkout URL is assembled here. Lines the store
+ * cannot sell right now are dropped individually and reported back, so one
+ * stale line never blocks the rest of the basket.
  */
 export const createBasketCheckoutFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => linesSchema.parse(data))
@@ -70,42 +72,67 @@ export const createBasketCheckoutFn = createServerFn({ method: "POST" })
     async ({
       data,
     }): Promise<{ checkoutUrl: string; totalQuantity: number; unavailable: string[] }> => {
-      const { createStorefrontCartLines, toVariantGid, CHECKOUT_HOST_CONFLICT } = await import(
-        "@/lib/services/shopify-storefront.server"
-      );
+      const {
+        createStorefrontCartLines,
+        checkVariantPurchasability,
+        CHECKOUT_HOST_CONFLICT,
+      } = await import("@/lib/services/shopify-storefront.server");
+      const { buildCartLines, variantNumericId } = await import("./checkout-lines");
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-      const requested = new Map<string, number>();
-      for (const line of data.lines) {
-        const gid = toVariantGid(line.variantId);
-        requested.set(gid, (requested.get(gid) ?? 0) + line.quantity);
+      const built = buildCartLines(data.lines);
+      const unavailable = new Set<string>(built.invalid);
+      let lines = built.lines;
+
+      // The store itself is the authority on what can be bought. The mirror is
+      // only used as a fallback when the live check cannot be made.
+      try {
+        const { purchasable } = await checkVariantPurchasability(
+          lines.map((line) => line.merchandiseId),
+        );
+        for (const line of lines) {
+          if (!purchasable.has(line.merchandiseId)) {
+            unavailable.add(variantNumericId(line.merchandiseId));
+          }
+        }
+        lines = lines.filter((line) => purchasable.has(line.merchandiseId));
+      } catch {
+        const { data: rows } = await supabaseAdmin
+          .from("shopify_product_variants")
+          .select("shopify_variant_id, available_for_sale")
+          .in(
+            "shopify_variant_id",
+            lines.map((line) => line.merchandiseId),
+          );
+        const sellable = new Set(
+          (rows ?? [])
+            .filter((row: any) => row.available_for_sale !== false)
+            .map((row: any) => row.shopify_variant_id as string),
+        );
+        for (const line of lines) {
+          if (!sellable.has(line.merchandiseId)) {
+            unavailable.add(variantNumericId(line.merchandiseId));
+          }
+        }
+        lines = lines.filter((line) => sellable.has(line.merchandiseId));
       }
-
-      const { data: rows } = await supabaseAdmin
-        .from("shopify_product_variants")
-        .select("shopify_variant_id, available_for_sale")
-        .in("shopify_variant_id", [...requested.keys()]);
-
-      const sellable = new Set(
-        (rows ?? [])
-          .filter((row: any) => row.available_for_sale !== false)
-          .map((row: any) => row.shopify_variant_id as string),
-      );
-      const unavailable = [...requested.keys()].filter((gid) => !sellable.has(gid));
-      const lines = [...requested.entries()]
-        .filter(([gid]) => sellable.has(gid))
-        .map(([gid, quantity]) => ({ variantId: gid, quantity: Math.min(quantity, 10) }));
 
       if (lines.length === 0) {
         throw new Error("Nothing in the basket can be ordered right now");
       }
 
       try {
-        const cart = await createStorefrontCartLines({ lines });
+        const cart = await createStorefrontCartLines({
+          lines: lines.map((line) => ({
+            variantId: line.merchandiseId,
+            quantity: line.quantity,
+          })),
+        });
+        for (const id of cart.rejected) unavailable.add(id);
         return {
           checkoutUrl: cart.checkoutUrl,
           totalQuantity: cart.totalQuantity,
-          unavailable: unavailable.map((gid) => gid.split("/").pop() ?? gid),
+          unavailable: [...unavailable],
         };
       } catch (error) {
         const raw = error instanceof Error ? error.message : "Checkout could not be started";
@@ -118,7 +145,7 @@ export const createBasketCheckoutFn = createServerFn({ method: "POST" })
             message: conflict
               ? "The store issues checkout links on the host serving this site, so the basket cannot open checkout."
               : raw,
-            payload: { line_count: lines.length },
+            payload: { line_count: lines.length, unavailable: [...unavailable] },
           });
         } catch {
           /* diagnostics are best effort */
@@ -131,3 +158,4 @@ export const createBasketCheckoutFn = createServerFn({ method: "POST" })
       }
     },
   );
+
