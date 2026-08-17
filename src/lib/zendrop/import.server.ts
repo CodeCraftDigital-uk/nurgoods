@@ -800,7 +800,12 @@ export async function reconcileImportedCandidates(): Promise<ReconcileResult> {
     await logEvent(raw.id, raw.zendrop_product_id, "detected_in_store", "live", "live", "Live on the storefront");
   }
 
-  return matched;
+  return {
+    matched,
+    intakeEnqueued: intakeHandoff.enqueued,
+    intakeFailed: intakeHandoff.failed,
+    intakeMessage: intakeHandoff.message,
+  };
 }
 
 /* ----------------------------- one product test ---------------------------- */
