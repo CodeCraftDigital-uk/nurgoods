@@ -981,6 +981,14 @@ export async function runSourcingScreen(input: {
         continue;
       }
 
+      // Duplicate control is a local database read, so it also runs before any
+      // supplier call.
+      const duplicateReason = rules.duplicate_precheck ? await duplicatePrecheck(raw) : null;
+      if (duplicateReason) {
+        funnel.duplicateExcluded += 1;
+        continue;
+      }
+
       // Catalogue listings do not carry a destination shipping cost. Quote it
       // from the supplier for the market in use, only for products that have
       // already survived the cheap screen, so landed cost is evidenced rather
@@ -1002,11 +1010,6 @@ export async function runSourcingScreen(input: {
         }
       }
 
-      const duplicateReason = rules.duplicate_precheck ? await duplicatePrecheck(item) : null;
-      if (duplicateReason) {
-        funnel.duplicateExcluded += 1;
-        continue;
-      }
 
 
       const screen = screenCandidate({
