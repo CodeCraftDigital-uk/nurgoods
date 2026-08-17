@@ -90,9 +90,60 @@ export function rateLimitSnapshot(): RateLimitSnapshot {
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+/**
+ * Shared cooldown. A rate limit is an account wide signal, so once the
+ * supplier pushes back every subsequent call waits, not just the one that was
+ * refused. Retries pass back through the limiter, so a retry can never jump
+ * the queue.
+ */
+let cooldownUntil = 0;
+
+const throttleStats = {
+  rateLimitRetries: 0,
+  cooldownMs: 0,
+  serverRetries: 0,
+};
+
+export type ThrottleStats = typeof throttleStats;
+
+export function readThrottleStats(): ThrottleStats {
+  return { ...throttleStats };
+}
+
+export function resetThrottleStats(): void {
+  throttleStats.rateLimitRetries = 0;
+  throttleStats.cooldownMs = 0;
+  throttleStats.serverRetries = 0;
+}
+
+function enterCooldown(retryAfterSeconds: number | null, attempt: number): number {
+  const backoff = Math.min(MAX_COOLDOWN_MS, MIN_COOLDOWN_MS * 2 ** Math.max(0, attempt - 1));
+  const jitter = Math.floor(Math.random() * 1_500);
+  const fromHeader =
+    retryAfterSeconds !== null && Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0
+      ? retryAfterSeconds * 1000
+      : 0;
+  const wait = Math.min(MAX_COOLDOWN_MS, Math.max(MIN_COOLDOWN_MS, fromHeader, backoff) + jitter);
+  cooldownUntil = Math.max(cooldownUntil, Date.now() + wait);
+  throttleStats.rateLimitRetries += 1;
+  throttleStats.cooldownMs += wait;
+  return wait;
+}
+
+async function waitForCooldown(): Promise<void> {
+  // Loop rather than sleep once, because another in flight call may extend the
+  // cooldown while this one is waiting.
+  for (let guard = 0; guard < 40; guard += 1) {
+    const remaining = cooldownUntil - Date.now();
+    if (remaining <= 0) return;
+    await sleep(Math.min(remaining, 5_000));
+  }
+}
+
 async function reserve(kind: "read" | "write"): Promise<void> {
   const limit = kind === "read" ? READ_LIMIT : WRITE_LIMIT;
-  for (let attempt = 0; attempt < 60; attempt += 1) {
+  for (let attempt = 0; attempt < 120; attempt += 1) {
+    await waitForCooldown();
     prune(kind);
     if (buckets[kind].stamps.length < limit) {
       buckets[kind].stamps.push(Date.now());
@@ -103,6 +154,7 @@ async function reserve(kind: "read" | "write"): Promise<void> {
   }
   throw new Error("The supplier rate limit is saturated. Try again shortly.");
 }
+
 
 /* --------------------------------- errors --------------------------------- */
 
