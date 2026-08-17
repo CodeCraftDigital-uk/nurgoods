@@ -664,7 +664,7 @@ const PRODUCT_FIELDS = /* GraphQL */ `
     variantsCount {
       count
     }
-    variants(first: 50) {
+    variants(first: 100) {
       nodes {
         id
         title
