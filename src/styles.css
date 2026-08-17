@@ -144,8 +144,14 @@
 }
 
 /* ---------------------------------------------------------------
- * NUR GOODS marketplace design system: bright white canvas, brand
- * blue for structure and action, warm gold as a premium accent.
+ * NUR GOODS identity design system.
+ *
+ * Colour is taken from the master logo artwork: deep NUR navy
+ * (#001E31), warm metallic NUR gold (#C99A2E), warm ivory for large
+ * light surfaces and pure white for clean product surfaces. Navy,
+ * ivory and white carry roughly 80% of the interface; gold is a
+ * restrained accent only, never a background wash. Pure black is not
+ * used as a storefront surface.
  * ------------------------------------------------------------- */
 @theme inline {
   --color-gold: var(--gold);
@@ -156,94 +162,105 @@
   --color-brand: var(--brand);
   --color-brand-soft: var(--brand-soft);
   --color-brand-foreground: var(--brand-foreground);
+  --color-ivory: var(--ivory);
   --color-surface: var(--surface);
   --color-surface-muted: var(--surface-muted);
   --color-success: var(--success);
   --color-warning: var(--warning);
   --font-display: var(--font-display);
+  --font-serif: var(--font-serif);
   --font-sans: var(--font-body);
-  --shadow-card: 0 1px 2px oklch(0.28 0.07 262 / 0.06), 0 10px 30px -18px oklch(0.28 0.07 262 / 0.35);
-  --shadow-lift: 0 2px 6px oklch(0.28 0.07 262 / 0.08), 0 24px 48px -24px oklch(0.28 0.07 262 / 0.45);
-  --shadow-glass: inset 0 1px 0 oklch(1 0 0 / 0.65), 0 18px 40px -26px oklch(0.28 0.07 262 / 0.5);
+  --shadow-card: 0 1px 2px oklch(0.224 0.052 240 / 0.06), 0 10px 30px -18px oklch(0.224 0.052 240 / 0.3);
+  --shadow-lift: 0 2px 6px oklch(0.224 0.052 240 / 0.08), 0 24px 48px -24px oklch(0.224 0.052 240 / 0.4);
+  --shadow-glass: inset 0 1px 0 oklch(1 0 0 / 0.7), 0 18px 40px -26px oklch(0.224 0.052 240 / 0.45);
 }
 
 :root {
   --radius: 0.875rem;
   --font-display: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
   --font-body: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  /* Editorial serif reserved for brand moments and major headings only. */
+  --font-serif: "Cormorant Garamond", "Iowan Old Style", Georgia, serif;
 
-  --background: oklch(0.995 0.002 250);
-  --foreground: oklch(0.21 0.035 262);
+  /* Identity primitives */
+  --navy: oklch(0.224 0.052 240.3);
+  --navy-foreground: oklch(0.98 0.007 81);
+  --gold: oklch(0.712 0.131 83.7);
+  --gold-soft: oklch(0.955 0.028 85);
+  --gold-foreground: oklch(0.224 0.052 240.3);
+  --ivory: oklch(0.98 0.007 80.7);
+
+  --background: oklch(0.98 0.007 80.7);
+  --foreground: oklch(0.224 0.052 240.3);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.21 0.035 262);
+  --card-foreground: oklch(0.224 0.052 240.3);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.21 0.035 262);
+  --popover-foreground: oklch(0.224 0.052 240.3);
 
   --surface: oklch(1 0 0);
-  --surface-muted: oklch(0.972 0.006 250);
+  --surface-muted: oklch(0.962 0.008 81);
 
-  --navy: oklch(0.26 0.062 264);
-  --navy-foreground: oklch(0.98 0.004 250);
-  --brand: oklch(0.52 0.155 258);
-  --brand-soft: oklch(0.95 0.025 255);
-  --brand-foreground: oklch(0.99 0.003 250);
-  --gold: oklch(0.79 0.128 82);
-  --gold-soft: oklch(0.96 0.035 85);
-  --gold-foreground: oklch(0.26 0.05 264);
+  --brand: oklch(0.281 0.056 241.5);
+  --brand-soft: oklch(0.947 0.012 240);
+  --brand-foreground: oklch(0.99 0.005 81);
 
-  --primary: oklch(0.52 0.155 258);
-  --primary-foreground: oklch(0.99 0.003 250);
-  --secondary: oklch(0.96 0.008 250);
-  --secondary-foreground: oklch(0.26 0.062 264);
-  --muted: oklch(0.965 0.006 250);
-  --muted-foreground: oklch(0.5 0.025 258);
-  --accent: oklch(0.95 0.025 255);
-  --accent-foreground: oklch(0.3 0.08 260);
-  --destructive: oklch(0.55 0.2 27);
-  --destructive-foreground: oklch(0.99 0.003 250);
-  --success: oklch(0.56 0.11 155);
-  --warning: oklch(0.72 0.13 70);
-  --border: oklch(0.915 0.008 252);
-  --input: oklch(0.9 0.01 252);
-  --ring: oklch(0.52 0.155 258);
+  --primary: oklch(0.224 0.052 240.3);
+  --primary-foreground: oklch(0.98 0.007 81);
+  --secondary: oklch(0.955 0.009 81);
+  --secondary-foreground: oklch(0.224 0.052 240.3);
+  --muted: oklch(0.958 0.008 81);
+  --muted-foreground: oklch(0.472 0.028 241);
+  --accent: oklch(0.947 0.012 240);
+  --accent-foreground: oklch(0.281 0.056 241.5);
+  --destructive: oklch(0.53 0.19 27);
+  --destructive-foreground: oklch(0.99 0.003 81);
+  --success: oklch(0.52 0.1 158);
+  --warning: oklch(0.68 0.12 72);
+  --border: oklch(0.908 0.01 82);
+  --input: oklch(0.885 0.012 82);
+  --ring: oklch(0.712 0.131 83.7);
 
-  --sidebar: oklch(0.24 0.055 264);
-  --sidebar-foreground: oklch(0.93 0.01 250);
-  --sidebar-primary: oklch(0.79 0.128 82);
-  --sidebar-primary-foreground: oklch(0.22 0.05 264);
-  --sidebar-accent: oklch(0.3 0.055 264);
-  --sidebar-accent-foreground: oklch(0.98 0.004 250);
+  --sidebar: oklch(0.224 0.052 240.3);
+  --sidebar-foreground: oklch(0.93 0.008 81);
+  --sidebar-primary: oklch(0.712 0.131 83.7);
+  --sidebar-primary-foreground: oklch(0.224 0.052 240.3);
+  --sidebar-accent: oklch(0.281 0.056 241.5);
+  --sidebar-accent-foreground: oklch(0.98 0.007 81);
   --sidebar-border: oklch(1 0 0 / 12%);
-  --sidebar-ring: oklch(0.79 0.128 82);
+  --sidebar-ring: oklch(0.712 0.131 83.7);
 }
 
 .dark {
-  --background: oklch(0.17 0.035 262);
-  --foreground: oklch(0.97 0.005 250);
-  --card: oklch(0.22 0.045 262);
-  --card-foreground: oklch(0.97 0.005 250);
-  --popover: oklch(0.22 0.045 262);
-  --popover-foreground: oklch(0.97 0.005 250);
-  --surface: oklch(0.22 0.045 262);
-  --surface-muted: oklch(0.25 0.045 262);
-  --brand: oklch(0.68 0.14 256);
-  --brand-soft: oklch(0.3 0.06 260);
-  --brand-foreground: oklch(0.17 0.035 262);
-  --gold-soft: oklch(0.32 0.05 82);
-  --primary: oklch(0.68 0.14 256);
-  --primary-foreground: oklch(0.16 0.035 262);
-  --secondary: oklch(0.27 0.045 262);
-  --secondary-foreground: oklch(0.97 0.005 250);
-  --muted: oklch(0.27 0.045 262);
-  --muted-foreground: oklch(0.74 0.02 250);
-  --accent: oklch(0.3 0.05 262);
-  --accent-foreground: oklch(0.97 0.005 250);
-  --border: oklch(1 0 0 / 12%);
-  --input: oklch(1 0 0 / 16%);
-  --ring: oklch(0.68 0.14 256);
-  --sidebar: oklch(0.15 0.035 264);
-  --sidebar-foreground: oklch(0.93 0.01 250);
-  --sidebar-accent: oklch(0.24 0.05 264);
+  --background: oklch(0.19 0.048 240.5);
+  --foreground: oklch(0.97 0.006 81);
+  --card: oklch(0.245 0.05 241);
+  --card-foreground: oklch(0.97 0.006 81);
+  --popover: oklch(0.245 0.05 241);
+  --popover-foreground: oklch(0.97 0.006 81);
+  --surface: oklch(0.245 0.05 241);
+  --surface-muted: oklch(0.28 0.05 241);
+  --navy: oklch(0.19 0.048 240.5);
+  --navy-foreground: oklch(0.97 0.006 81);
+  --brand: oklch(0.72 0.055 240);
+  --brand-soft: oklch(0.3 0.05 241);
+  --brand-foreground: oklch(0.19 0.048 240.5);
+  --gold: oklch(0.785 0.116 87);
+  --gold-soft: oklch(0.32 0.05 84);
+  --gold-foreground: oklch(0.19 0.048 240.5);
+  --primary: oklch(0.785 0.116 87);
+  --primary-foreground: oklch(0.19 0.048 240.5);
+  --secondary: oklch(0.29 0.05 241);
+  --secondary-foreground: oklch(0.97 0.006 81);
+  --muted: oklch(0.29 0.05 241);
+  --muted-foreground: oklch(0.76 0.018 82);
+  --accent: oklch(0.31 0.05 241);
+  --accent-foreground: oklch(0.97 0.006 81);
+  --border: oklch(1 0 0 / 14%);
+  --input: oklch(1 0 0 / 18%);
+  --ring: oklch(0.785 0.116 87);
+  --sidebar: oklch(0.165 0.045 240.5);
+  --sidebar-foreground: oklch(0.93 0.008 81);
+  --sidebar-accent: oklch(0.26 0.05 241);
   --sidebar-border: oklch(1 0 0 / 10%);
 }
 
@@ -257,6 +274,26 @@
     letter-spacing: -0.02em;
     font-weight: 700;
   }
+}
+
+/*
+ * Brand voice type. Editorial serif used for hero and section headline
+ * moments that sit next to the logo. Never applied to body copy, prices,
+ * controls or any transactional text.
+ */
+@utility font-brand {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  letter-spacing: 0.005em;
+}
+
+/* Small gold rule used as a restrained brand divider under headings. */
+@utility brand-rule {
+  display: block;
+  width: 2.5rem;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--gold);
 }
 
 /* Restrained glass surfaces: translucent white, fine cool border, soft lift. */
