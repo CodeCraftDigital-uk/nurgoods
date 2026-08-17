@@ -772,7 +772,7 @@ export async function reconcileImportedCandidates(): Promise<ReconcileResult> {
 
   // Every freshly linked product enters intake immediately rather than waiting
   // for the low frequency delta fallback.
-  const intake = await enqueueDetectedIntoIntake();
+  const intakeHandoff = await enqueueDetectedIntoIntake();
 
   // Anything the intake pipeline has published becomes live.
 
