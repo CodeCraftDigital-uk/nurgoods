@@ -5,6 +5,9 @@ type ToasterProps = React.ComponentProps<typeof Sonner>;
 const Toaster = ({ ...props }: ToasterProps) => {
   return (
     <Sonner
+      // Top placement keeps confirmations clear of the sticky mobile buy bar
+      // and the basket checkout button, which sit at the bottom of the screen.
+      position="top-center"
       className="toaster group"
       toastOptions={{
         classNames: {
