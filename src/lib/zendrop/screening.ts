@@ -7,6 +7,7 @@
  * see exactly why a product was recommended, held or rejected.
  */
 import { computePricing } from "./pricing";
+import { screenProhibited } from "@/lib/policy/prohibited";
 import type { CatalogueItem, PricingSettings, SourcingRules } from "./types";
 
 export type ScreenOutcome = "recommended" | "eligible" | "held" | "rejected";
