@@ -13,7 +13,7 @@
  */
 import { publicClient } from "./queries.server";
 import type { StorefrontProductCard } from "./storefront.server";
-import { isProhibitedProduct, type ProhibitedFields } from "@/lib/policy/prohibited";
+import { isProhibitedRow } from "@/lib/policy/prohibited";
 
 export type CatalogueSort =
   | "relevance"
@@ -163,7 +163,7 @@ async function buildIndex(): Promise<CatalogueIndex> {
     if (value) suppressed.add(value as string);
   }
   const products = ((productRows ?? []) as any[]).filter(
-    (row) => !suppressed.has(row.id) && !isProhibitedProduct(row as ProhibitedFields),
+    (row) => !suppressed.has(row.id) && !isProhibitedRow(row as any),
   );
 
 

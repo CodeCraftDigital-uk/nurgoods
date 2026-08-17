@@ -192,3 +192,31 @@ export function screenProhibited(fields: ProhibitedFields): ProhibitedMatch {
 export function isProhibitedProduct(fields: ProhibitedFields): boolean {
   return screenProhibited(fields).prohibited;
 }
+
+/**
+ * Convenience wrapper for a mirrored store product row, which uses the
+ * snake_case field names of the catalogue mirror.
+ */
+export function screenProhibitedRow(row: {
+  title?: string | null;
+  handle?: string | null;
+  description?: string | null;
+  description_html?: string | null;
+  product_type?: string | null;
+  vendor?: string | null;
+  tags?: string[] | string | null;
+}): ProhibitedMatch {
+  return screenProhibited({
+    title: row.title ?? null,
+    handle: row.handle ?? null,
+    description: row.description ?? null,
+    descriptionHtml: row.description_html ?? null,
+    productType: row.product_type ?? null,
+    vendor: row.vendor ?? null,
+    tags: row.tags ?? null,
+  });
+}
+
+export function isProhibitedRow(row: Parameters<typeof screenProhibitedRow>[0]): boolean {
+  return screenProhibitedRow(row).prohibited;
+}

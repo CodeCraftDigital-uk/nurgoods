@@ -8,7 +8,7 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { canonical, PAGE_LIMITS, type PublicPage } from "./contract";
-import { isProhibitedProduct } from "@/lib/policy/prohibited";
+import { isProhibitedRow } from "@/lib/policy/prohibited";
 
 type AnyClient = SupabaseClient<any, any, any>;
 
@@ -208,7 +208,7 @@ export async function getProduct(handle: string): Promise<PublicProductDetail | 
 
   // Prohibited category products are never resolvable from a public route,
   // even if a stale mirror row still exists.
-  if (isProhibitedProduct(data as any)) return null;
+  if (isProhibitedRow(data as any)) return null;
 
   // A suppressed duplicate resolves to the listing customers actually see, so
   // assistants and public API callers only ever receive the canonical record.
