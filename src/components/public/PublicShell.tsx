@@ -109,9 +109,9 @@ export function PublicShell({ children }: { children: ReactNode }) {
             className="flex min-w-0 items-center rounded-lg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
             aria-label={`${BRAND.name} home`}
           >
-            {/* Compact square master below sm, horizontal master from sm up. */}
+            {/* Horizontal master at both sizes, smaller below sm. */}
             <span className="sm:hidden">
-              <BrandWordmark treatment="compact" height={34} />
+              <BrandWordmark treatment="compact" height={26} />
             </span>
             <span className="hidden sm:inline-flex">
               <BrandWordmark height={32} />

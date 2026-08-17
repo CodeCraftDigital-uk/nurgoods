@@ -37,14 +37,16 @@ export const BRAND_ART_IS_FALLBACK = false;
 
 export const BRAND_ART: Record<BrandTreatment, MasterPair> = {
   horizontal: { light: MASTERS.horizontalLight, dark: MASTERS.horizontalDark },
-  compact: { light: MASTERS.squareLight, dark: MASTERS.squareDark },
+  // The square master is the same artwork with heavy letterboxing, so at
+  // header scale the horizontal master stays far more legible on mobile.
+  compact: { light: MASTERS.horizontalLight, dark: MASTERS.horizontalDark },
   square: { light: MASTERS.squareLight, dark: MASTERS.squareDark },
 };
 
 /** Intrinsic aspect ratios, used to reserve space and avoid layout shift. */
 export const BRAND_ART_RATIO: Record<BrandTreatment, number> = {
   horizontal: 2.5,
-  compact: 1,
+  compact: 2.5,
   square: 1,
 };
 
