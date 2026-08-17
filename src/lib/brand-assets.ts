@@ -1,25 +1,21 @@
 /**
  * Central registry for the NUR GOODS logo artwork.
  *
- * ASSET STATUS: TEMPORARY FALLBACK.
- * The four owner approved master PNGs (square light, square dark, wordmark
- * light, wordmark dark) have not yet been delivered into this repository. The
- * files referenced below are the earlier artwork and are in place only so that
- * every surface keeps rendering. They must not be treated as final brand
- * masters, and they must never be redrawn or approximated. When the approved
- * masters arrive, drop them in and repoint the four imports below. Nothing
- * else needs to change, because every surface resolves through this module.
+ * ASSET STATUS: APPROVED MASTERS IN PLACE.
+ * The four owner supplied master PNGs (square light, square dark, wordmark
+ * light, wordmark dark) are stored unaltered and referenced below. They must
+ * never be redrawn, recoloured or approximated. Every surface resolves its
+ * logo through this module so a future master swap lands everywhere at once.
  *
- * Every surface resolves its logo through this module so that when a master
- * variant is replaced the change lands everywhere at once. Two complete sets
- * exist: the light-surface set (navy NUR, gold star and GOODS) and the
- * dark-surface set (white NUR, gold star and GOODS). The correct master file is
- * always served directly. CSS filters are never used to fake one from another.
+ * Two complete sets exist: the light-surface set (navy NUR, gold star and
+ * GOODS) and the dark-surface set (outlined NUR, gold star and GOODS). The
+ * correct master file is always served directly. CSS filters are never used to
+ * fake one from another.
  */
-import squareLight from "@/assets/square-light.png.asset.json";
-import squareDark from "@/assets/square-dark.png.asset.json";
-import wordmarkLight from "@/assets/wordmark-light.png.asset.json";
-import wordmarkDark from "@/assets/wordmark-dark.png.asset.json";
+import squareLight from "@/assets/square-light-master.png.asset.json";
+import squareDark from "@/assets/square-dark-master.png.asset.json";
+import wordmarkLight from "@/assets/wordmark-light-master.png.asset.json";
+import wordmarkDark from "@/assets/wordmark-dark-master.png.asset.json";
 
 export type BrandSurface = "auto" | "light" | "dark";
 
@@ -33,8 +29,8 @@ export type BrandTreatment = "horizontal" | "compact" | "square";
 
 type MasterPair = { light: string; dark: string };
 
-/** True until the owner approved master PNGs replace the fallback artwork. */
-export const BRAND_ART_IS_FALLBACK = true;
+/** Approved masters are now in place. */
+export const BRAND_ART_IS_FALLBACK = false;
 
 export const BRAND_ART: Record<BrandTreatment, MasterPair> = {
   horizontal: { light: wordmarkLight.url, dark: wordmarkDark.url },
@@ -44,10 +40,11 @@ export const BRAND_ART: Record<BrandTreatment, MasterPair> = {
 
 /** Intrinsic aspect ratios, used to reserve space and avoid layout shift. */
 export const BRAND_ART_RATIO: Record<BrandTreatment, number> = {
-  horizontal: 3.6,
+  horizontal: 2.5,
   compact: 1,
   square: 1,
 };
+
 
 /** Static brand mark used for favicon, PWA and app icon placements. */
 export const BRAND_ICONS = {

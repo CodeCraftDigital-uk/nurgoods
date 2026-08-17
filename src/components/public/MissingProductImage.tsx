@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import squareLight from "@/assets/square-light.png.asset.json";
+import squareLight from "@/assets/square-light-master.png.asset.json";
 
 /**
  * Neutral treatment for a product with no synced photography. It is clearly a
