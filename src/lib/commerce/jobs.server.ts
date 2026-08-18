@@ -20,7 +20,7 @@ export interface CommerceJobResult {
 }
 
 export async function runOrderFulfilmentQueue(db: Db, limit?: number): Promise<CommerceJobResult> {
-  const summary = await processFulfilmentQueue(createLedger(db), zendropSupplierPort, { limit: limit ?? undefined });
+  const summary = await processFulfilmentQueue(createLedger(db), zendropSupplierPort, limit === undefined ? {} : { limit });
   const parts = [
     `${summary.considered} order(s) considered`,
     `${summary.linked} linked`,
@@ -36,9 +36,7 @@ export async function runOrderFulfilmentQueue(db: Db, limit?: number): Promise<C
 }
 
 export async function runOrderTrackingSync(db: Db, limit?: number): Promise<CommerceJobResult> {
-  const summary = await syncTracking(createLedger(db), zendropSupplierPort, shopifyStorePort, {
-    limit: limit ?? undefined,
-  });
+  const summary = await syncTracking(createLedger(db), zendropSupplierPort, shopifyStorePort, limit === undefined ? {} : { limit });
   const parts = [
     `${summary.considered} order(s) checked`,
     `${summary.shipped} shipped`,
