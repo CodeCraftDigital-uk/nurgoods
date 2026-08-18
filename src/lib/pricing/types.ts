@@ -11,6 +11,7 @@ export const AUDIT_STATUSES = [
   "already_correct",
   "held_missing_cost",
   "held_missing_uk_shipping",
+  "held_stale_shipping_quote",
   "held_unreliable_linkage",
   "excluded_by_policy",
 ] as const;
@@ -22,9 +23,11 @@ export const AUDIT_STATUS_LABEL: Record<AuditStatus, string> = {
   already_correct: "Already correct",
   held_missing_cost: "Held, missing cost",
   held_missing_uk_shipping: "Held, missing UK shipping",
+  held_stale_shipping_quote: "Held, shipping quote too old",
   held_unreliable_linkage: "Held, unreliable linkage",
   excluded_by_policy: "Excluded by policy",
 };
+
 
 export interface PricingAuditItem {
   id: string;

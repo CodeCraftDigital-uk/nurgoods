@@ -121,6 +121,36 @@ export const updatePricingSettings = createServerFn({ method: "POST" })
     if (typeof data.allow_incomplete_pricing === "boolean") {
       patch["allow_incomplete_pricing"] = data.allow_incomplete_pricing;
     }
+    if (typeof data.fx_buffer_pct === "number") {
+      if (data.fx_buffer_pct < 0 || data.fx_buffer_pct >= 1) {
+        throw new Error("The exchange rate buffer must sit between 0 and 99 percent");
+      }
+      patch["fx_buffer_pct"] = data.fx_buffer_pct;
+    }
+    if (data.fx_source) patch["fx_source"] = data.fx_source;
+    if (typeof data.fx_quote_max_age_hours === "number") {
+      patch["fx_quote_max_age_hours"] = Math.max(1, Math.trunc(data.fx_quote_max_age_hours));
+    }
+    if (typeof data.shipping_quote_max_age_days === "number") {
+      patch["shipping_quote_max_age_days"] = Math.max(
+        1,
+        Math.trunc(data.shipping_quote_max_age_days),
+      );
+    }
+    if (typeof data.payment_fee_variable === "number") {
+      if (data.payment_fee_variable < 0 || data.payment_fee_variable >= 1) {
+        throw new Error("The payment fee percentage must sit between 0 and 99 percent");
+      }
+      patch["payment_fee_variable"] = data.payment_fee_variable;
+    }
+    if (typeof data.payment_fee_fixed === "number") {
+      if (data.payment_fee_fixed < 0) {
+        throw new Error("The fixed payment fee cannot be negative");
+      }
+      patch["payment_fee_fixed"] = data.payment_fee_fixed;
+    }
+    if (data.free_shipping_market) patch["free_shipping_market"] = data.free_shipping_market;
+
     if (Object.keys(patch).length > 0) {
       const supabase = await zendropAdminClient();
       await supabase.from("zendrop_pricing_settings").update(patch as never).eq("id", "default");

@@ -36,6 +36,8 @@ const STATUS_TONE: Record<AuditStatus, "positive" | "warning" | "neutral" | "pen
   already_correct: "positive",
   held_missing_cost: "pending",
   held_missing_uk_shipping: "pending",
+  held_stale_shipping_quote: "pending",
+
   held_unreliable_linkage: "pending",
   excluded_by_policy: "neutral",
 };

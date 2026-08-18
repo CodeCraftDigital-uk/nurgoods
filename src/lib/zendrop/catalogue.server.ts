@@ -215,14 +215,32 @@ export async function getZendropProduct(
   }
   if (!item) return null;
 
-  if (shippingMarket && item.shippingCost === null) {
+  // A destination specific quote always wins over the generic catalogue
+  // shipping figure. Order #1001 showed that the generic value can be for a
+  // different service entirely, which silently understates the landed cost.
+  if (shippingMarket) {
     const quote = await quoteZendropShipping(item.id, shippingMarket);
-    item = {
-      ...item,
-      shippingCost: quote.cost,
-      deliveryEstimate: item.deliveryEstimate ?? quote.estimate,
-    };
+    if (quote.cost !== null) {
+      item = {
+        ...item,
+        shippingCost: quote.cost,
+        shippingService: quote.service,
+        shippingDestination: shippingMarket.toUpperCase(),
+        shippingQuotedAt: new Date().toISOString(),
+        deliveryEstimate: quote.estimate ?? item.deliveryEstimate,
+      };
+    } else {
+      // No verified destination quote means no usable landed cost basis.
+      item = {
+        ...item,
+        shippingCost: null,
+        shippingService: null,
+        shippingDestination: shippingMarket.toUpperCase(),
+        shippingQuotedAt: null,
+      };
+    }
   }
   return item;
 }
+
 

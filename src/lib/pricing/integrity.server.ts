@@ -304,10 +304,29 @@ function basisFor(
   return (
     shipping.get(shopifyProductId) ??
     shipping.get(numeric) ??
-    (mirrorId ? shipping.get(`uuid:${mirrorId}`) : undefined) ??
-    ({ cost: null, source: null, linked: false } as ShippingBasis)
+    (mirrorId ? shipping.get(`uuid:${mirrorId}`) : undefined) ?? {
+      amount: null,
+      currency: null,
+      service: null,
+      destination: null,
+      quotedAt: null,
+      source: null,
+      linked: false,
+    }
   );
 }
+
+/**
+ * This report compares live prices against the historic formula, which works
+ * entirely in the selling currency. Evidence quoted in a supplier currency is
+ * therefore treated as unavailable here rather than converted in passing.
+ */
+function shippingInSellingCurrency(basis: ShippingBasis, currency: string): number | null {
+  if (basis.amount === null) return null;
+  if (basis.currency && basis.currency !== currency) return null;
+  return basis.amount;
+}
+
 
 /** Classifies the whole active catalogue without changing anything. */
 export async function auditLivePricingIntegrity(): Promise<{
@@ -334,6 +353,7 @@ export async function auditLivePricingIntegrity(): Promise<{
   for (const product of products) {
     const mirrorId = mirrorByShopifyId.get(product.shopifyProductId) ?? null;
     const basis = basisFor(shipping, product.shopifyProductId, mirrorId);
+    const basisCost = shippingInSellingCurrency(basis, settings.currency);
     const exemption = APPROVED_PRICING_EXEMPTIONS[product.shopifyProductId] ?? null;
 
     const rows: VariantVerdict[] = product.variants.map((variant) => {
@@ -344,7 +364,7 @@ export async function auditLivePricingIntegrity(): Promise<{
         (!variant.unitCostCurrency || variant.unitCostCurrency === settings.currency);
 
       const { landedCost, rawPrice, price } = costUsable
-        ? expectedRetailPrice(variant.unitCost, basis.cost, settings)
+        ? expectedRetailPrice(variant.unitCost, basisCost, settings)
         : { landedCost: null, rawPrice: null, price: null };
 
       const charm = endsInCharm99(variant.price);
@@ -365,7 +385,7 @@ export async function auditLivePricingIntegrity(): Promise<{
         reason = charm
           ? "No supplier linkage record exists, but the live price already follows the approved rounding rule"
           : "No supplier linkage record exists, so the landed cost basis cannot be confirmed";
-      } else if (basis.cost === null) {
+      } else if (basisCost === null) {
         category = charm ? "correct" : "unverified_but_live";
         reason = charm
           ? `No confirmed ${settings.shipping_market} shipping quote, but the live price already follows the approved rounding rule`
@@ -385,7 +405,7 @@ export async function auditLivePricingIntegrity(): Promise<{
         variantTitle: variant.title,
         currentPrice: variant.price,
         unitCost: costUsable ? variant.unitCost : null,
-        shippingCost: basis.cost,
+        shippingCost: basisCost,
         shippingSource: basis.source,
         landedCost,
         rawPrice,

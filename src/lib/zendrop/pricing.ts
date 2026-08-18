@@ -16,7 +16,15 @@ export const DEFAULT_PRICING: PricingSettings = {
   shipping_market: "GB",
   currency: "GBP",
   allow_incomplete_pricing: false,
+  fx_source: "European Central Bank daily reference rates",
+  fx_buffer_pct: 0.04,
+  fx_quote_max_age_hours: 24,
+  shipping_quote_max_age_days: 30,
+  payment_fee_variable: 0.02,
+  payment_fee_fixed: 0.25,
+  free_shipping_market: "GB",
 };
+
 
 function round2(value: number): number {
   return Math.round(value * 100) / 100;
