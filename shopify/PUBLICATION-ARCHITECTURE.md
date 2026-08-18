@@ -2,68 +2,63 @@
 
 NUR GOODS at https://nurgoods.com is the only shopping and browsing storefront.
 The store behind it is the checkout, payment and order engine, reached on
-shop.nurgoods.com.
+shop.nurgoods.com. That host is infrastructure, never a place we link a shopper.
 
 ## Channels in the store
 
-| Channel                   | Intended state | Reason |
-| ------------------------- | -------------- | ------ |
-| Nur Goods Headless Store  | Published      | Issues the Storefront API cart and the checkout link |
-| Online Store              | Published for now | See the finding below. Not proven removable yet |
+| Channel                   | State | Reason |
+| ------------------------- | ----- | ------ |
+| Nur Goods Headless Store  | Published | Issues the Storefront API cart and the checkout link |
+| Online Store              | Off | Proven unnecessary for checkout. Opt in only |
 | Shop                      | Never published | A second shopping surface for our catalogue |
 | Point of Sale             | Never published | No physical retail |
 
 Enforced in `src/lib/zendrop/publication-policy.ts`, exercised by
-`publication-policy.test.ts`, and applied by
-`src/lib/zendrop/store-publication.server.ts`.
+`publication-policy.test.ts`, applied by
+`src/lib/zendrop/store-publication.server.ts`, and audited by
+`src/lib/zendrop/publication-audit.server.ts`.
 
-## Is Online Store publication actually required?
+## Headless only is proven
 
-Read from the real checkout implementation in
-`src/lib/services/shopify-storefront.server.ts`:
+A controlled product was published to the headless channel only, with Online
+Store, Shop and Point of Sale all off, and checkout still worked end to end.
+The default policy is therefore headless only.
 
-- The basket calls `cartCreate` on the Storefront API using the private token
-  issued to the headless channel, then sends the shopper to the `checkoutUrl`
-  the store returns. Nothing in our code reads an Online Store page.
-- Storefront API visibility is per channel: a variant resolves because it is
-  published to the headless channel, not the Online Store.
-- The hosted checkout that `checkoutUrl` points at is served by the checkout
-  system, not by the Online Store channel.
+The Online Store can be turned back on by setting the integration setting
+`publication_include_online_store` to `true`. Absence of the setting, or any
+error reading it, means headless only. Shop and Point of Sale have no setting
+at all and are additionally blocked by `assertNoShopChannel`.
 
-On that evidence, headless only publication should produce a working checkout,
-so the code is designed for it. It has **not** been proven against the live
-store, so the default stays as it is and nothing has been unpublished.
+## Identity, not ids
 
-Fail safe behaviour: `loadPublicationPolicy()` defaults to including the Online
-Store, and any error reading the setting also returns the safe, buyable
-configuration.
+Publication ids differ per store and per environment, so none is stored.
+`resolveHeadlessChannel` finds the headless publication by name at runtime and
+throws if it is missing or if more than one candidate exists. Every publish and
+every audit passes through that resolution, so an unidentifiable channel means
+no change rather than a guess.
 
-## Proving it before any bulk change
+## Idempotent reconciliation
 
-1. Pick one controlled, low traffic product.
-2. In the store admin, unpublish that product from Online Store and Shop,
-   leaving Nur Goods Headless Store published.
-3. On nurgoods.com, add it to the basket and confirm a checkout link is issued
-   and the checkout page loads with the correct line and price. Complete a real
-   or test purchase.
-4. If it holds, set the integration setting `publication_include_online_store`
-   to `false`. New imports will then target the headless channel only.
-5. Only after that, consider unpublishing the rest. Nothing here does that in
-   bulk.
+`planPublicationReconciliation` produces the exact publish and unpublish work
+for one product. A compliant product yields an empty plan and no store write,
+so re-running an import or a migration pass can never add Shop or Online Store
+back. Product status, price, variants and inventory are never touched.
 
-`readStorePublications(shopifyProductId)` gives a read only per product channel
-report to check state before and after, and never writes.
+## Migrating the existing catalogue
 
-## Shop channel
+The admin console at `/control/channels` shows the desired channel state, runs a
+read only dry run audit across the active catalogue, and lists drift. A live
+reconciliation needs the typed phrase `HEADLESS ONLY`, runs at most ten products
+per pass, and writes a row per product into `publication_audit_runs` and
+`publication_audit_items`. No bulk unpublishing is performed by this build.
 
-There is no setting that turns Shop publishing on. `selectPublicationTargets`
-excludes it even when an opt in flag is passed, and `assertNoShopChannel`
-throws if a Shop publication ever reaches the publish mutation. Enabling it
-would require a deliberate code change plus a test change.
+Suggested order: dry run the whole catalogue, reconcile a single low traffic
+product by id, buy it, then reconcile in batches.
 
 ## Post purchase return path
 
 The native "Continue shopping" button on the Thank you page cannot be
 repointed, hidden or overridden on a Basic plan, and the Cart API carries no
-return URL. The supported fix is a checkout UI extension, scaffolded at
-`shopify/extensions/nur-goods-return-cta/`. It is not deployed by this project.
+return URL. The supported fix is an additive checkout UI extension, scaffolded
+at `shopify/extensions/nur-goods-return-cta/`. It is not deployed by this
+project, and the admin console says so rather than implying it is live.
