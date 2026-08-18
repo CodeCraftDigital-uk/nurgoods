@@ -140,7 +140,7 @@ export interface WebhookDeliveryView {
 }
 
 export interface OrderDetail {
-  order: (OrderSummary & Record<string, unknown>) | null;
+  order: OrderFull | null;
   lines: OrderLineView[];
   events: OrderEventView[];
   deliveries: WebhookDeliveryView[];
