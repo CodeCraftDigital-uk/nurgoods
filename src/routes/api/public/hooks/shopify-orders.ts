@@ -14,9 +14,22 @@ import { createHash } from "crypto";
  * part way through stays unprocessed and returns a retryable response, so the
  * store can redeliver it safely.
  */
+/** The only order topics this ingress accepts. Anything else is refused. */
+const SUPPORTED_TOPICS = new Set(["orders/paid", "orders/updated", "orders/cancelled"]);
+
+const methodNotAllowed = () =>
+  Response.json(
+    { error: "Method not allowed. This endpoint accepts signed store order webhooks only." },
+    { status: 405, headers: { Allow: "POST" } },
+  );
+
 export const Route = createFileRoute("/api/public/hooks/shopify-orders")({
   server: {
     handlers: {
+      GET: async () => methodNotAllowed(),
+      PUT: async () => methodNotAllowed(),
+      PATCH: async () => methodNotAllowed(),
+      DELETE: async () => methodNotAllowed(),
       POST: async ({ request }) => {
         const body = await request.text();
         const signature = request.headers.get("x-shopify-hmac-sha256") ?? "";
