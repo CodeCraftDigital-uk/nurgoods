@@ -1307,7 +1307,7 @@ export const ORDER_WEBHOOK_TOPICS = ["ORDERS_PAID", "ORDERS_CANCELLED", "ORDERS_
  * Read only, so it is safe to call before the route is deployed.
  */
 export async function getOrderWebhookState(
-  callbackUrl: string = ORDER_WEBHOOK_CALLBACK_URL,
+  callbackUrl: string = orderWebhookCallbackUrl(),
 ): Promise<WebhookSubscriptionState> {
   try {
     const credentials = await intakeCredentials();
@@ -1340,7 +1340,7 @@ export async function getOrderWebhookState(
  * after deployment.
  */
 export async function registerOrderWebhooks(
-  callbackUrl: string = ORDER_WEBHOOK_CALLBACK_URL,
+  callbackUrl: string = orderWebhookCallbackUrl(),
 ): Promise<WebhookSubscriptionState> {
   let reachable = false;
   try {
