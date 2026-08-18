@@ -50,6 +50,14 @@ export const CAPABILITY_ROLES = [
   "my_products_push",
   "import_operation",
   "stores_list",
+  "orders_list",
+  "order_get",
+  "order_fulfilment_cost",
+  "order_fulfil",
+  "order_fulfilment_operation",
+  "order_tracking",
+  "order_cancel",
+  "order_issues",
 ] as const;
 
 export type CapabilityRole = (typeof CAPABILITY_ROLES)[number];
@@ -64,6 +72,14 @@ export const CAPABILITY_ROLE_LABEL: Record<CapabilityRole, string> = {
   my_products_push: "Send to the connected store",
   import_operation: "Track the supplier import",
   stores_list: "Read connected stores",
+  orders_list: "Read supplier orders",
+  order_get: "Read one supplier order",
+  order_fulfilment_cost: "Quote a fulfilment cost",
+  order_fulfil: "Fulfil a supplier order",
+  order_fulfilment_operation: "Track a fulfilment operation",
+  order_tracking: "Read tracking events",
+  order_cancel: "Cancel a supplier order",
+  order_issues: "Read order issues",
 };
 
 

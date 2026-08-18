@@ -325,6 +325,14 @@ const ROLE_PATTERNS: Record<CapabilityRole, RegExp[]> = {
   my_products_push: [/import[_-]?my[_-]?product$/i, /(publish|push).*(product)/i],
   import_operation: [/import[_-]?operation/i, /operation.*(status|get)/i],
   stores_list: [/stores?.*(list|get)/i, /(list|get).*stores?/i],
+  orders_list: [/get[_-]?orders$/i, /orders.*(list|search)/i],
+  order_get: [/get[_-]?order$/i],
+  order_fulfilment_cost: [/fulfil?l?ment[_-]?cost/i],
+  order_fulfil: [/^fulfil?l?[_-]?order$/i],
+  order_fulfilment_operation: [/fulfil?l?ment[_-]?operation/i],
+  order_tracking: [/tracking[_-]?events?/i, /get[_-]?tracking/i],
+  order_cancel: [/^cancel[_-]?order$/i],
+  order_issues: [/order[_-]?issues?/i],
 };
 
 /**
@@ -341,9 +349,22 @@ const PREFERRED_NAMES: Partial<Record<CapabilityRole, string[]>> = {
   my_products_push: ["import_my_product"],
   import_operation: ["get_my_product_import_operation"],
   stores_list: ["get_stores"],
+  orders_list: ["get_orders"],
+  order_get: ["get_order"],
+  order_fulfilment_cost: ["get_order_fulfillment_cost"],
+  order_fulfil: ["fulfill_order"],
+  order_fulfilment_operation: ["get_order_fulfillment_operation"],
+  order_tracking: ["get_tracking_events"],
+  order_cancel: ["cancel_order"],
+  order_issues: ["get_order_issues"],
 };
 
-const WRITE_ROLES: CapabilityRole[] = ["my_products_import", "my_products_push"];
+const WRITE_ROLES: CapabilityRole[] = [
+  "my_products_import",
+  "my_products_push",
+  "order_fulfil",
+  "order_cancel",
+];
 
 function classify(name: string): "read" | "write" | "unknown" {
   if (/(import|add|create|publish|update|delete|remove|set)/i.test(name)) return "write";
@@ -387,6 +408,13 @@ export function mapRoles(actions: DiscoveredAction[]): Record<CapabilityRole, Di
           (isWrite ? action.kind === "write" : action.kind !== "write"),
       ) ?? null;
     if (map[role]) taken.add(map[role]!.name);
+  }
+  // Supplier operation names do not always read as writes, so a role that
+  // genuinely changes supplier state is paced against the write budget
+  // whatever its name looks like.
+  for (const role of WRITE_ROLES) {
+    const action = map[role];
+    if (action && action.kind !== "write") map[role] = { ...action, kind: "write" };
   }
   return map;
 }
