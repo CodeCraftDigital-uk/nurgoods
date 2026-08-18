@@ -76,6 +76,12 @@ export const ADMIN_NAV: NavItem[] = [
     icon: Plug,
   },
   {
+    to: "/control/channels",
+    label: "Sales Channels",
+    description: "Headless only publication, drift audit and checkout return CTA status.",
+    icon: Radio,
+  },
+  {
     to: "/control/orders",
     label: "Orders & Fulfilment",
     description: "Live orders, supplier state, tracking and manual review.",
