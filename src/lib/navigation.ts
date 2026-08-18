@@ -8,6 +8,7 @@ import {
   PackageSearch,
 
   Plug,
+  Radio,
   Scale,
   Truck,
   Search,
@@ -74,6 +75,12 @@ export const ADMIN_NAV: NavItem[] = [
     label: "Integrations",
     description: "Shopify, Zendrop, AI, Publiko and MCP connection state.",
     icon: Plug,
+  },
+  {
+    to: "/control/channels",
+    label: "Sales Channels",
+    description: "Headless only publication, drift audit and checkout return CTA status.",
+    icon: Radio,
   },
   {
     to: "/control/orders",

@@ -2618,6 +2618,107 @@ export type Database = {
         }
         Relationships: []
       }
+      publication_audit_items: {
+        Row: {
+          changed: boolean
+          created_at: string
+          current_channels: string[]
+          desired_channels: string[]
+          drifted: boolean
+          id: string
+          message: string | null
+          product_status: string | null
+          product_title: string | null
+          run_id: string
+          shopify_product_id: string
+          to_publish: string[]
+          to_unpublish: string[]
+          updated_at: string
+        }
+        Insert: {
+          changed?: boolean
+          created_at?: string
+          current_channels?: string[]
+          desired_channels?: string[]
+          drifted?: boolean
+          id?: string
+          message?: string | null
+          product_status?: string | null
+          product_title?: string | null
+          run_id: string
+          shopify_product_id: string
+          to_publish?: string[]
+          to_unpublish?: string[]
+          updated_at?: string
+        }
+        Update: {
+          changed?: boolean
+          created_at?: string
+          current_channels?: string[]
+          desired_channels?: string[]
+          drifted?: boolean
+          id?: string
+          message?: string | null
+          product_status?: string | null
+          product_title?: string | null
+          run_id?: string
+          shopify_product_id?: string
+          to_publish?: string[]
+          to_unpublish?: string[]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "publication_audit_items_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "publication_audit_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      publication_audit_runs: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          desired_channels: string[]
+          id: string
+          mode: string
+          note: string | null
+          products_changed: number
+          products_drifted: number
+          products_inspected: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          desired_channels?: string[]
+          id?: string
+          mode?: string
+          note?: string | null
+          products_changed?: number
+          products_drifted?: number
+          products_inspected?: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          desired_channels?: string[]
+          id?: string
+          mode?: string
+          note?: string | null
+          products_changed?: number
+          products_drifted?: number
+          products_inspected?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       review_placements: {
         Row: {
           config: Json
