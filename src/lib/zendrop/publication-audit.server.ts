@@ -50,6 +50,9 @@ export interface PublicationAuditOptions {
   limit?: number | undefined;
   /** Restrict a live run to one product, used for controlled proving. */
   shopifyProductId?: string | undefined;
+  /** Restrict a run to an explicit batch of products, used by the migration. */
+  shopifyProductIds?: string[] | undefined;
+
   /** Recorded on the audit row so a run can be traced back to a person. */
   actorId?: string | null | undefined;
   policy?: PublicationPolicy | undefined;
@@ -88,9 +91,12 @@ export async function runPublicationAudit(
     .limit(limit);
   if (options.shopifyProductId) {
     query = query.eq("shopify_product_id", options.shopifyProductId);
+  } else if (options.shopifyProductIds && options.shopifyProductIds.length > 0) {
+    query = query.in("shopify_product_id", options.shopifyProductIds.slice(0, ceiling));
   } else {
     query = query.eq("status", "active");
   }
+
   const { data: products } = await query;
   const rows = (products ?? []) as Array<{
     shopify_product_id: string;
@@ -118,12 +124,30 @@ export async function runPublicationAudit(
     const productId = String(row.shopify_product_id);
     try {
       const report = await readStorePublications(productId, policy);
+      // A live run only ever touches products that are active in the store.
+      // Draft, archived or otherwise non active products are left alone.
+      if (!dryRun && report.status && report.status !== "active") {
+        items.push({
+          shopifyProductId: productId,
+          title: report.title ?? row.title,
+          status: report.status,
+          currentChannels: report.currentChannels,
+          desiredChannels: report.desiredChannels,
+          toPublish: [],
+          toUnpublish: [],
+          drifted: report.drifted,
+          changed: false,
+          message: "Skipped. The product is not active in the store",
+        });
+        continue;
+      }
       let message = report.drifted
         ? "Drifted from the desired channel state"
         : "Already on the desired channels only";
       let didChange = false;
 
       if (report.drifted) drifted += 1;
+
 
       if (!dryRun && report.drifted) {
         const result = await ensureStorePublications(productId, policy, { removeUnwanted: true });
