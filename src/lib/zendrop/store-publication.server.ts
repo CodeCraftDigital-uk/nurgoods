@@ -146,7 +146,11 @@ export async function ensureStorePublications(
   options: { removeUnwanted?: boolean; dryRun?: boolean } = {},
 ): Promise<PublicationResult> {
   const effective = policy ?? (await loadPublicationPolicy());
-  const removeUnwanted = options.removeUnwanted ?? true;
+  // Removal is destructive, so it only happens on an explicitly authorised
+  // reconciliation path. Ordinary import activation publishes the headless
+  // channel and never widens to a forbidden one, but it also never strips a
+  // channel a human may have set deliberately.
+  const removeUnwanted = options.removeUnwanted === true;
   const state = await readProductPublicationState(shopifyProductId);
 
   // Fails closed when the headless channel cannot be identified uniquely.
