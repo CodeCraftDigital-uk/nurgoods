@@ -87,7 +87,6 @@ function ChannelsPage() {
       <SectionCard
         title="Desired channel state"
         description="Resolved live from the store by channel name, never from a stored id."
-        icon={Radio}
       >
         {checklist?.problem ? (
           <EmptyState
@@ -109,7 +108,7 @@ function ChannelsPage() {
                 <TableRow key={channel.name}>
                   <TableCell className="font-medium">{channel.name}</TableCell>
                   <TableCell>
-                    <StatusPill tone={channel.desired ? "success" : "neutral"}>
+                    <StatusPill tone={channel.desired ? "positive" : "neutral"}>
                       {channel.desired ? "On" : "Off"}
                     </StatusPill>
                   </TableCell>
@@ -124,7 +123,6 @@ function ChannelsPage() {
       <SectionCard
         title="Audit and migration"
         description="The dry run only reads. A live reconciliation needs the confirmation phrase and runs in small batches."
-        icon={CheckCircle2}
       >
         <div className="space-y-4">
           <div className="grid gap-3 sm:grid-cols-2">
@@ -169,7 +167,6 @@ function ChannelsPage() {
       <SectionCard
         title="Drift"
         description="Products that are not on the headless channel only."
-        icon={AlertTriangle}
       >
         {drifted.length === 0 ? (
           <EmptyState
@@ -204,7 +201,6 @@ function ChannelsPage() {
       <SectionCard
         title="Post checkout return CTA"
         description="Branded 'Continue shopping at NUR GOODS' button on the Thank you and Order status pages."
-        icon={ShieldAlert}
       >
         <div className="space-y-2 text-sm">
           <StatusPill tone="warning">Extension deployment required</StatusPill>
