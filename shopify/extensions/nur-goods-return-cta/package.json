@@ -1,0 +1,12 @@
+{
+  "name": "nur-goods-return-cta",
+  "private": true,
+  "version": "1.0.0",
+  "license": "UNLICENSED",
+  "description": "Scaffolding for the NUR GOODS Thank you and Order status return CTA. Not deployed by this project.",
+  "dependencies": {
+    "@shopify/ui-extensions": "2025.10.x",
+    "@shopify/ui-extensions-react": "2025.10.x",
+    "react": "^18.2.0"
+  }
+}
