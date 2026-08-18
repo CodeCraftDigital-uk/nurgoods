@@ -36,6 +36,38 @@ const PUBLISH_MUTATION = `
   }
 `;
 
+/**
+ * Reads the publication policy from the store integration settings.
+ *
+ * Only the Online Store switch is configurable, and it defaults to on. The
+ * Shop channel is never configurable, so no setting can turn it on.
+ */
+export async function loadPublicationPolicy(): Promise<PublicationPolicy> {
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: integration } = await (supabaseAdmin as any)
+      .from("integrations")
+      .select("id")
+      .eq("provider", "shopify")
+      .maybeSingle();
+    if (!integration?.id) return DEFAULT_PUBLICATION_POLICY;
+    const { data } = await (supabaseAdmin as any)
+      .from("integration_settings")
+      .select("value")
+      .eq("integration_id", integration.id)
+      .eq("key", "publication_include_online_store")
+      .maybeSingle();
+    const value = (data?.value ?? "").toString().trim().toLowerCase();
+    if (value === "false" || value === "off" || value === "0") {
+      return { ...DEFAULT_PUBLICATION_POLICY, includeOnlineStore: false };
+    }
+    return DEFAULT_PUBLICATION_POLICY;
+  } catch {
+    // Any doubt about the setting means the safe, buyable configuration.
+    return DEFAULT_PUBLICATION_POLICY;
+  }
+}
+
 export interface PublicationResult {
   published: string[];
   alreadyPublished: string[];
@@ -46,8 +78,9 @@ export interface PublicationResult {
 
 export async function ensureStorePublications(
   shopifyProductId: string,
-  policy: PublicationPolicy = DEFAULT_PUBLICATION_POLICY,
+  policy?: PublicationPolicy,
 ): Promise<PublicationResult> {
+  const effective = policy ?? (await loadPublicationPolicy());
   const credentials = await intakeCredentials();
   const data: any = await shopifyGraphql(credentials, PUBLICATIONS_QUERY, { id: shopifyProductId });
   const channels: Channel[] = (data?.publications?.nodes ?? [])
@@ -60,7 +93,7 @@ export async function ensureStorePublications(
       .map((node: any) => String(node.publication?.id)),
   );
 
-  const { targets, excluded } = selectPublicationTargets(channels, policy);
+  const { targets, excluded } = selectPublicationTargets(channels, effective);
   // Belt and braces: nothing classified as the Shop channel may reach the
   // publish mutation, whatever a caller passed in as policy.
   assertNoShopChannel(targets);
