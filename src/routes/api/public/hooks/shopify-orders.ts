@@ -50,6 +50,11 @@ export const Route = createFileRoute("/api/public/hooks/shopify-orders")({
           return Response.json({ error: "Invalid signature" }, { status: 401 });
         }
 
+        // Topic is only trusted once the signature has been verified.
+        if (!SUPPORTED_TOPICS.has(topic)) {
+          return Response.json({ error: "Unsupported topic" }, { status: 422 });
+        }
+
         let payload: any = null;
         try {
           payload = JSON.parse(body);
