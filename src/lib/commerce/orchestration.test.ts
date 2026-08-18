@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { dispatchKey, linkageDecision, paymentEvidence, supplierStatusToState } from "./types";
+import {
+  PREVIEW_TTL_MS,
+  dispatchKey,
+  lineLinkageDecision,
+  linkageDecision,
+  paymentEvidence,
+  previewScope,
+  previewValidity,
+  supplierStatusToState,
+} from "./types";
 import { normaliseOrderPayload, verifyStoreSignature } from "./webhook";
 import { processFulfilmentQueue } from "./orchestrator";
 import type { LedgerPort, SupplierPort } from "./ports";
