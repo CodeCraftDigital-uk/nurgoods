@@ -313,12 +313,38 @@ function normaliseId(value: unknown): string {
   return tail.toLowerCase();
 }
 
+type IdentifierClass = "sku" | "variant" | "product";
+
+/** Identifier classes are never pooled, so a SKU can only ever match a SKU. */
+const IDENTIFIER_ORDER: IdentifierClass[] = ["sku", "variant", "product"];
+
+function storeKey(line: StoreLine, kind: IdentifierClass): string {
+  if (kind === "sku") return (line.sku ?? "").trim().toLowerCase();
+  if (kind === "variant") return normaliseId(line.shopify_variant_id);
+  return normaliseId(line.shopify_product_id);
+}
+
+function supplierKey(line: SupplierLine, kind: IdentifierClass): string {
+  if (kind === "sku") return (line.sku ?? "").trim().toLowerCase();
+  if (kind === "variant") return normaliseId(line.variantId);
+  return normaliseId(line.productId);
+}
+
+function describe(line: StoreLine): string {
+  return line.sku ?? line.shopify_line_item_id;
+}
+
 /**
  * Compares the supplier order against the store order line by line.
  *
- * Nothing is guessed. A line must resolve to exactly one supplier line on a
- * shared identifier and the quantities must agree. Anything else, including a
- * supplier line the store order does not contain, stops the order.
+ * Nothing is guessed and nothing is pooled. Each identifier is only ever
+ * compared against the same class of identifier, so a numeric product id can
+ * never coincidentally satisfy a variant id. A store line must resolve to
+ * exactly one supplier line, every identifier that resolves must agree on the
+ * same supplier line, each supplier line may be consumed once, and the
+ * supplier must state a quantity that equals the store quantity. Anything
+ * else, including a supplier line the store order does not contain, stops the
+ * order.
  */
 export function lineLinkageDecision(input: {
   storeLines: StoreLine[];
@@ -326,76 +352,55 @@ export function lineLinkageDecision(input: {
 }): { ok: boolean; state: OrchestrationState; reason: string; mappings: LineMapping[] } {
   const storeLines = input.storeLines;
   const supplierLines = input.supplierLines ?? [];
+  const stop = (reason: string) => ({ ok: false, state: "manual_review" as OrchestrationState, reason, mappings: [] });
 
-  if (storeLines.length === 0) {
-    return { ok: false, state: "manual_review", reason: "The store order has no recorded lines", mappings: [] };
-  }
+  if (storeLines.length === 0) return stop("The store order has no recorded lines");
   if (supplierLines.length === 0) {
-    return {
-      ok: false,
-      state: "manual_review",
-      reason: "The supplier order does not expose any line detail to compare",
-      mappings: [],
-    };
+    return stop("The supplier order does not expose any line detail to compare");
   }
 
   const mappings: LineMapping[] = [];
   const used = new Set<number>();
 
   for (const line of storeLines) {
-    const keys = [
-      normaliseId(line.shopify_variant_id),
-      normaliseId(line.shopify_product_id),
-      (line.sku ?? "").trim().toLowerCase(),
-    ].filter((value) => value !== "");
+    let resolved: number | null = null;
+    let resolvedBy: IdentifierClass | null = null;
 
-    const matched: number[] = [];
-    supplierLines.forEach((supplierLine, index) => {
-      const candidateKeys = [
-        normaliseId(supplierLine.variantId),
-        normaliseId(supplierLine.productId),
-        (supplierLine.sku ?? "").trim().toLowerCase(),
-      ].filter((value) => value !== "");
-      if (candidateKeys.some((value) => keys.includes(value))) matched.push(index);
-    });
-
-    if (matched.length === 0) {
-      return {
-        ok: false,
-        state: "manual_review",
-        reason: `No supplier line matches store line ${line.sku ?? line.shopify_line_item_id}`,
-        mappings: [],
-      };
-    }
-    if (matched.length > 1) {
-      return {
-        ok: false,
-        state: "manual_review",
-        reason: `More than one supplier line matches store line ${line.sku ?? line.shopify_line_item_id}`,
-        mappings: [],
-      };
+    for (const kind of IDENTIFIER_ORDER) {
+      const wanted = storeKey(line, kind);
+      if (wanted === "") continue;
+      const matched: number[] = [];
+      supplierLines.forEach((supplierLine, index) => {
+        if (supplierKey(supplierLine, kind) === wanted) matched.push(index);
+      });
+      if (matched.length === 0) continue;
+      if (matched.length > 1) {
+        return stop(`More than one supplier line matches the ${kind} on store line ${describe(line)}`);
+      }
+      const index = matched[0]!;
+      if (resolved === null) {
+        resolved = index;
+        resolvedBy = kind;
+      } else if (resolved !== index) {
+        return stop(
+          `Store line ${describe(line)} points at two different supplier lines: the ${resolvedBy} and the ${kind} disagree`,
+        );
+      }
     }
 
-    const index = matched[0]!;
-    if (used.has(index)) {
-      return {
-        ok: false,
-        state: "manual_review",
-        reason: "Two store lines resolve to the same supplier line",
-        mappings: [],
-      };
-    }
-    used.add(index);
+    if (resolved === null) return stop(`No supplier line matches store line ${describe(line)}`);
+    if (used.has(resolved)) return stop("Two store lines resolve to the same supplier line");
+    used.add(resolved);
 
-    const supplierLine = supplierLines[index]!;
+    const supplierLine = supplierLines[resolved]!;
     const supplierQuantity = supplierLine.quantity;
-    if (typeof supplierQuantity === "number" && supplierQuantity !== line.quantity) {
-      return {
-        ok: false,
-        state: "manual_review",
-        reason: `Quantity disagrees on ${line.sku ?? line.shopify_line_item_id}: the store says ${line.quantity} and the supplier says ${supplierQuantity}`,
-        mappings: [],
-      };
+    if (typeof supplierQuantity !== "number" || !Number.isFinite(supplierQuantity)) {
+      return stop(`The supplier does not state a quantity for ${describe(line)}, so it cannot be verified`);
+    }
+    if (supplierQuantity !== line.quantity) {
+      return stop(
+        `Quantity disagrees on ${describe(line)}: the store says ${line.quantity} and the supplier says ${supplierQuantity}`,
+      );
     }
 
     mappings.push({
@@ -407,14 +412,10 @@ export function lineLinkageDecision(input: {
   }
 
   if (used.size !== supplierLines.length) {
-    return {
-      ok: false,
-      state: "manual_review",
-      reason: "The supplier order contains lines the store order does not",
-      mappings: [],
-    };
+    return stop("The supplier order contains lines the store order does not");
   }
 
   return { ok: true, state: "awaiting_fulfilment_preview", reason: "Every line matched the supplier order", mappings };
 }
+
 
