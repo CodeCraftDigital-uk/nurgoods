@@ -90,7 +90,17 @@ export interface IntakeCheck {
   label: string;
   passed: boolean;
   detail?: string;
+  /** Plain wording used when the check fails, so summaries read correctly. */
+  failureLabel?: string;
 }
+
+/**
+ * Where the product came from. A supplier origin product is pushed into the
+ * store by the supplier as a staging record and NUR GOODS decides when it goes
+ * live. A store origin product is managed in the store directly and its own
+ * draft or archived state is always respected.
+ */
+export type IntakeOrigin = "supplier" | "store";
 
 export interface IntakeRecord {
   id: string;
@@ -99,6 +109,7 @@ export interface IntakeRecord {
   title: string | null;
   handle: string | null;
   source: IntakeSource;
+  origin: IntakeOrigin;
   state: IntakeState;
   reason_code: string | null;
   reason: string | null;
