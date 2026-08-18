@@ -23,10 +23,11 @@ const PRIMARY_NAV = [
 
 /** Service facts only. Nothing here is a promise the store has not made. */
 const SERVICE_STRIP = [
+  freeShippingHeadline(PUBLIC_FREE_SHIPPING_MARKETS),
   "Secure checkout on the NUR GOODS store",
-  "Listings read from the live store catalogue",
   `Support from a person at ${BRAND.supportEmail}`,
 ] as const;
+
 
 function SearchField({
   id,
