@@ -60,7 +60,7 @@ function OrderDetailPage() {
 
   const review = useMutation({
     mutationFn: (action: "resolve" | "requeue") =>
-      reviewFn({ data: { orderId, action, note: note.trim() || undefined } }),
+      reviewFn({ data: { orderId, action, ...(note.trim() ? { note: note.trim() } : {}) } }),
     onSuccess: async (result) => {
       toast.success(result.message);
       setNote("");
@@ -130,7 +130,7 @@ function OrderDetailPage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow={<Link to="/control/orders">Orders & Fulfilment</Link> ? "Order" : "Order"}
+        eyebrow="Orders & Fulfilment"
         title={order.shopify_order_name ?? "Order"}
         description="Full record of this order across the store, the platform and the supplier."
         actions={
