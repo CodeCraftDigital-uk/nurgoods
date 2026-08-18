@@ -53,11 +53,14 @@ export async function runIntakeDeltaSync(db: Db, lookbackHours = 26): Promise<In
       productId: idMap.get(product.id) ?? null,
       updatedAt: (product as any).updatedAt ?? null,
       source: "delta_sync" as const,
+      // Only material catalogue content requeues a settled product. Inventory
+      // and pricing movement is recorded without reprocessing.
+      materialFingerprint: materialIntakeFingerprint(product as never),
     })),
   );
 
   return {
-    message: `Checked ${products.length} changed products. ${detection.created} new and ${detection.requeued} updated entered intake.`,
+    message: `Checked ${products.length} changed products. ${detection.created} new and ${detection.requeued} materially changed entered intake. ${detection.unchanged} were price, stock or timestamp only.`,
     details: {
       since,
       changed: products.length,
