@@ -70,7 +70,8 @@ export async function runPublicationAudit(
   options: PublicationAuditOptions = {},
 ): Promise<PublicationAuditRun> {
   const dryRun = options.dryRun !== false;
-  const limit = Math.max(1, Math.min(options.limit ?? MAX_BATCH, MAX_BATCH));
+  const ceiling = dryRun ? MAX_BATCH : MAX_LIVE_BATCH;
+  const limit = Math.max(1, Math.min(options.limit ?? ceiling, ceiling));
   const policy = options.policy ?? (await loadPublicationPolicy());
   const supabase = await zendropAdminClient();
 
