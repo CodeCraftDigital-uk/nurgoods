@@ -192,51 +192,161 @@ export type DeliveryClaim =
   | { claimed: false; reason: "already_processed" | "in_flight" };
 
 /**
+ * How long a delivery may stay in processing before it is treated as
+ * abandoned. Conservative on purpose: a delivery that is genuinely still
+ * running must never be picked up a second time.
+ */
+export const DELIVERY_LEASE_MS = 2 * 60 * 1000;
+
+export interface DeliveryRow {
+  id: string;
+  status: string;
+  attempts: number;
+  updated_at: string;
+}
+
+/**
+ * Decides what may be done with an existing delivery row.
+ *
+ * A processed delivery is finished. A delivery that is still inside its
+ * processing lease belongs to another worker. Anything else, including a
+ * delivery whose lease has expired, may be reclaimed.
+ */
+export function deliveryClaimDecision(input: {
+  row: DeliveryRow | null;
+  now?: number;
+  leaseMs?: number;
+}): { action: "insert" | "reclaim" | "processed" | "in_flight" } {
+  if (!input.row) return { action: "insert" };
+  const status = String(input.row.status ?? "").toLowerCase();
+  if (status === "processed") return { action: "processed" };
+  if (status === "processing") {
+    const startedAt = Date.parse(input.row.updated_at ?? "");
+    const now = input.now ?? Date.now();
+    const lease = input.leaseMs ?? DELIVERY_LEASE_MS;
+    if (!Number.isFinite(startedAt) || now - startedAt < lease) return { action: "in_flight" };
+    return { action: "reclaim" };
+  }
+  return { action: "reclaim" };
+}
+
+/**
+ * The small amount of storage the claim needs. Keeping it behind a port lets
+ * the concurrency rules be exercised exactly, including the losing side of a
+ * race.
+ */
+export interface DeliveryStore {
+  find(webhookId: string): Promise<DeliveryRow | null>;
+  insert(input: { webhookId: string; topic: string; shopifyOrderId: string | null }): Promise<DeliveryRow | null>;
+  /**
+   * Conditional update. It must only succeed when the row still holds exactly
+   * the status and updated_at that were observed, so precisely one caller wins.
+   */
+  compareAndSet(input: { id: string; status: string; updatedAt: string; attempts: number }): Promise<boolean>;
+}
+
+/**
  * Claims a webhook delivery for processing.
  *
- * A delivery is only refused when it has genuinely already been processed. A
- * delivery that was recorded but never completed is handed back so the store
- * can safely redeliver it.
+ * The claim is a lease taken by compare and set against the row exactly as it
+ * was read. Two concurrent deliveries of the same event can never both win,
+ * and a delivery that failed or was abandoned can still be retried.
  */
+export async function claimDelivery(
+  store: DeliveryStore,
+  input: { webhookId: string; topic: string; shopifyOrderId: string | null; now?: number; leaseMs?: number },
+): Promise<DeliveryClaim> {
+  const existing = await store.find(input.webhookId);
+  const decision = deliveryClaimDecision({
+    row: existing,
+    ...(input.now === undefined ? {} : { now: input.now }),
+    ...(input.leaseMs === undefined ? {} : { leaseMs: input.leaseMs }),
+  });
+
+  if (decision.action === "processed") return { claimed: false, reason: "already_processed" };
+  if (decision.action === "in_flight") return { claimed: false, reason: "in_flight" };
+
+  if (decision.action === "insert") {
+    const inserted = await store.insert({
+      webhookId: input.webhookId,
+      topic: input.topic,
+      shopifyOrderId: input.shopifyOrderId,
+    });
+    // A concurrent delivery of the same event won the unique constraint.
+    if (!inserted) return { claimed: false, reason: "in_flight" };
+    return { claimed: true, deliveryId: inserted.id, attempts: inserted.attempts };
+  }
+
+  const row = existing!;
+  const attempts = Number(row.attempts ?? 0) + 1;
+  const won = await store.compareAndSet({
+    id: row.id,
+    status: row.status,
+    updatedAt: row.updated_at,
+    attempts,
+  });
+  if (!won) return { claimed: false, reason: "in_flight" };
+  return { claimed: true, deliveryId: row.id, attempts };
+}
+
+function deliveryStore(db: Db): DeliveryStore {
+  return {
+    async find(webhookId) {
+      const { data } = await db
+        .from("commerce_webhook_deliveries")
+        .select("id, status, attempts, updated_at")
+        .eq("webhook_id", webhookId)
+        .maybeSingle();
+      if (!data) return null;
+      const row = data as any;
+      return {
+        id: String(row.id),
+        status: String(row.status),
+        attempts: Number(row.attempts ?? 0),
+        updated_at: String(row.updated_at),
+      };
+    },
+    async insert(input) {
+      const { data, error } = await db
+        .from("commerce_webhook_deliveries")
+        .insert({
+          webhook_id: input.webhookId,
+          topic: input.topic,
+          shopify_order_id: input.shopifyOrderId,
+          status: "processing",
+          attempts: 1,
+        } as never)
+        .select("id, status, attempts, updated_at")
+        .maybeSingle();
+      if (error || !data) return null;
+      const row = data as any;
+      return {
+        id: String(row.id),
+        status: String(row.status),
+        attempts: Number(row.attempts ?? 1),
+        updated_at: String(row.updated_at),
+      };
+    },
+    async compareAndSet(input) {
+      const { data } = await db
+        .from("commerce_webhook_deliveries")
+        .update({ status: "processing", attempts: input.attempts, last_error: null } as never)
+        .eq("id", input.id)
+        .eq("status", input.status)
+        .eq("updated_at", input.updatedAt)
+        .select("id");
+      return Array.isArray(data) && data.length === 1;
+    },
+  };
+}
+
 export async function claimWebhookDelivery(
   db: Db,
   input: { webhookId: string; topic: string; shopifyOrderId: string | null },
 ): Promise<DeliveryClaim> {
-  const { data: existing } = await db
-    .from("commerce_webhook_deliveries")
-    .select("id, status, attempts")
-    .eq("webhook_id", input.webhookId)
-    .maybeSingle();
-
-  if (existing) {
-    const row = existing as any;
-    if (row.status === "processed") return { claimed: false, reason: "already_processed" };
-    const attempts = Number(row.attempts ?? 0) + 1;
-    await db
-      .from("commerce_webhook_deliveries")
-      .update({ status: "processing", attempts, last_error: null } as never)
-      .eq("id", row.id);
-    return { claimed: true, deliveryId: String(row.id), attempts };
-  }
-
-  const { data: inserted, error } = await db
-    .from("commerce_webhook_deliveries")
-    .insert({
-      webhook_id: input.webhookId,
-      topic: input.topic,
-      shopify_order_id: input.shopifyOrderId,
-      status: "processing",
-      attempts: 1,
-    } as never)
-    .select("id")
-    .maybeSingle();
-
-  if (error || !inserted) {
-    // A concurrent delivery of the same event won the unique constraint.
-    return { claimed: false, reason: "in_flight" };
-  }
-  return { claimed: true, deliveryId: String((inserted as any).id), attempts: 1 };
+  return claimDelivery(deliveryStore(db), input);
 }
+
 
 export async function completeWebhookDelivery(db: Db, deliveryId: string): Promise<void> {
   await db
