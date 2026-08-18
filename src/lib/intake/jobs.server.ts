@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { detectProducts, processIntake } from "./intake.server";
+import { materialIntakeFingerprint } from "./fingerprint";
 
 /** Scheduled intake jobs: the delta sync fallback and the intake worker. */
 
