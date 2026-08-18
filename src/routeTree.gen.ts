@@ -52,6 +52,7 @@ import { Route as AuthenticatedControlJournalIndexRouteImport } from './routes/_
 import { Route as AuthenticatedControlJournalArticleIdRouteImport } from './routes/_authenticated/control.journal.$articleId'
 import { Route as AuthenticatedControlJournalNewRouteImport } from './routes/_authenticated/control.journal.new'
 import { Route as AuthenticatedControlOrdersIndexRouteImport } from './routes/_authenticated/control.orders.index'
+import { Route as AuthenticatedControlOrdersOrderIdRouteImport } from './routes/_authenticated/control.orders.$orderId'
 import { Route as ApiPublicHooksAutomationRouteImport } from './routes/api/public/hooks/automation'
 import { Route as ApiPublicHooksShopifyIntakeRouteImport } from './routes/api/public/hooks/shopify-intake'
 import { Route as ApiPublicHooksShopifyOrdersRouteImport } from './routes/api/public/hooks/shopify-orders'
@@ -300,6 +301,12 @@ const AuthenticatedControlOrdersIndexRoute =
     path: '/',
     getParentRoute: () => AuthenticatedControlOrdersRoute,
   } as any)
+const AuthenticatedControlOrdersOrderIdRoute =
+  AuthenticatedControlOrdersOrderIdRouteImport.update({
+    id: '/$orderId',
+    path: '/$orderId',
+    getParentRoute: () => AuthenticatedControlOrdersRoute,
+  } as any)
 const ApiPublicHooksAutomationRoute =
   ApiPublicHooksAutomationRouteImport.update({
     id: '/api/public/hooks/automation',
@@ -412,6 +419,7 @@ export interface FileRoutesByFullPath {
   '/control/': typeof AuthenticatedControlIndexRoute
   '/control/journal/$articleId': typeof AuthenticatedControlJournalArticleIdRoute
   '/control/journal/new': typeof AuthenticatedControlJournalNewRoute
+  '/control/orders/$orderId': typeof AuthenticatedControlOrdersOrderIdRoute
   '/api/public/hooks/automation': typeof ApiPublicHooksAutomationRoute
   '/api/public/hooks/shopify-intake': typeof ApiPublicHooksShopifyIntakeRoute
   '/api/public/hooks/shopify-orders': typeof ApiPublicHooksShopifyOrdersRoute
@@ -466,6 +474,7 @@ export interface FileRoutesByTo {
   '/control': typeof AuthenticatedControlIndexRoute
   '/control/journal/$articleId': typeof AuthenticatedControlJournalArticleIdRoute
   '/control/journal/new': typeof AuthenticatedControlJournalNewRoute
+  '/control/orders/$orderId': typeof AuthenticatedControlOrdersOrderIdRoute
   '/api/public/hooks/automation': typeof ApiPublicHooksAutomationRoute
   '/api/public/hooks/shopify-intake': typeof ApiPublicHooksShopifyIntakeRoute
   '/api/public/hooks/shopify-orders': typeof ApiPublicHooksShopifyOrdersRoute
@@ -525,6 +534,7 @@ export interface FileRoutesById {
   '/_authenticated/control/': typeof AuthenticatedControlIndexRoute
   '/_authenticated/control/journal/$articleId': typeof AuthenticatedControlJournalArticleIdRoute
   '/_authenticated/control/journal/new': typeof AuthenticatedControlJournalNewRoute
+  '/_authenticated/control/orders/$orderId': typeof AuthenticatedControlOrdersOrderIdRoute
   '/api/public/hooks/automation': typeof ApiPublicHooksAutomationRoute
   '/api/public/hooks/shopify-intake': typeof ApiPublicHooksShopifyIntakeRoute
   '/api/public/hooks/shopify-orders': typeof ApiPublicHooksShopifyOrdersRoute
@@ -584,6 +594,7 @@ export interface FileRouteTypes {
     | '/control/'
     | '/control/journal/$articleId'
     | '/control/journal/new'
+    | '/control/orders/$orderId'
     | '/api/public/hooks/automation'
     | '/api/public/hooks/shopify-intake'
     | '/api/public/hooks/shopify-orders'
@@ -638,6 +649,7 @@ export interface FileRouteTypes {
     | '/control'
     | '/control/journal/$articleId'
     | '/control/journal/new'
+    | '/control/orders/$orderId'
     | '/api/public/hooks/automation'
     | '/api/public/hooks/shopify-intake'
     | '/api/public/hooks/shopify-orders'
@@ -696,6 +708,7 @@ export interface FileRouteTypes {
     | '/_authenticated/control/'
     | '/_authenticated/control/journal/$articleId'
     | '/_authenticated/control/journal/new'
+    | '/_authenticated/control/orders/$orderId'
     | '/api/public/hooks/automation'
     | '/api/public/hooks/shopify-intake'
     | '/api/public/hooks/shopify-orders'
@@ -1052,6 +1065,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedControlOrdersIndexRouteImport
       parentRoute: typeof AuthenticatedControlOrdersRoute
     }
+    '/_authenticated/control/orders/$orderId': {
+      id: '/_authenticated/control/orders/$orderId'
+      path: '/$orderId'
+      fullPath: '/control/orders/$orderId'
+      preLoaderRoute: typeof AuthenticatedControlOrdersOrderIdRouteImport
+      parentRoute: typeof AuthenticatedControlOrdersRoute
+    }
     '/api/public/hooks/automation': {
       id: '/api/public/hooks/automation'
       path: '/api/public/hooks/automation'
@@ -1167,11 +1187,14 @@ const AuthenticatedControlJournalRouteWithChildren =
   )
 
 interface AuthenticatedControlOrdersRouteChildren {
+  AuthenticatedControlOrdersOrderIdRoute: typeof AuthenticatedControlOrdersOrderIdRoute
   AuthenticatedControlOrdersIndexRoute: typeof AuthenticatedControlOrdersIndexRoute
 }
 
 const AuthenticatedControlOrdersRouteChildren: AuthenticatedControlOrdersRouteChildren =
   {
+    AuthenticatedControlOrdersOrderIdRoute:
+      AuthenticatedControlOrdersOrderIdRoute,
     AuthenticatedControlOrdersIndexRoute: AuthenticatedControlOrdersIndexRoute,
   }
 
