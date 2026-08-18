@@ -1,9 +1,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadBundles } from "@/lib/intelligence/queue.server";
 import { validateIntake } from "./validate";
+import { decideRequeue } from "./fingerprint";
 import {
   DEFAULT_INTAKE_POLICY,
   type IntakeCounters,
+  type IntakeOrigin,
   type IntakePolicy,
   type IntakeSource,
   type IntakeState,
