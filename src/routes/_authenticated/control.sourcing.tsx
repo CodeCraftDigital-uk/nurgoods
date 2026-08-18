@@ -312,10 +312,39 @@ function SourcingPage() {
               onBlur={(event) => savePricing.mutate({ shipping_market: event.target.value })}
             />
           </div>
+          <div className="space-y-1.5">
+            <Label>Supported markets</Label>
+            <Input
+              defaultValue={(pricing?.supported_markets ?? ["GB", "US"]).join(", ")}
+              onBlur={(event) =>
+                savePricing.mutate({
+                  supported_markets: event.target.value
+                    .split(",")
+                    .map((code) => code.trim())
+                    .filter(Boolean),
+                })
+              }
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Free shipping markets</Label>
+            <Input
+              defaultValue={(pricing?.free_shipping_markets ?? ["GB", "US"]).join(", ")}
+              onBlur={(event) =>
+                savePricing.mutate({
+                  free_shipping_markets: event.target.value
+                    .split(",")
+                    .map((code) => code.trim())
+                    .filter(Boolean),
+                })
+              }
+            />
+          </div>
         </div>
         <p className="mt-3 text-xs text-muted-foreground">
-          Rounding is {pricing?.rounding_mode === "charm_99" ? "charm .99, rounded up so the margin floor always holds" : pricing?.rounding_mode}. Supplier suggested retail is reference only and never sets the NUR GOODS price.
+          Rounding is {pricing?.rounding_mode === "charm_99" ? "charm .99, rounded up so the margin floor always holds" : pricing?.rounding_mode}. Supplier suggested retail is reference only and never sets the NUR GOODS price. Supported markets are the destinations a product may be sourced and published for; a product qualifies only when the supplier has fresh destination specific shipping evidence for at least one of them. Selling prices are solved in {pricing?.currency ?? "GBP"} for the pricing market only, so a market in another currency needs a verified presentment policy before its prices can be published.
         </p>
+
       </SectionCard>
 
       <SectionCard

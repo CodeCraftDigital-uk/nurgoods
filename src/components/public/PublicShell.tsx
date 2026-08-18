@@ -8,6 +8,9 @@ import { BasketButton, BasketSheet } from "@/components/public/BasketSheet";
 import { BrandLogo, BrandWordmark } from "@/components/admin/BrandLogo";
 import { BRAND } from "@/lib/brand";
 import { ReviewPlacementSlot } from "@/components/public/ReviewPlacementSlot";
+import { PUBLIC_FREE_SHIPPING_MARKETS } from "@/components/public/FreeShippingNote";
+import { freeShippingHeadline } from "@/lib/pricing/markets";
+
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 
 const PRIMARY_NAV = [
@@ -23,10 +26,11 @@ const PRIMARY_NAV = [
 
 /** Service facts only. Nothing here is a promise the store has not made. */
 const SERVICE_STRIP = [
+  freeShippingHeadline(PUBLIC_FREE_SHIPPING_MARKETS),
   "Secure checkout on the NUR GOODS store",
-  "Listings read from the live store catalogue",
   `Support from a person at ${BRAND.supportEmail}`,
 ] as const;
+
 
 function SearchField({
   id,

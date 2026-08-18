@@ -24,6 +24,10 @@ import {
 } from "./client.server";
 import { getZendropProduct } from "./catalogue.server";
 import { convertAmount, getFxRate, type FxQuote } from "./fx.server";
+import {
+  resolveFreeShippingMarkets,
+  resolveSupportedMarkets,
+} from "../pricing/markets";
 
 import { getZendropStatus, markOneProductTestPassed } from "./connection.server";
 
@@ -77,6 +81,13 @@ export async function loadPricingSettings(): Promise<PricingSettings> {
     payment_fee_variable: Number(row.payment_fee_variable ?? DEFAULT_PRICING.payment_fee_variable),
     payment_fee_fixed: Number(row.payment_fee_fixed ?? DEFAULT_PRICING.payment_fee_fixed),
     free_shipping_market: row.free_shipping_market ?? DEFAULT_PRICING.free_shipping_market,
+    supported_markets: resolveSupportedMarkets(
+      row.supported_markets ?? DEFAULT_PRICING.supported_markets,
+    ),
+    free_shipping_markets: resolveFreeShippingMarkets(
+      row.free_shipping_markets ?? DEFAULT_PRICING.free_shipping_markets,
+      resolveSupportedMarkets(row.supported_markets ?? DEFAULT_PRICING.supported_markets),
+    ),
   };
 }
 
@@ -286,6 +297,33 @@ export async function selectCandidates(input: {
       duplicateReason,
     });
 
+    // Market gate. A product may only enter the import queue when the supplier
+    // can actually deliver it into at least one supported market with fresh,
+    // destination specific shipping evidence. Quoting is read only.
+    let marketHold: string | null = null;
+    let eligibleMarkets: string[] = [];
+    try {
+      const { quoteAndRecordMarkets } = await import("../pricing/market-eligibility.server");
+      const { quoteZendropShipping } = await import("./catalogue.server");
+      const eligibility = await quoteAndRecordMarkets({
+        supplierProductId: item.id,
+        supported: resolveSupportedMarkets(settings.supported_markets),
+        maxAgeDays: settings.shipping_quote_max_age_days,
+        supplierCurrency: item.currency,
+        quote: async (productId, market) => {
+          const quote = await quoteZendropShipping(productId, market);
+          return { cost: quote.cost, service: quote.service };
+        },
+      });
+      eligibleMarkets = eligibility.eligibleMarkets;
+      if (!eligibility.qualifies) marketHold = eligibility.reason;
+    } catch (cause) {
+      marketHold =
+        cause instanceof Error
+          ? `Market eligibility could not be established: ${cause.message}`
+          : "Market eligibility could not be established";
+    }
+
     let state: CandidateState = "duplicate_checked";
     let hold: string | null = null;
     if (!validation.ok) {
@@ -297,7 +335,11 @@ export async function selectCandidates(input: {
     } else if (screen.score < rules.min_suitability_score) {
       state = "held";
       hold = `Suitability score ${screen.score} is below the configured minimum of ${rules.min_suitability_score}`;
+    } else if (marketHold) {
+      state = "held";
+      hold = marketHold;
     }
+
 
     const { data: inserted, error } = await supabase
       .from("zendrop_import_candidates")
@@ -330,6 +372,7 @@ export async function selectCandidates(input: {
           price: screen.price,
           gross_margin: screen.grossMargin,
           promo_within_floor: screen.promoWithinFloor,
+          eligible_markets: eligibleMarkets,
         } as Record<string, unknown>,
         created_by: input.userId,
       } as never)

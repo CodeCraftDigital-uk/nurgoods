@@ -2239,6 +2239,57 @@ export type Database = {
           },
         ]
       }
+      product_market_eligibility: {
+        Row: {
+          created_at: string
+          eligible: boolean
+          id: string
+          market: string
+          product_id: string | null
+          quoted_at: string | null
+          reason: string | null
+          shipping_amount: number | null
+          shipping_currency: string | null
+          shipping_service: string | null
+          shopify_product_id: string | null
+          status: string
+          supplier_product_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          eligible?: boolean
+          id?: string
+          market: string
+          product_id?: string | null
+          quoted_at?: string | null
+          reason?: string | null
+          shipping_amount?: number | null
+          shipping_currency?: string | null
+          shipping_service?: string | null
+          shopify_product_id?: string | null
+          status?: string
+          supplier_product_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          eligible?: boolean
+          id?: string
+          market?: string
+          product_id?: string | null
+          quoted_at?: string | null
+          reason?: string | null
+          shipping_amount?: number | null
+          shipping_currency?: string | null
+          shipping_service?: string | null
+          shopify_product_id?: string | null
+          status?: string
+          supplier_product_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       product_price_revisions: {
         Row: {
           applied_by: string | null
@@ -3542,6 +3593,7 @@ export type Database = {
           created_at: string
           currency: string
           free_shipping_market: string
+          free_shipping_markets: string[]
           fx_buffer_pct: number
           fx_quote_max_age_hours: number
           fx_source: string
@@ -3554,6 +3606,7 @@ export type Database = {
           rounding_mode: string
           shipping_market: string
           shipping_quote_max_age_days: number
+          supported_markets: string[]
           target_margin: number
           updated_at: string
         }
@@ -3562,6 +3615,7 @@ export type Database = {
           created_at?: string
           currency?: string
           free_shipping_market?: string
+          free_shipping_markets?: string[]
           fx_buffer_pct?: number
           fx_quote_max_age_hours?: number
           fx_source?: string
@@ -3574,6 +3628,7 @@ export type Database = {
           rounding_mode?: string
           shipping_market?: string
           shipping_quote_max_age_days?: number
+          supported_markets?: string[]
           target_margin?: number
           updated_at?: string
         }
@@ -3582,6 +3637,7 @@ export type Database = {
           created_at?: string
           currency?: string
           free_shipping_market?: string
+          free_shipping_markets?: string[]
           fx_buffer_pct?: number
           fx_quote_max_age_hours?: number
           fx_source?: string
@@ -3594,6 +3650,7 @@ export type Database = {
           rounding_mode?: string
           shipping_market?: string
           shipping_quote_max_age_days?: number
+          supported_markets?: string[]
           target_margin?: number
           updated_at?: string
         }

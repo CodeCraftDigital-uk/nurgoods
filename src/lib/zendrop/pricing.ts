@@ -23,6 +23,8 @@ export const DEFAULT_PRICING: PricingSettings = {
   payment_fee_variable: 0.02,
   payment_fee_fixed: 0.25,
   free_shipping_market: "GB",
+  supported_markets: ["GB", "US"],
+  free_shipping_markets: ["GB", "US"],
 };
 
 
