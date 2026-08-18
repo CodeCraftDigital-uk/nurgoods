@@ -50,6 +50,11 @@ for one product. A compliant product yields an empty plan and no store write,
 so re-running an import or a migration pass can never add Shop or Online Store
 back. Product status, price, variants and inventory are never touched.
 
+Removal is destructive, so `ensureStorePublications` only unpublishes when the
+caller asks for it. Ordinary import activation publishes the headless channel
+and never widens to a forbidden one, but leaves existing channels alone. The
+admin reconciliation path is the only caller that passes `removeUnwanted`.
+
 ## Migrating the existing catalogue
 
 The admin console at `/control/channels` shows the desired channel state, runs a
