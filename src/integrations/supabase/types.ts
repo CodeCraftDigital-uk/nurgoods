@@ -630,7 +630,14 @@ export type Database = {
           shopify_order_name: string | null
           shopify_order_number: number | null
           submitted_at: string | null
+          supplier_currency: string | null
+          supplier_fees: number | null
+          supplier_payment_amount: number | null
+          supplier_payment_currency: string | null
+          supplier_product_cost: number | null
+          supplier_shipping_cost: number | null
           supplier_status: string | null
+          supplier_total: number | null
           tracking_carrier: string | null
           tracking_number: string | null
           tracking_url: string | null
@@ -671,7 +678,14 @@ export type Database = {
           shopify_order_name?: string | null
           shopify_order_number?: number | null
           submitted_at?: string | null
+          supplier_currency?: string | null
+          supplier_fees?: number | null
+          supplier_payment_amount?: number | null
+          supplier_payment_currency?: string | null
+          supplier_product_cost?: number | null
+          supplier_shipping_cost?: number | null
           supplier_status?: string | null
+          supplier_total?: number | null
           tracking_carrier?: string | null
           tracking_number?: string | null
           tracking_url?: string | null
@@ -712,7 +726,14 @@ export type Database = {
           shopify_order_name?: string | null
           shopify_order_number?: number | null
           submitted_at?: string | null
+          supplier_currency?: string | null
+          supplier_fees?: number | null
+          supplier_payment_amount?: number | null
+          supplier_payment_currency?: string | null
+          supplier_product_cost?: number | null
+          supplier_shipping_cost?: number | null
           supplier_status?: string | null
+          supplier_total?: number | null
           tracking_carrier?: string | null
           tracking_number?: string | null
           tracking_url?: string | null
