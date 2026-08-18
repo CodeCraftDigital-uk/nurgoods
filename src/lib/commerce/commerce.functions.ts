@@ -157,7 +157,6 @@ export interface OrderFull extends OrderSummary {
   actual_supplier_cost_settlement: number | null;
   forecast_profit: number | null;
   forecast_margin: number | null;
-  fulfilled_externally: boolean | null;
   economics_note: string | null;
 }
 
