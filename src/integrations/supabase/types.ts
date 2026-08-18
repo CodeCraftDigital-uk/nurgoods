@@ -489,6 +489,286 @@ export type Database = {
           },
         ]
       }
+      commerce_order_events: {
+        Row: {
+          code: string | null
+          created_at: string
+          detail: Json
+          from_state: string | null
+          id: string
+          message: string | null
+          order_id: string
+          to_state: string
+        }
+        Insert: {
+          code?: string | null
+          created_at?: string
+          detail?: Json
+          from_state?: string | null
+          id?: string
+          message?: string | null
+          order_id: string
+          to_state: string
+        }
+        Update: {
+          code?: string | null
+          created_at?: string
+          detail?: Json
+          from_state?: string | null
+          id?: string
+          message?: string | null
+          order_id?: string
+          to_state?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "commerce_order_events_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "commerce_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      commerce_order_lines: {
+        Row: {
+          created_at: string
+          id: string
+          order_id: string
+          quantity: number
+          shopify_line_item_id: string
+          shopify_product_id: string | null
+          shopify_variant_id: string | null
+          sku: string | null
+          supplier_status: string | null
+          title: string | null
+          tracking_number: string | null
+          unit_price: number | null
+          updated_at: string
+          zendrop_line_item_id: string | null
+          zendrop_product_id: string | null
+          zendrop_store_line_item_id: string | null
+          zendrop_variant_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          order_id: string
+          quantity?: number
+          shopify_line_item_id: string
+          shopify_product_id?: string | null
+          shopify_variant_id?: string | null
+          sku?: string | null
+          supplier_status?: string | null
+          title?: string | null
+          tracking_number?: string | null
+          unit_price?: number | null
+          updated_at?: string
+          zendrop_line_item_id?: string | null
+          zendrop_product_id?: string | null
+          zendrop_store_line_item_id?: string | null
+          zendrop_variant_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          order_id?: string
+          quantity?: number
+          shopify_line_item_id?: string
+          shopify_product_id?: string | null
+          shopify_variant_id?: string | null
+          sku?: string | null
+          supplier_status?: string | null
+          title?: string | null
+          tracking_number?: string | null
+          unit_price?: number | null
+          updated_at?: string
+          zendrop_line_item_id?: string | null
+          zendrop_product_id?: string | null
+          zendrop_store_line_item_id?: string | null
+          zendrop_variant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "commerce_order_lines_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "commerce_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      commerce_orders: {
+        Row: {
+          created_at: string
+          currency: string | null
+          delivered_at: string | null
+          dispatch_idempotency_key: string | null
+          fulfilment_cost: number | null
+          gross_margin: number | null
+          id: string
+          last_error: string | null
+          line_count: number
+          orchestration_state: string
+          order_total: number | null
+          paid_at: string | null
+          preview_at: string | null
+          preview_is_credit_redeem: boolean
+          preview_payload: Json | null
+          product_cost: number | null
+          retry_count: number
+          shipped_at: string | null
+          shipping_city: string | null
+          shipping_cost: number | null
+          shipping_country: string | null
+          shopify_financial_status: string | null
+          shopify_fulfillment_status: string | null
+          shopify_order_id: string
+          shopify_order_name: string | null
+          shopify_order_number: number | null
+          submitted_at: string | null
+          supplier_status: string | null
+          tracking_carrier: string | null
+          tracking_number: string | null
+          tracking_url: string | null
+          updated_at: string
+          zendrop_fulfillment_operation_id: string | null
+          zendrop_order_id: number | null
+          zendrop_order_number: string | null
+          zendrop_store_id: number | null
+        }
+        Insert: {
+          created_at?: string
+          currency?: string | null
+          delivered_at?: string | null
+          dispatch_idempotency_key?: string | null
+          fulfilment_cost?: number | null
+          gross_margin?: number | null
+          id?: string
+          last_error?: string | null
+          line_count?: number
+          orchestration_state?: string
+          order_total?: number | null
+          paid_at?: string | null
+          preview_at?: string | null
+          preview_is_credit_redeem?: boolean
+          preview_payload?: Json | null
+          product_cost?: number | null
+          retry_count?: number
+          shipped_at?: string | null
+          shipping_city?: string | null
+          shipping_cost?: number | null
+          shipping_country?: string | null
+          shopify_financial_status?: string | null
+          shopify_fulfillment_status?: string | null
+          shopify_order_id: string
+          shopify_order_name?: string | null
+          shopify_order_number?: number | null
+          submitted_at?: string | null
+          supplier_status?: string | null
+          tracking_carrier?: string | null
+          tracking_number?: string | null
+          tracking_url?: string | null
+          updated_at?: string
+          zendrop_fulfillment_operation_id?: string | null
+          zendrop_order_id?: number | null
+          zendrop_order_number?: string | null
+          zendrop_store_id?: number | null
+        }
+        Update: {
+          created_at?: string
+          currency?: string | null
+          delivered_at?: string | null
+          dispatch_idempotency_key?: string | null
+          fulfilment_cost?: number | null
+          gross_margin?: number | null
+          id?: string
+          last_error?: string | null
+          line_count?: number
+          orchestration_state?: string
+          order_total?: number | null
+          paid_at?: string | null
+          preview_at?: string | null
+          preview_is_credit_redeem?: boolean
+          preview_payload?: Json | null
+          product_cost?: number | null
+          retry_count?: number
+          shipped_at?: string | null
+          shipping_city?: string | null
+          shipping_cost?: number | null
+          shipping_country?: string | null
+          shopify_financial_status?: string | null
+          shopify_fulfillment_status?: string | null
+          shopify_order_id?: string
+          shopify_order_name?: string | null
+          shopify_order_number?: number | null
+          submitted_at?: string | null
+          supplier_status?: string | null
+          tracking_carrier?: string | null
+          tracking_number?: string | null
+          tracking_url?: string | null
+          updated_at?: string
+          zendrop_fulfillment_operation_id?: string | null
+          zendrop_order_id?: number | null
+          zendrop_order_number?: string | null
+          zendrop_store_id?: number | null
+        }
+        Relationships: []
+      }
+      commerce_settings: {
+        Row: {
+          allow_supplier_credit: boolean
+          auto_fulfilment_enabled: boolean
+          created_at: string
+          id: string
+          max_orders_per_run: number
+          safe_test_order_ids: string[]
+          updated_at: string
+        }
+        Insert: {
+          allow_supplier_credit?: boolean
+          auto_fulfilment_enabled?: boolean
+          created_at?: string
+          id?: string
+          max_orders_per_run?: number
+          safe_test_order_ids?: string[]
+          updated_at?: string
+        }
+        Update: {
+          allow_supplier_credit?: boolean
+          auto_fulfilment_enabled?: boolean
+          created_at?: string
+          id?: string
+          max_orders_per_run?: number
+          safe_test_order_ids?: string[]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      commerce_webhook_deliveries: {
+        Row: {
+          id: string
+          received_at: string
+          shopify_order_id: string | null
+          topic: string | null
+          webhook_id: string
+        }
+        Insert: {
+          id?: string
+          received_at?: string
+          shopify_order_id?: string | null
+          topic?: string | null
+          webhook_id: string
+        }
+        Update: {
+          id?: string
+          received_at?: string
+          shopify_order_id?: string | null
+          topic?: string | null
+          webhook_id?: string
+        }
+        Relationships: []
+      }
       contact_enquiries: {
         Row: {
           category: string
@@ -1695,7 +1975,9 @@ export type Database = {
           last_transition_at: string
           lock_token: string | null
           locked_at: string | null
+          material_fingerprint: string | null
           metrics: Json
+          origin: string
           previous_state: string | null
           processed_fingerprint: string | null
           product_id: string | null
@@ -1727,7 +2009,9 @@ export type Database = {
           last_transition_at?: string
           lock_token?: string | null
           locked_at?: string | null
+          material_fingerprint?: string | null
           metrics?: Json
+          origin?: string
           previous_state?: string | null
           processed_fingerprint?: string | null
           product_id?: string | null
@@ -1759,7 +2043,9 @@ export type Database = {
           last_transition_at?: string
           lock_token?: string | null
           locked_at?: string | null
+          material_fingerprint?: string | null
           metrics?: Json
+          origin?: string
           previous_state?: string | null
           processed_fingerprint?: string | null
           product_id?: string | null

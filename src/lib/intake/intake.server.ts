@@ -1,9 +1,12 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadBundles } from "@/lib/intelligence/queue.server";
 import { validateIntake } from "./validate";
+import { decideRequeue } from "./fingerprint";
+import { activateForStorefront } from "./activation.server";
 import {
   DEFAULT_INTAKE_POLICY,
   type IntakeCounters,
+  type IntakeOrigin,
   type IntakePolicy,
   type IntakeSource,
   type IntakeState,
@@ -99,6 +102,9 @@ export interface DetectionInput {
   productId?: string | null;
   updatedAt?: string | null;
   source: IntakeSource;
+  /** Hash of the catalogue content intake actually reasons about. */
+  materialFingerprint?: string | null;
+  origin?: IntakeOrigin;
 }
 
 export interface DetectionResult {
@@ -108,9 +114,12 @@ export interface DetectionResult {
 }
 
 /**
- * Records newly seen or newly changed products. An existing record whose
- * version fingerprint has not moved is left completely alone, which is what
- * keeps webhook and delta sync from duplicating work.
+ * Records newly seen or newly changed products.
+ *
+ * A record whose material catalogue content has not moved is never sent back
+ * through the pipeline. Price, stock and routine sync timestamp movement are
+ * recorded quietly instead, which is what keeps a published product from being
+ * reclassified and reoptimised for no reason.
  */
 export async function detectProducts(db: Db, inputs: DetectionInput[]): Promise<DetectionResult> {
   const result: DetectionResult = { created: 0, requeued: 0, unchanged: 0 };
@@ -119,15 +128,25 @@ export async function detectProducts(db: Db, inputs: DetectionInput[]): Promise<
   const ids = [...new Set(inputs.map((item) => item.shopifyProductId))];
   const { data: existing } = await db
     .from("product_intake_records")
-    .select("id, shopify_product_id, state, version_fingerprint, processed_fingerprint")
+    .select(
+      "id, shopify_product_id, product_id, title, handle, state, version_fingerprint, processed_fingerprint, material_fingerprint",
+    )
     .in("shopify_product_id", ids);
   const byShopifyId = new Map(((existing ?? []) as any[]).map((row) => [row.shopify_product_id, row]));
 
   for (const input of inputs) {
     const fingerprint = versionFingerprint(input.shopifyProductId, input.updatedAt ?? null);
+    const material = input.materialFingerprint ?? null;
     const row = byShopifyId.get(input.shopifyProductId);
 
-    if (!row) {
+    const decision = decideRequeue({
+      existing: row ?? null,
+      versionFingerprint: fingerprint,
+      materialFingerprint: material,
+      hasVersion: Boolean(input.updatedAt),
+    });
+
+    if (decision.action === "create") {
       const { data: inserted } = await db
         .from("product_intake_records")
         .insert({
@@ -136,10 +155,12 @@ export async function detectProducts(db: Db, inputs: DetectionInput[]): Promise<
           title: input.title ?? null,
           handle: input.handle ?? null,
           source: input.source,
+          origin: input.origin ?? "store",
           state: "detected",
           reason_code: "detected",
           reason: `Detected from ${input.source === "webhook" ? "a store webhook" : "the scheduled sync"}`,
           version_fingerprint: fingerprint,
+          material_fingerprint: material,
         } as never)
         .select("id")
         .maybeSingle();
@@ -158,24 +179,24 @@ export async function detectProducts(db: Db, inputs: DetectionInput[]): Promise<
       continue;
     }
 
-    if (!input.updatedAt) {
-      // Without a version we cannot tell whether anything actually changed, so
-      // an existing record is left exactly as it is.
+    if (decision.action === "skip") {
       result.unchanged += 1;
       continue;
     }
-    const alreadyProcessed = row.processed_fingerprint === fingerprint;
-    const openState = !["published_to_storefront", "approved", "rejected"].includes(row.state);
-    if (alreadyProcessed && !openState) {
-      result.unchanged += 1;
-      continue;
-    }
-    if (row.version_fingerprint === fingerprint && openState) {
-      // Already queued at this exact version.
-      result.unchanged += 1;
-      continue;
-    }
-    if (alreadyProcessed) {
+
+    if (decision.action === "touch") {
+      // Nothing material moved, so the record keeps its state and only the
+      // fingerprints are refreshed.
+      await db
+        .from("product_intake_records")
+        .update({
+          version_fingerprint: fingerprint,
+          material_fingerprint: material ?? row.material_fingerprint ?? null,
+          title: input.title ?? row.title ?? null,
+          handle: input.handle ?? row.handle ?? null,
+          product_id: input.productId ?? row.product_id ?? null,
+        } as never)
+        .eq("id", row.id);
       result.unchanged += 1;
       continue;
     }
@@ -187,11 +208,13 @@ export async function detectProducts(db: Db, inputs: DetectionInput[]): Promise<
         title: input.title ?? row.title ?? null,
         handle: input.handle ?? row.handle ?? null,
         source: input.source,
+        ...(input.origin ? { origin: input.origin } : {}),
         state: "detected",
         previous_state: row.state,
         reason_code: "changed",
-        reason: "A newer version of this product arrived from the store",
+        reason: decision.reason,
         version_fingerprint: fingerprint,
+        material_fingerprint: material,
         attempts: 0,
         locked_at: null,
         lock_token: null,
@@ -205,7 +228,7 @@ export async function detectProducts(db: Db, inputs: DetectionInput[]): Promise<
       row.state,
       "detected",
       "changed",
-      "A newer version arrived from the store",
+      decision.reason,
     );
     result.requeued += 1;
   }
@@ -222,6 +245,7 @@ export interface IntakeProcessResult {
   classified: number;
   optimised: number;
   identityPasses: number;
+  activationFailures: number;
 }
 
 /** Products waiting for work, oldest first. */
@@ -235,7 +259,7 @@ async function claimIntake(db: Db, limit: number): Promise<any[]> {
   const workable: IntakeState[] = ["detected", "validating", "duplicate_check", "classification", "seo", "approved"];
   const { data } = await db
     .from("product_intake_records")
-    .select("id, shopify_product_id, product_id, title, handle, state, attempts, version_fingerprint")
+    .select("id, shopify_product_id, product_id, title, handle, state, attempts, version_fingerprint, origin")
     .in("state", workable)
     .is("locked_at", null)
     .order("detected_at", { ascending: true })
@@ -252,7 +276,7 @@ async function claimIntake(db: Db, limit: number): Promise<any[]> {
       rows.map((row) => row.id),
     )
     .is("lock_token", null)
-    .select("id, shopify_product_id, product_id, title, handle, state, attempts, version_fingerprint");
+    .select("id, shopify_product_id, product_id, title, handle, state, attempts, version_fingerprint, origin");
   return (claimed ?? rows) as any[];
 }
 
@@ -261,6 +285,42 @@ async function release(db: Db, id: string, patch: Record<string, unknown> = {}):
     .from("product_intake_records")
     .update({ locked_at: null, lock_token: null, ...patch } as never)
     .eq("id", id);
+}
+
+function originOf(row: { origin?: string | null }): IntakeOrigin {
+  return row.origin === "supplier" ? "supplier" : "store";
+}
+
+/**
+ * Marks records that came from the supplier. A supplier pushed product is a
+ * draft staging record in the store, so intake must know the difference before
+ * it judges the store state.
+ */
+async function resolveOrigins(db: Db, rows: any[]): Promise<void> {
+  const unknown = rows.filter((row) => row.origin !== "supplier");
+  if (unknown.length === 0) return;
+  const gids = unknown.map((row) => String(row.shopify_product_id));
+  const numeric = gids.map((id) => id.replace("gid://shopify/Product/", ""));
+  const { data } = await db
+    .from("zendrop_import_candidates")
+    .select("shopify_product_id")
+    .in("shopify_product_id", [...gids, ...numeric]);
+  if (!data || (data as any[]).length === 0) return;
+  const supplier = new Set(
+    (data as any[]).map((candidate) => String(candidate.shopify_product_id).replace("gid://shopify/Product/", "")),
+  );
+  const matched = unknown.filter((row) =>
+    supplier.has(String(row.shopify_product_id).replace("gid://shopify/Product/", "")),
+  );
+  if (matched.length === 0) return;
+  for (const row of matched) row.origin = "supplier";
+  await db
+    .from("product_intake_records")
+    .update({ origin: "supplier" } as never)
+    .in(
+      "id",
+      matched.map((row) => row.id),
+    );
 }
 
 /**
@@ -277,6 +337,7 @@ export async function processIntake(db: Db, limit = 6): Promise<IntakeProcessRes
     classified: 0,
     optimised: 0,
     identityPasses: 0,
+    activationFailures: 0,
   };
 
   const policy = await getIntakePolicy(db);
@@ -311,6 +372,8 @@ export async function processIntake(db: Db, limit = 6): Promise<IntakeProcessRes
     }
   }
 
+  await resolveOrigins(db, claimed);
+
   const productIds = claimed.map((row) => row.product_id).filter(Boolean) as string[];
   const bundles = await loadBundles(db, productIds);
   const bundleById = new Map(bundles.map((bundle) => [bundle.product.id, bundle]));
@@ -337,7 +400,8 @@ export async function processIntake(db: Db, limit = 6): Promise<IntakeProcessRes
 
       // 1. Deterministic validation.
       await transition(db, row, "validating", "validating", "Running deterministic quality checks");
-      const outcome = validateIntake(bundle, policy);
+      const origin = originOf(row);
+      const outcome = validateIntake(bundle, policy, { origin });
       await db
         .from("product_intake_records")
         .update({ validation: { checks: outcome.checks } as never })
@@ -394,18 +458,48 @@ export async function processIntake(db: Db, limit = 6): Promise<IntakeProcessRes
         result.optimised += 1;
       }
 
-      // 5. Approval and exposure.
+      // 5. Approval.
       await transition(db, row, "approved", "approved", "Every required intake gate passed", {
         processed_fingerprint: row.version_fingerprint,
       });
       result.approved += 1;
+
+      // 6. Commerce publication. This is the final step and it fails closed:
+      // the record is only marked live once the store product is genuinely
+      // active and on every required sales channel.
       if (policy.automatic_storefront_exposure) {
+        const activation = await activateForStorefront(row.shopify_product_id, origin);
+        if (!activation.ok) {
+          await db
+            .from("product_intake_records")
+            .update({
+              reason_code: "activation_failed",
+              reason: activation.message,
+              attempts: (row.attempts ?? 0) + 1,
+              last_transition_at: new Date().toISOString(),
+            } as never)
+            .eq("id", row.id);
+          await logEvent(
+            db,
+            row.id,
+            row.shopify_product_id,
+            "approved",
+            "approved",
+            "activation_failed",
+            activation.message,
+            { channels: activation.channels, status: activation.status },
+          );
+          result.activationFailures += 1;
+          result.processed += 1;
+          await release(db, row.id);
+          continue;
+        }
         await transition(
           db,
           row,
           "published_to_storefront",
           "published",
-          "Visible through the NUR GOODS catalogue and search",
+          `Live in the store and visible through the NUR GOODS catalogue. ${activation.message}`,
         );
         result.published += 1;
       }

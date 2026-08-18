@@ -1,6 +1,6 @@
 import type { ProductBundle } from "@/lib/intelligence/core.server";
 import { screenProhibited } from "@/lib/policy/prohibited";
-import type { IntakeCheck, IntakePolicy } from "./types";
+import type { IntakeCheck, IntakeOrigin, IntakePolicy } from "./types";
 
 /**
  * Deterministic intake validation. No model is involved and nothing is
@@ -51,12 +51,26 @@ export function retailRoundingOutcome(bundle: ProductBundle): {
 }
 
 
-export function validateIntake(bundle: ProductBundle, policy: IntakePolicy): ValidationOutcome {
+export function validateIntake(
+  bundle: ProductBundle,
+  policy: IntakePolicy,
+  options: { origin?: IntakeOrigin } = {},
+): ValidationOutcome {
   const product = bundle.product as any;
+  const origin: IntakeOrigin = options.origin ?? "store";
   const checks: IntakeCheck[] = [];
 
-  const add = (code: string, label: string, passed: boolean, detail?: string) => {
-    checks.push(detail === undefined ? { code, label, passed } : { code, label, passed, detail });
+  const add = (
+    code: string,
+    label: string,
+    passed: boolean,
+    detail?: string,
+    failureLabel?: string,
+  ) => {
+    const check: IntakeCheck = { code, label, passed };
+    if (detail !== undefined) check.detail = detail;
+    if (failureLabel !== undefined) check.failureLabel = failureLabel;
+    checks.push(check);
   };
 
   add(
@@ -92,25 +106,49 @@ export function validateIntake(bundle: ProductBundle, policy: IntakePolicy): Val
     "Not a prohibited category",
     !prohibited.prohibited,
     prohibited.reason ?? "No prohibited category signal",
+    "the product is in a prohibited category",
   );
 
+  /**
+   * Store state.
+   *
+   * A supplier origin product arrives as a draft staging record because the
+   * supplier push has no way to hold it anywhere else. That alone is not a
+   * quality problem, so draft is accepted for supplier origin records and the
+   * final activation happens only after every other gate has passed. A store
+   * origin product keeps the store's own decision: draft and archived stay out
+   * of the catalogue and are never activated automatically.
+   */
   const status = (product.status ?? "").toLowerCase();
+  const statusAllowed =
+    status === "" ||
+    status === "active" ||
+    (origin === "supplier" && status === "draft");
   add(
     "eligible_status",
-    "Product is active in the store",
-    status === "" || status === "active",
+    origin === "supplier"
+      ? "Store record is active or awaiting activation"
+      : "Product is active in the store",
+    statusAllowed,
     status || "unknown",
+    `the store product is ${status || "in an unknown state"}`,
   );
 
   const title = (product.title ?? "").trim();
-  add("title", "Title present", title.length >= 3, title.slice(0, 80));
+  add("title", "Title present", title.length >= 3, title.slice(0, 80), "the title is missing or too short");
 
   const handle = (product.handle ?? "").trim();
-  add("handle", "Storefront handle present", handle.length > 0);
+  add("handle", "Storefront handle present", handle.length > 0, undefined, "the storefront handle is missing");
 
   const images = bundle.media.filter((item) => typeof item.url === "string" && /^https?:\/\//.test(item.url));
   if (policy.require_image) {
-    add("image", "At least one real image", images.length > 0, `${images.length} images`);
+    add(
+      "image",
+      "At least one real image",
+      images.length > 0,
+      `${images.length} images`,
+      "there is no usable product image",
+    );
   }
 
   const purchasable = bundle.variants.filter((variant) => variant.available_for_sale !== false);
@@ -120,6 +158,7 @@ export function validateIntake(bundle: ProductBundle, policy: IntakePolicy): Val
       "At least one purchasable variant",
       bundle.variants.length > 0 && purchasable.length > 0,
       `${purchasable.length} of ${bundle.variants.length} purchasable`,
+      "no variant can be purchased",
     );
   }
 
@@ -133,6 +172,7 @@ export function validateIntake(bundle: ProductBundle, policy: IntakePolicy): Val
       "Valid selling price",
       prices.length > 0 && (currency === "" || GBP.has(currency)),
       prices.length > 0 ? `${currency || "GBP"} ${Math.min(...prices).toFixed(2)}` : "no price",
+      "there is no valid selling price in pounds",
     );
   }
 
@@ -142,7 +182,13 @@ export function validateIntake(bundle: ProductBundle, policy: IntakePolicy): Val
   // purchasable variant is checked individually so a multi variant product
   // cannot slip through on the strength of its cheapest option.
   const rounding = retailRoundingOutcome(bundle);
-  add("retail_rounding", "Retail prices follow the approved rounding rule", rounding.passed, rounding.detail);
+  add(
+    "retail_rounding",
+    "Retail prices follow the approved rounding rule",
+    rounding.passed,
+    rounding.detail,
+    "one or more prices do not end in .99",
+  );
 
 
 
@@ -156,6 +202,7 @@ export function validateIntake(bundle: ProductBundle, policy: IntakePolicy): Val
       "Basic description or specification data",
       description.length >= 40 || (description.length >= 15 && specSignals),
       `${description.length} characters`,
+      "the description and specification data are too thin",
     );
   }
 
@@ -165,7 +212,13 @@ export function validateIntake(bundle: ProductBundle, policy: IntakePolicy): Val
     /^(untitled|test product|default title|new product)$/i.test(title) ||
     /lorem ipsum/i.test(title) ||
     /^[0-9\-_.]+$/.test(title);
-  add("well_formed", "Supplier record is well formed", !malformed);
+  add(
+    "well_formed",
+    "Supplier record is well formed",
+    !malformed,
+    undefined,
+    "the supplier record is a placeholder",
+  );
 
   const failed = checks.filter((check) => !check.passed);
   return {
@@ -175,6 +228,8 @@ export function validateIntake(bundle: ProductBundle, policy: IntakePolicy): Val
     summary:
       failed.length === 0
         ? "All intake checks passed"
-        : `Held back by: ${failed.map((check) => check.label.toLowerCase()).join(", ")}`,
+        : `Held back because ${failed
+            .map((check) => check.failureLabel ?? check.label.toLowerCase())
+            .join(", ")}`,
   };
 }
