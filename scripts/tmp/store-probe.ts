@@ -1,7 +1,10 @@
-import { callAction, loadCapabilityMap, unwrapContent } from "@/lib/zendrop/client.server";
-const roles = await loadCapabilityMap();
-console.log("stores_list role:", roles.stores_list?.actionName ?? null);
-const raw = await callAction(roles.stores_list!, {});
-const un = unwrapContent(raw);
-console.log("typeof", Array.isArray(un) ? "array" : typeof un, "keys:", un && !Array.isArray(un) ? Object.keys(un) : null);
-console.log(JSON.stringify(un).slice(0, 1200));
+import { zendropSupplierPort } from "@/lib/commerce/supplier.server";
+const av = await zendropSupplierPort.available();
+console.log("available:", JSON.stringify(av));
+const storeId = await zendropSupplierPort.storeId();
+console.log("storeId:", storeId);
+if (storeId) {
+  const orders = await zendropSupplierPort.listOrders({ storeId });
+  console.log("order count:", orders.length);
+  console.log(orders.slice(0,3).map(o => ({ id: o.id, status: o.status, lines: o.lines?.length ?? null })));
+}
