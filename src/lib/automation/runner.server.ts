@@ -220,6 +220,28 @@ async function execute(ctx: RunContext, jobKey: string): Promise<JobRunResult> {
     case "product_intake_delta_sync":
     case "product_intake_worker":
       return runIntakeJob(ctx, jobKey);
+    case "order_fulfilment_queue": {
+      // Places supplier orders only for store orders the store itself reports
+      // as paid, and only when fulfilment has been authorised.
+      const { runOrderFulfilmentQueue } = await import("@/lib/commerce/jobs.server");
+      const report = await runOrderFulfilmentQueue(ctx.supabase as never);
+      return {
+        jobKey,
+        status: report.ok ? "succeeded" : "failed",
+        message: report.message,
+        details: report.detail,
+      };
+    }
+    case "order_tracking_sync": {
+      const { runOrderTrackingSync } = await import("@/lib/commerce/jobs.server");
+      const report = await runOrderTrackingSync(ctx.supabase as never);
+      return {
+        jobKey,
+        status: report.ok ? "succeeded" : "failed",
+        message: report.message,
+        details: report.detail,
+      };
+    }
 
     case "article_drafting":
       return {
