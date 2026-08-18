@@ -1,13 +1,23 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { PUBLIC_HOST } from "@/lib/hosts";
+import { ADMIN_HOST } from "@/lib/hosts";
 import type { IntakeCounters, IntakePolicy, IntakeRecord, IntakeState } from "./types";
 
-/** Public callback Shopify posts product events to. */
+/**
+ * Public callback Shopify posts product events to.
+ *
+ * The store refuses to register a webhook against any hostname attached to the
+ * store itself, which includes nurgoods.com and www.nurgoods.com. The admin
+ * hostname is served by this same app and is not attached to the store, so it
+ * is the canonical intake callback, exactly as it is for order events.
+ * INTAKE_WEBHOOK_URL overrides it when needed.
+ */
 export function intakeCallbackUrl(): string {
-  const base = (process.env["PUBLIC_SITE_URL"] ?? `https://${PUBLIC_HOST}`).replace(/\/+$/, "");
-  return `${base}/api/public/hooks/shopify-intake`;
+  const override = process.env["INTAKE_WEBHOOK_URL"]?.trim();
+  if (override) return override.replace(/\/+$/, "");
+  return `https://${ADMIN_HOST}/api/public/hooks/shopify-intake`;
 }
+
 
 
 /** Admin-only control plane for the automated product intake system. */

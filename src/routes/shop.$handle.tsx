@@ -555,8 +555,9 @@ function ProductDetail() {
             <FreeShippingLine className="mt-4" />
             <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
               Payment and order tracking are handled securely on the {BRAND.name}{" "}
-              store. UK delivery is free and no delivery charge is added at checkout. Full terms are set out in the policy pages.
+              store. Delivery to the United Kingdom and the United States is free and no delivery charge is added at checkout. Full terms are set out in the policy pages.
             </p>
+
 
 
             {product.collections.length > 0 ? (

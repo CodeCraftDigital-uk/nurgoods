@@ -129,6 +129,10 @@ export interface PricingSettings {
   payment_fee_fixed: number;
   /** Market that receives free delivery at the checkout. */
   free_shipping_market: string;
+  /** Every market the store sells and fulfils into, for example GB and US. */
+  supported_markets: string[];
+  /** Supported markets that receive free delivery. Never wider than the above. */
+  free_shipping_markets: string[];
 }
 
 

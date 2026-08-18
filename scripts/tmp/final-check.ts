@@ -1,0 +1,10 @@
+import { supabaseAdmin } from "../../src/integrations/supabase/client.server";
+import { loadPricingSettings } from "../../src/lib/zendrop/import.server";
+const s = supabaseAdmin as any;
+console.log("pricing settings:", JSON.stringify(await loadPricingSettings(), null, 1));
+const { data: rules } = await s.from("zendrop_sourcing_rules").select("enabled, daily_import_cap, batch_size, duplicate_precheck, require_uk_shipping").eq("id","default").maybeSingle();
+console.log("sourcing rules:", JSON.stringify(rules));
+const { data: safety } = await s.from("commerce_settings").select("*").limit(1);
+console.log("commerce settings:", JSON.stringify(safety));
+const { count: me } = await s.from("product_market_eligibility").select("id", { count: "exact", head: true });
+console.log("market eligibility rows:", me);

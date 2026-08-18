@@ -1,5 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import {
+  resolveFreeShippingMarkets,
+  resolveSupportedMarkets,
+} from "@/lib/pricing/markets";
 import type {
   CandidateRow,
   CatalogueSearchResult,
@@ -150,6 +154,20 @@ export const updatePricingSettings = createServerFn({ method: "POST" })
       patch["payment_fee_fixed"] = data.payment_fee_fixed;
     }
     if (data.free_shipping_market) patch["free_shipping_market"] = data.free_shipping_market;
+    if (data.supported_markets) {
+      const supported = resolveSupportedMarkets(data.supported_markets);
+      patch["supported_markets"] = supported;
+      patch["free_shipping_markets"] = resolveFreeShippingMarkets(
+        data.free_shipping_markets ?? supported,
+        supported,
+      );
+    } else if (data.free_shipping_markets) {
+      const current = await loadPricingSettings();
+      patch["free_shipping_markets"] = resolveFreeShippingMarkets(
+        data.free_shipping_markets,
+        resolveSupportedMarkets(current.supported_markets),
+      );
+    }
 
     if (Object.keys(patch).length > 0) {
       const supabase = await zendropAdminClient();
