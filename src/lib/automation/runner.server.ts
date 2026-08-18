@@ -229,7 +229,7 @@ async function execute(ctx: RunContext, jobKey: string): Promise<JobRunResult> {
         jobKey,
         status: report.ok ? "succeeded" : "failed",
         message: report.message,
-        details: report.detail,
+        details: report.detail as Record<string, string | number>,
       };
     }
     case "order_tracking_sync": {
@@ -239,7 +239,7 @@ async function execute(ctx: RunContext, jobKey: string): Promise<JobRunResult> {
         jobKey,
         status: report.ok ? "succeeded" : "failed",
         message: report.message,
-        details: report.detail,
+        details: report.detail as Record<string, string | number>,
       };
     }
 
