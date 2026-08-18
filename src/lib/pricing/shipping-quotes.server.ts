@@ -20,7 +20,7 @@ export interface ShippingQuoteRefreshResult {
 }
 
 export async function refreshShippingQuotes(input?: {
-  limit?: number;
+  limit?: number | undefined;
 }): Promise<ShippingQuoteRefreshResult> {
   const supabase = await zendropAdminClient();
   const settings = await loadPricingSettings();
