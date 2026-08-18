@@ -306,7 +306,7 @@ export async function syncTracking(
       if (mapped === "delivered") {
         patch["delivered_at"] = new Date().toISOString();
       }
-      if (mapped === "shipped" && !order.shipped_atLike()) {
+      if (mapped === "shipped" && order.orchestration_state !== "shipped") {
         patch["shipped_at"] = new Date().toISOString();
       }
 
