@@ -1277,3 +1277,84 @@ export async function registerIntakeWebhooks(
   }
   return getWebhookSubscriptionState(callbackUrl);
 }
+
+/** Canonical public callback for paid store orders. */
+export const ORDER_WEBHOOK_CALLBACK_URL = "https://nurgoods.com/api/public/hooks/shopify-orders";
+
+/**
+ * Order topics NUR GOODS needs. ORDERS_PAID starts the ledger, and the
+ * cancellation and update topics keep the recorded state accurate when an
+ * order changes after payment.
+ */
+export const ORDER_WEBHOOK_TOPICS = ["ORDERS_PAID", "ORDERS_CANCELLED", "ORDERS_UPDATED"];
+
+/**
+ * Reports which order webhooks the store already sends to the given callback.
+ * Read only, so it is safe to call before the route is deployed.
+ */
+export async function getOrderWebhookState(
+  callbackUrl: string = ORDER_WEBHOOK_CALLBACK_URL,
+): Promise<WebhookSubscriptionState> {
+  try {
+    const credentials = await intakeCredentials();
+    const data: any = await shopifyGraphql(credentials, WEBHOOK_LIST_QUERY, {});
+    const nodes = (data?.webhookSubscriptions?.nodes ?? []) as any[];
+    const registered = nodes
+      .filter((node) => node?.endpoint?.callbackUrl === callbackUrl)
+      .map((node) => String(node.topic));
+    return {
+      supported: true,
+      registered,
+      missing: ORDER_WEBHOOK_TOPICS.filter((topic) => !registered.includes(topic)),
+      callbackUrl,
+      error: null,
+    };
+  } catch (cause) {
+    return {
+      supported: false,
+      registered: [],
+      missing: [...ORDER_WEBHOOK_TOPICS],
+      callbackUrl,
+      error: cause instanceof Error ? cause.message : "The store could not be reached",
+    };
+  }
+}
+
+/**
+ * Registers the order webhooks. This refuses to run until the callback answers,
+ * so a subscription is never pointed at a route that is not live yet. Invoke it
+ * after deployment.
+ */
+export async function registerOrderWebhooks(
+  callbackUrl: string = ORDER_WEBHOOK_CALLBACK_URL,
+): Promise<WebhookSubscriptionState> {
+  let reachable = false;
+  try {
+    // An unsigned probe. The live route answers 401, which proves it exists.
+    const probe = await fetch(callbackUrl, { method: "POST", body: "{}" });
+    reachable = probe.status !== 404 && probe.status < 500;
+  } catch {
+    reachable = false;
+  }
+  if (!reachable) {
+    return {
+      supported: false,
+      registered: [],
+      missing: [...ORDER_WEBHOOK_TOPICS],
+      callbackUrl,
+      error: "The order callback is not answering yet, so nothing was registered",
+    };
+  }
+
+  const before = await getOrderWebhookState(callbackUrl);
+  if (!before.supported) return before;
+  const credentials = await intakeCredentials();
+  for (const topic of before.missing) {
+    const data: any = await shopifyGraphql(credentials, WEBHOOK_CREATE_MUTATION, { topic, callbackUrl });
+    const errors = data?.webhookSubscriptionCreate?.userErrors ?? [];
+    if (errors.length > 0) {
+      return { ...before, error: errors.map((item: any) => item.message).join(", ") };
+    }
+  }
+  return getOrderWebhookState(callbackUrl);
+}

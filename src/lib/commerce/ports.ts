@@ -5,11 +5,19 @@
  * logic can be exercised without touching the database, the supplier or the
  * store.
  */
-import type { CommerceSettings, OrchestrationState, OrderLineRecord, OrderRecord } from "./types";
+import type {
+  CommerceSettings,
+  LineMapping,
+  OrchestrationState,
+  OrderLineRecord,
+  OrderRecord,
+  SupplierLine,
+} from "./types";
 
 export interface LedgerPort {
   claim(states: OrchestrationState[], limit: number): Promise<OrderRecord[]>;
   lines(orderId: string): Promise<OrderLineRecord[]>;
+  linkLines(orderId: string, mappings: LineMapping[]): Promise<void>;
   update(orderId: string, patch: Record<string, unknown>): Promise<void>;
   event(input: {
     orderId: string;
@@ -30,7 +38,7 @@ export interface SupplierOrderSummary {
   trackingNumber?: string | null;
   trackingUrl?: string | null;
   carrier?: string | null;
-  lines?: Array<{ id: string | null; productId: string | null; variantId: string | null; sku: string | null }>;
+  lines?: SupplierLine[];
 }
 
 export interface FulfilmentPreview {
@@ -38,6 +46,8 @@ export interface FulfilmentPreview {
   shippingCost: number | null;
   totalCost: number | null;
   currency: string | null;
+  /** Any confirmation token or reference the supplier returned with the quote. */
+  reference: string | null;
   raw: Record<string, unknown>;
 }
 
@@ -62,11 +72,23 @@ export interface SupplierPort {
   storeId(): Promise<number | null>;
   listOrders(input: { storeId: number; search?: string | null }): Promise<SupplierOrderSummary[]>;
   getOrder(input: { storeId: number; orderId: number }): Promise<SupplierOrderSummary | null>;
+  /**
+   * Step one of the supplier's two step fulfilment. The same fulfilment call
+   * is made with confirmed false, which reserves and quotes the work without
+   * committing it.
+   */
   previewFulfilment(input: {
     storeId: number;
     orderId: number;
     useCredit: boolean;
   }): Promise<FulfilmentPreview>;
+  /** Supplemental read only cost lookup. Never a substitute for step one. */
+  quoteFulfilmentCost(input: {
+    storeId: number;
+    orderId: number;
+    useCredit: boolean;
+  }): Promise<FulfilmentPreview | null>;
+  /** Step two. Identical scope to step one, sent with confirmed true. */
   confirmFulfilment(input: {
     storeId: number;
     orderId: number;
@@ -76,6 +98,7 @@ export interface SupplierPort {
   getOperation(input: { storeId: number; operationId: string }): Promise<FulfilmentOperation>;
   getTracking(input: { storeId: number; orderId: number }): Promise<TrackingSnapshot>;
 }
+
 
 export interface StoreFulfilmentPort {
   /** Fulfilment orders that can still be actioned for this store order. */

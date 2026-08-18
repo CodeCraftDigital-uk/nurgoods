@@ -2,8 +2,12 @@
  * Supplier adapter for order fulfilment.
  *
  * Every call goes through a capability the supplier account genuinely exposes.
- * No operation name and no argument shape is invented, and the confirmation
- * step is always separate from the quote.
+ * No operation name and no argument shape is invented.
+ *
+ * The supplier fulfilment is a two step call on the same action. Step one
+ * sends confirmed false and returns the quote. Step two sends the identical
+ * store, order and credit scope with confirmed true, within five minutes. The
+ * separate cost lookup is supplemental and never replaces step one.
  */
 import { callAction, loadCapabilityMap, unwrapContent } from "@/lib/zendrop/client.server";
 import type { CapabilityRole } from "@/lib/zendrop/types";
@@ -14,8 +18,9 @@ import type {
   SupplierPort,
   TrackingSnapshot,
 } from "./ports";
+import type { SupplierLine } from "./types";
 
-const REQUIRED: CapabilityRole[] = ["stores_list", "orders_list", "order_fulfilment_cost", "order_fulfil"];
+const REQUIRED: CapabilityRole[] = ["stores_list", "orders_list", "order_get", "order_fulfil"];
 
 function toNumber(value: unknown): number | null {
   const parsed = typeof value === "string" ? Number(value) : typeof value === "number" ? value : NaN;
@@ -31,8 +36,27 @@ function firstList(payload: any): any[] {
   return [];
 }
 
+function text(value: unknown): string | null {
+  return value === null || value === undefined || value === "" ? null : String(value);
+}
+
+/** Reads supplier line detail from the shapes the supplier actually returns. */
+function supplierLines(raw: any): SupplierLine[] | undefined {
+  const source =
+    raw?.line_items ?? raw?.lineItems ?? raw?.items ?? raw?.order_items ?? raw?.order_line_items ?? null;
+  if (!Array.isArray(source)) return undefined;
+  return source.map((line: any) => ({
+    id: text(line?.id ?? line?.line_item_id ?? line?.order_item_id),
+    productId: text(line?.product_id ?? line?.productId ?? line?.product?.id),
+    variantId: text(line?.variant_id ?? line?.variantId ?? line?.variant?.id),
+    sku: text(line?.sku ?? line?.variant_sku ?? line?.variant?.sku),
+    quantity: toNumber(line?.quantity ?? line?.qty),
+  }));
+}
+
 function summarise(raw: any): SupplierOrderSummary {
-  return {
+  const lines = supplierLines(raw);
+  const summary: SupplierOrderSummary = {
     id: Number(raw?.id ?? raw?.order_id),
     orderNumber:
       raw?.order_number != null
@@ -42,10 +66,12 @@ function summarise(raw: any): SupplierOrderSummary {
           : null,
     name: raw?.name != null ? String(raw.name) : raw?.order_name != null ? String(raw.order_name) : null,
     status: raw?.status != null ? String(raw.status) : raw?.fulfillment_status != null ? String(raw.fulfillment_status) : null,
-    trackingNumber: raw?.tracking_number != null ? String(raw.tracking_number) : null,
-    trackingUrl: raw?.tracking_url != null ? String(raw.tracking_url) : null,
-    carrier: raw?.carrier != null ? String(raw.carrier) : raw?.shipping_carrier != null ? String(raw.shipping_carrier) : null,
+    trackingNumber: text(raw?.tracking_number),
+    trackingUrl: text(raw?.tracking_url),
+    carrier: text(raw?.carrier ?? raw?.shipping_carrier),
   };
+  if (lines) summary.lines = lines;
+  return summary;
 }
 
 function operationOf(payload: any): FulfilmentOperation {
@@ -66,6 +92,22 @@ function operationOf(payload: any): FulfilmentOperation {
     terminal: failed || done,
     succeeded: done && !failed,
     message,
+  };
+}
+
+/** Reads the cost fields out of a quote payload, whatever wrapper it arrives in. */
+function costsOf(payload: any): FulfilmentPreview {
+  const body = payload?.cost ?? payload?.costs ?? payload?.quote ?? payload?.data ?? payload ?? {};
+  const product = toNumber(body?.product_cost ?? body?.products_cost ?? body?.subtotal);
+  const shipping = toNumber(body?.shipping_cost ?? body?.shipping);
+  const total = toNumber(body?.total_cost ?? body?.total) ?? ((product ?? 0) + (shipping ?? 0) || null);
+  return {
+    productCost: product,
+    shippingCost: shipping,
+    totalCost: total,
+    currency: text(body?.currency),
+    reference: text(body?.confirmation_token ?? body?.token ?? body?.reference ?? body?.quote_id ?? body?.id),
+    raw: (body ?? {}) as Record<string, unknown>,
   };
 }
 
@@ -103,34 +145,63 @@ export const zendropSupplierPort: SupplierPort = {
     return summarise(body);
   },
 
+  /**
+   * Step one of the supplier's two step flow. The fulfilment action itself is
+   * called with confirmed false. Nothing is committed and nothing is charged.
+   */
   async previewFulfilment({ storeId, orderId, useCredit }) {
     const roles = await loadCapabilityMap();
-    if (!roles.order_fulfilment_cost) throw new Error("The supplier account cannot quote a fulfilment cost");
+    if (!roles.order_fulfil) throw new Error("The supplier account cannot fulfil orders");
     const payload = unwrapContent(
-      await callAction(roles.order_fulfilment_cost, {
+      await callAction(roles.order_fulfil, {
         store_id: storeId,
         order_id: orderId,
         is_credit_redeem: useCredit,
+        confirmed: false,
       }),
     );
-    const body = payload?.cost ?? payload?.data ?? payload ?? {};
-    const product = toNumber(body?.product_cost ?? body?.products_cost ?? body?.subtotal);
-    const shipping = toNumber(body?.shipping_cost ?? body?.shipping);
-    const total = toNumber(body?.total_cost ?? body?.total) ?? ((product ?? 0) + (shipping ?? 0) || null);
-    const preview: FulfilmentPreview = {
-      productCost: product,
-      shippingCost: shipping,
-      totalCost: total,
-      currency: body?.currency != null ? String(body.currency) : null,
-      raw: (body ?? {}) as Record<string, unknown>,
-    };
+    const preview = costsOf(payload);
+
+    // Supplemental read only lookup, used only to fill in a cost the quote did
+    // not return. It can never stand in for step one.
+    if (preview.totalCost === null && roles.order_fulfilment_cost) {
+      const extra = costsOf(
+        unwrapContent(
+          await callAction(roles.order_fulfilment_cost, {
+            store_id: storeId,
+            order_id: orderId,
+            is_credit_redeem: useCredit,
+          }),
+        ),
+      );
+      preview.productCost = preview.productCost ?? extra.productCost;
+      preview.shippingCost = preview.shippingCost ?? extra.shippingCost;
+      preview.totalCost = extra.totalCost;
+      preview.currency = preview.currency ?? extra.currency;
+      preview.raw = { ...preview.raw, supplemental_cost: extra.raw };
+    }
+
     return preview;
   },
 
+  async quoteFulfilmentCost({ storeId, orderId, useCredit }) {
+    const roles = await loadCapabilityMap();
+    if (!roles.order_fulfilment_cost) return null;
+    return costsOf(
+      unwrapContent(
+        await callAction(roles.order_fulfilment_cost, {
+          store_id: storeId,
+          order_id: orderId,
+          is_credit_redeem: useCredit,
+        }),
+      ),
+    );
+  },
+
+  /** Step two. Identical scope to step one, sent with confirmed true. */
   async confirmFulfilment({ storeId, orderId, useCredit }) {
     const roles = await loadCapabilityMap();
     if (!roles.order_fulfil) throw new Error("The supplier account cannot fulfil orders");
-    // The supplier treats confirmed as the second step of a two step flow.
     return operationOf(
       await callAction(roles.order_fulfil, {
         store_id: storeId,
@@ -140,6 +211,7 @@ export const zendropSupplierPort: SupplierPort = {
       }),
     );
   },
+
 
   async getOperation({ storeId, operationId }) {
     const roles = await loadCapabilityMap();

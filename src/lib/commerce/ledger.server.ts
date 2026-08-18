@@ -33,6 +33,20 @@ export function createLedger(db: Db): LedgerPort {
       const { data } = await db.from("commerce_order_lines").select("*").eq("order_id", orderId);
       return ((data ?? []) as any[]) as OrderLineRecord[];
     },
+    async linkLines(orderId: string, mappings) {
+      for (const mapping of mappings) {
+        await db
+          .from("commerce_order_lines")
+          .update({
+            zendrop_line_item_id: mapping.zendrop_line_item_id,
+            zendrop_product_id: mapping.zendrop_product_id,
+            zendrop_variant_id: mapping.zendrop_variant_id,
+          } as never)
+          .eq("id", mapping.lineId)
+          .eq("order_id", orderId);
+      }
+    },
+
     async update(orderId: string, patch: Record<string, unknown>) {
       await db.from("commerce_orders").update(patch as never).eq("id", orderId);
     },
@@ -94,21 +108,31 @@ export async function recordStoreOrder(
     order_total: order.total,
     shipping_country: order.shippingCountry,
     shipping_city: order.shippingCity,
+    line_count: order.lines.length,
   };
 
   let orderId: string;
   let created = false;
+  // The state actually held after this webhook. It is not assumed to be the
+  // payment evidence state, because a progressed order keeps its own state.
+  let recordedState: OrchestrationState = evidence.state;
 
   if (existing) {
     orderId = (existing as any).id;
-    const settled = ["shipped", "delivered", "cancelled"].includes((existing as any).orchestration_state);
+    const current = (existing as any).orchestration_state as OrchestrationState;
+    recordedState = current;
+    const settled = ["shipped", "delivered", "cancelled"].includes(current);
     const patch: Record<string, unknown> = { ...base };
     if (evidence.paid && (existing as any).paid_at === null) patch["paid_at"] = new Date().toISOString();
     // A later webhook must never drag a progressed order backwards.
-    if (!settled && (existing as any).orchestration_state === "payment_not_confirmed" && evidence.paid) {
+    if (!settled && current === "payment_not_confirmed" && evidence.paid) {
       patch["orchestration_state"] = "awaiting_supplier_order";
+      recordedState = "awaiting_supplier_order";
     }
-    if (evidence.state === "cancelled") patch["orchestration_state"] = "cancelled";
+    if (evidence.state === "cancelled") {
+      patch["orchestration_state"] = "cancelled";
+      recordedState = "cancelled";
+    }
     await db.from("commerce_orders").update(patch as never).eq("id", orderId);
   } else {
     const { data: inserted, error } = await db
@@ -144,27 +168,86 @@ export async function recordStoreOrder(
       );
   }
 
+  const message =
+    recordedState === evidence.state
+      ? evidence.reason
+      : `${evidence.reason}. The order stays at ${recordedState} because it has already progressed.`;
+
   await db.from("commerce_order_events").insert({
     order_id: orderId,
     from_state: null,
-    to_state: evidence.state,
+    to_state: recordedState,
     code: created ? "recorded" : "updated",
-    message: evidence.reason,
-    detail: {} as never,
+    message,
+    detail: { payment_evidence_state: evidence.state } as never,
   } as never);
 
-  return { orderId, state: evidence.state, created, reason: evidence.reason };
+  return { orderId, state: recordedState, created, reason: message };
 }
 
-/** Idempotency for webhook deliveries. Returns true when this is a new event. */
+/* --------------------------- webhook delivery log ------------------------- */
+
+export type DeliveryClaim =
+  | { claimed: true; deliveryId: string; attempts: number }
+  | { claimed: false; reason: "already_processed" | "in_flight" };
+
+/**
+ * Claims a webhook delivery for processing.
+ *
+ * A delivery is only refused when it has genuinely already been processed. A
+ * delivery that was recorded but never completed is handed back so the store
+ * can safely redeliver it.
+ */
 export async function claimWebhookDelivery(
   db: Db,
-  input: { eventId: string; topic: string; shopifyOrderId: string | null },
-): Promise<boolean> {
-  const { error } = await db.from("commerce_webhook_deliveries").insert({
-    event_id: input.eventId,
-    topic: input.topic,
-    shopify_order_id: input.shopifyOrderId,
-  } as never);
-  return !error;
+  input: { webhookId: string; topic: string; shopifyOrderId: string | null },
+): Promise<DeliveryClaim> {
+  const { data: existing } = await db
+    .from("commerce_webhook_deliveries")
+    .select("id, status, attempts")
+    .eq("webhook_id", input.webhookId)
+    .maybeSingle();
+
+  if (existing) {
+    const row = existing as any;
+    if (row.status === "processed") return { claimed: false, reason: "already_processed" };
+    const attempts = Number(row.attempts ?? 0) + 1;
+    await db
+      .from("commerce_webhook_deliveries")
+      .update({ status: "processing", attempts, last_error: null } as never)
+      .eq("id", row.id);
+    return { claimed: true, deliveryId: String(row.id), attempts };
+  }
+
+  const { data: inserted, error } = await db
+    .from("commerce_webhook_deliveries")
+    .insert({
+      webhook_id: input.webhookId,
+      topic: input.topic,
+      shopify_order_id: input.shopifyOrderId,
+      status: "processing",
+      attempts: 1,
+    } as never)
+    .select("id")
+    .maybeSingle();
+
+  if (error || !inserted) {
+    // A concurrent delivery of the same event won the unique constraint.
+    return { claimed: false, reason: "in_flight" };
+  }
+  return { claimed: true, deliveryId: String((inserted as any).id), attempts: 1 };
+}
+
+export async function completeWebhookDelivery(db: Db, deliveryId: string): Promise<void> {
+  await db
+    .from("commerce_webhook_deliveries")
+    .update({ status: "processed", processed_at: new Date().toISOString(), last_error: null } as never)
+    .eq("id", deliveryId);
+}
+
+export async function failWebhookDelivery(db: Db, deliveryId: string, message: string): Promise<void> {
+  await db
+    .from("commerce_webhook_deliveries")
+    .update({ status: "failed", last_error: message.slice(0, 500) } as never)
+    .eq("id", deliveryId);
 }

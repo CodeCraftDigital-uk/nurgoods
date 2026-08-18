@@ -10,11 +10,16 @@
 import type { LedgerPort, StoreFulfilmentPort, SupplierPort } from "./ports";
 import {
   dispatchKey,
+  lineLinkageDecision,
   linkageDecision,
+  previewScope,
+  previewValidity,
   supplierStatusToState,
   type OrchestrationState,
   type OrderRecord,
+  type StoreLine,
 } from "./types";
+
 
 export interface QueueSummary {
   considered: number;
@@ -140,9 +145,33 @@ export async function processFulfilmentQueue(
 
       const supplierOrderId = order.zendrop_order_id!;
       const useCredit = settings.allow_supplier_credit;
+      const scope = previewScope({ storeId, orderId: supplierOrderId, useCredit });
 
-      // Fulfilment quote. Recorded before anything is confirmed so the cost is
-      // always evidenced.
+      // Line by line verification. The supplier order must correspond exactly
+      // to the store order before any fulfilment step is taken.
+      if (order.orchestration_state === "awaiting_fulfilment_preview") {
+        const supplierOrder = await supplier.getOrder({ storeId, orderId: supplierOrderId });
+        if (!supplierOrder) {
+          await move(ledger, order, "manual_review", "linkage_lines", "The supplier order could not be read back");
+          summary.skipped += 1;
+          continue;
+        }
+        const storeLines = (await ledger.lines(order.id)) as unknown as StoreLine[];
+        const lineDecision = lineLinkageDecision({
+          storeLines,
+          supplierLines: supplierOrder.lines ?? null,
+        });
+        if (!lineDecision.ok) {
+          await move(ledger, order, lineDecision.state, "linkage_lines", lineDecision.reason);
+          summary.skipped += 1;
+          continue;
+        }
+        await ledger.linkLines(order.id, lineDecision.mappings);
+        await ledger.update(order.id, { lines_linked_at: new Date().toISOString() });
+      }
+
+      // Step one of the supplier's two step fulfilment. Sent with confirmed
+      // false, so nothing is committed and nothing is charged.
       if (order.orchestration_state === "awaiting_fulfilment_preview") {
         const preview = await supplier.previewFulfilment({ storeId, orderId: supplierOrderId, useCredit });
         const margin =
@@ -154,7 +183,7 @@ export async function processFulfilmentQueue(
           order,
           "awaiting_fulfilment_confirmation",
           "preview",
-          "Fulfilment cost quoted by the supplier",
+          "Fulfilment quoted by the supplier and held for confirmation",
           {
             product_cost: preview.productCost,
             shipping_cost: preview.shippingCost,
@@ -163,13 +192,18 @@ export async function processFulfilmentQueue(
             preview_payload: preview.raw,
             preview_at: new Date().toISOString(),
             preview_is_credit_redeem: useCredit,
+            preview_reference: preview.reference,
+            preview_scope: scope,
           },
         );
+        order.preview_at = new Date().toISOString();
+        order.preview_scope = scope;
+        order.preview_is_credit_redeem = useCredit;
         summary.previewed += 1;
       }
 
-      // Confirmation. This is the only step that spends money, so it needs an
-      // explicit authorisation and a stable idempotency key.
+      // Step two. This is the only step that spends money, so it needs an
+      // explicit authorisation, a current quote and a stable idempotency key.
       if (order.orchestration_state === "awaiting_fulfilment_confirmation") {
         const key = dispatchKey(order.shopify_order_id, supplierOrderId);
         if (order.dispatch_idempotency_key === key) {
@@ -188,6 +222,21 @@ export async function processFulfilmentQueue(
             code: "awaiting_authorisation",
             message: "Quoted and ready. Automatic fulfilment is switched off, so it is waiting for approval.",
           });
+          continue;
+        }
+
+        const validity = previewValidity({
+          previewAt: order.preview_at,
+          previewScope: order.preview_scope ?? null,
+          requiredScope: scope,
+        });
+        if (!validity.valid) {
+          // Back to step one rather than confirming against a stale quote.
+          await move(ledger, order, "awaiting_fulfilment_preview", "preview_expired", validity.reason, {
+            preview_at: null,
+            preview_scope: null,
+          });
+          summary.skipped += 1;
           continue;
         }
 
@@ -216,6 +265,7 @@ export async function processFulfilmentQueue(
         });
         summary.dispatched += 1;
       }
+
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : "The fulfilment step failed";
       await fail(ledger, order, "fulfilment_failed", "exception", message);
@@ -323,7 +373,9 @@ export async function syncTracking(
             trackingNumber: tracking.trackingNumber,
             trackingUrl: tracking.trackingUrl,
             carrier: tracking.carrier,
-            notifyCustomer: true,
+            // Only notify when a genuine supplier shipment exists.
+            notifyCustomer: Boolean(tracking.trackingNumber),
+
           });
           if (!created.ok) {
             await fail(ledger, order, "tracking_exception", "store_fulfilment_failed", created.message);

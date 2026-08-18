@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { createHash } from "crypto";
 
 /**
  * Store order events.
@@ -8,6 +9,10 @@ import { createFileRoute } from "@tanstack/react-router";
  * ledger and derives payment from the store's own reported status. It never
  * places a supplier order directly: the scheduled fulfilment queue does that,
  * under its own safety switches.
+ *
+ * Delivery handling is claim, process, mark processed. A delivery that fails
+ * part way through stays unprocessed and returns a retryable response, so the
+ * store can redeliver it safely.
  */
 export const Route = createFileRoute("/api/public/hooks/shopify-orders")({
   server: {
@@ -16,10 +21,12 @@ export const Route = createFileRoute("/api/public/hooks/shopify-orders")({
         const body = await request.text();
         const signature = request.headers.get("x-shopify-hmac-sha256") ?? "";
         const topic = request.headers.get("x-shopify-topic") ?? "";
-        const eventId =
-          request.headers.get("x-shopify-event-id") ??
+        // A stable identity. When the store sends no delivery header the exact
+        // raw body is hashed, so a genuine redelivery is still recognised.
+        const webhookId =
           request.headers.get("x-shopify-webhook-id") ??
-          `${topic}:${Date.now()}`;
+          request.headers.get("x-shopify-event-id") ??
+          `${topic}:${createHash("sha256").update(body, "utf8").digest("hex")}`;
 
         const { getWebhookSigningSecret } = await import("@/lib/services/shopify.server");
         const secret = await getWebhookSigningSecret();
@@ -41,25 +48,43 @@ export const Route = createFileRoute("/api/public/hooks/shopify-orders")({
         if (!order) return Response.json({ error: "Unknown order" }, { status: 400 });
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        const { claimWebhookDelivery, recordStoreOrder } = await import("@/lib/commerce/ledger.server");
+        const { claimWebhookDelivery, completeWebhookDelivery, failWebhookDelivery, recordStoreOrder } =
+          await import("@/lib/commerce/ledger.server");
 
+        let claim;
         try {
-          const fresh = await claimWebhookDelivery(supabaseAdmin as never, {
-            eventId,
+          claim = await claimWebhookDelivery(supabaseAdmin as never, {
+            webhookId,
             topic,
             shopifyOrderId: order.shopifyOrderId,
           });
-          if (!fresh) return Response.json({ ok: true, duplicate: true });
+        } catch (cause) {
+          const message = cause instanceof Error ? cause.message : "The delivery could not be claimed";
+          return Response.json({ ok: false, message }, { status: 503 });
+        }
 
+        if (!claim.claimed) {
+          if (claim.reason === "already_processed") {
+            return Response.json({ ok: true, duplicate: true });
+          }
+          // Another delivery of the same event is in flight. Ask for a retry
+          // rather than silently dropping this one.
+          return Response.json({ ok: false, message: "Delivery already in flight" }, { status: 409 });
+        }
+
+        try {
           const result = await recordStoreOrder(supabaseAdmin as never, order);
+          await completeWebhookDelivery(supabaseAdmin as never, claim.deliveryId);
           return Response.json({ ok: true, topic, state: result.state, reason: result.reason });
         } catch (cause) {
           const message = cause instanceof Error ? cause.message : "The order could not be recorded";
-          // A 200 stops the store retrying forever. The reconciliation job
-          // picks the order up again.
-          return Response.json({ ok: false, message }, { status: 200 });
+          await failWebhookDelivery(supabaseAdmin as never, claim.deliveryId, message).catch(() => undefined);
+          // Retryable. The delivery stays unprocessed so the store can send it
+          // again and the claim will be handed back.
+          return Response.json({ ok: false, message }, { status: 503 });
         }
       },
     },
   },
 });
+

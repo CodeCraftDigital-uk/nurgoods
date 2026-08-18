@@ -138,14 +138,22 @@ function makeOrder(overrides: Partial<OrderRecord> = {}): OrderRecord {
   };
 }
 
-function makeLedger(orders: OrderRecord[], settings: Partial<CommerceSettings> = {}) {
+function makeLedger(
+  orders: OrderRecord[],
+  settings: Partial<CommerceSettings> = {},
+  lines: any[] = [STORE_LINE],
+) {
   const patches: Record<string, unknown>[] = [];
+  const linked: any[] = [];
   const ledger: LedgerPort = {
     async claim() {
       return orders;
     },
     async lines() {
-      return [];
+      return lines;
+    },
+    async linkLines(_id, mappings) {
+      linked.push(...mappings);
     },
     async update(_id, patch) {
       patches.push(patch);
@@ -156,10 +164,21 @@ function makeLedger(orders: OrderRecord[], settings: Partial<CommerceSettings> =
       return { ...DEFAULT_COMMERCE_SETTINGS, ...settings };
     },
   };
-  return { ledger, patches };
+  return { ledger, patches, linked };
 }
 
-function makeSupplier(calls: string[]): SupplierPort {
+const STORE_LINE = {
+  id: "line-1",
+  shopify_line_item_id: "9001",
+  shopify_variant_id: "5001",
+  shopify_product_id: "4001",
+  sku: "NG-001",
+  quantity: 1,
+};
+
+const SUPPLIER_LINE = { variantId: "5001", productId: "4001", sku: "NG-001", quantity: 1, raw: {} };
+
+function makeSupplier(calls: string[], supplierLines: any[] = [SUPPLIER_LINE]): SupplierPort {
   return {
     async available() {
       return { ready: true, missing: [] };
@@ -172,11 +191,18 @@ function makeSupplier(calls: string[]): SupplierPort {
       return [{ id: 77, orderNumber: "1042", name: "#1042", status: "processing" }];
     },
     async getOrder() {
-      return null;
+      calls.push("getOrder");
+      return {
+        id: 77,
+        orderNumber: "1042",
+        name: "#1042",
+        status: "processing",
+        lines: supplierLines,
+      };
     },
     async previewFulfilment() {
       calls.push("preview");
-      return { productCost: 10, shippingCost: 2, totalCost: 12, currency: "GBP", raw: {} };
+      return { productCost: 10, shippingCost: 2, totalCost: 12, currency: "GBP", reference: "quote-1", raw: {} };
     },
     async confirmFulfilment() {
       calls.push("confirm");
@@ -196,7 +222,7 @@ describe("fulfilment queue", () => {
     const calls: string[] = [];
     const { ledger } = makeLedger([makeOrder()]);
     const summary = await processFulfilmentQueue(ledger, makeSupplier(calls));
-    expect(calls).toEqual(["list", "preview"]);
+    expect(calls).toEqual(["list", "getOrder", "preview"]);
     expect(summary.dispatched).toBe(0);
     expect(summary.previewed).toBe(1);
   });
