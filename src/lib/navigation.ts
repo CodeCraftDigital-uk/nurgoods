@@ -8,6 +8,7 @@ import {
   PackageSearch,
 
   Plug,
+  Radio,
   Scale,
   Truck,
   Search,
