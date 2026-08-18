@@ -1,63 +1,72 @@
-# Why orders are invisible, and the Orders console to build
+# Checkout return path: investigation result and options
 
-## Findings (read-only)
+Customers pay on `shop.nurgoods.com` (the store's own checkout host) and the native "Continue shopping" button after payment sends them there instead of back to `nurgoods.com`.
 
-**There is no orders UI at all.** The commerce system was built entirely as backend: ledger, orchestrator, webhook ingress, supplier/store ports and two cron jobs. Nothing was ever added to the admin console.
+## What the code does today
 
-- Control routes present: dashboard, catalogue, preview, journal, reviews, seo, automations, integrations, contact, legal, sourcing, pricing, intake, mcp. No orders/commerce route file exists.
-- `ADMIN_NAV` in `src/lib/navigation.ts` has 14 entries, none commerce related. So nothing is hidden or unlinked; it simply was never built.
-- No client-callable commerce server functions exist. `src/lib/commerce/` contains only `*.server.ts` / plain modules (`ledger.server`, `orchestrator`, `jobs.server`, `supplier.server`, `store.server`, `ports`, `types`, `webhook`). There is no `commerce.functions.ts`, so the UI has no callable surface for actions.
+Confirmed by reading `src/lib/services/shopify-storefront.server.ts`:
 
-**Backend data that is already available to power a UI**
+- The basket creates one cart through the official Cart API and uses the `checkoutUrl` the store issues (`createStorefrontCartLines`).
+- `finaliseCheckoutUrl` only rewrites the host of that link so a shopper is never sent to a host that loops back here. It records nothing about where the shopper should return to.
+- There is no return-path handling anywhere in the basket, checkout or storefront code today.
 
-- `commerce_orders` (39 cols): Shopify identity (`shopify_order_id/name/number`, financial + fulfillment status), `currency`, `order_total`, ship-to city/country, Zendrop identity (`zendrop_store_id`, `zendrop_order_id`, `zendrop_order_number`, `zendrop_fulfillment_operation_id`), `orchestration_state`, `supplier_status`, tracking number/carrier/url, `fulfilment_cost` / `product_cost` / `shipping_cost` / `gross_margin`, `preview_payload` / `preview_at` / `preview_reference` / `preview_scope` / `preview_is_credit_redeem`, `dispatch_idempotency_key`, `last_error`, `retry_count`, and the timeline stamps `paid_at`, `submitted_at`, `shipped_at`, `delivered_at`, `lines_linked_at`.
-- `commerce_order_lines`: Shopify line/variant/product ids, sku, title, qty, unit price, and Zendrop line/store-line/product/variant ids plus per line supplier status and tracking.
-- `commerce_order_events`: from/to state, code, message, jsonb detail, timestamp. A ready made timeline.
-- `commerce_webhook_deliveries`: webhook id, topic, order id, status, attempts, processed_at, last_error.
-- `commerce_settings`: `auto_fulfilment_enabled`, `allow_supplier_credit`, `safe_test_order_ids`, `max_orders_per_run`.
-- Cron: `nurgoods-order-fulfilment-queue` every 10 min and `nurgoods-order-tracking-sync` every 30 min, both active; `automation_jobs` rows `order_fulfilment_queue` and `order_tracking_sync` both enabled and last succeeded today.
-- RLS: all five commerce tables have admin-only SELECT for `authenticated` and no write policies, so read screens can query directly while every action must go through a server function.
+So this is not a bug in our handoff. The link we hand over is correct. The button after payment is rendered by Shopify.
 
-**Note on financials.** Supplier cost columns have no currency of their own; the only currency column is the Shopify order currency. Any cost display must be labelled as supplier quoted rather than silently rendered as GBP.
+## What Shopify actually allows in 2026
 
-## Recommended admin UI
+Verified against current Shopify documentation and changelogs.
 
-New section `/control/orders` (nav entry "Orders and Fulfilment", placed after Dashboard).
+1. The Cart API has no return URL. `cartCreate` and the resulting `checkoutUrl` accept no `return_to`, redirect or custom storefront field. Cart `attributes` are free form key and value pairs that ride along to the order as metadata only. Nothing in checkout reads them for navigation.
+2. The native "Continue shopping" target is not configurable. It points at the store's primary Online Store domain. There is no setting for it in the checkout and accounts editor, in domain settings, or in Markets.
+3. Thank you and Order status UI extensions are available on Basic. Since the December 2024 rollout, block extensions on those pages work on every plan, using the `purchase.thank-you.block.render` and `customer-account.order-status.block.render` targets. They are additive only.
+4. **The native button cannot be overridden or hidden on Basic.** Block extensions cannot remove or repoint built in page elements. Replacing native page components sits in the Plus tier of the checkout and accounts editor. So on Basic both buttons will exist side by side.
+5. Legacy routes are closed. Additional Scripts on the Order status page stop running for non Plus stores on 26 August 2026, so a script based redirect is not a durable answer and is excluded here.
 
-**1. Orders list** `/control/orders`
-- Attention-first grouping: manual review and failures pinned at the top, then active, then terminal.
-- Columns: order name/number, paid at, total with order currency, ship-to country, orchestration state pill, supplier status, Zendrop order number, tracking presence, retry count.
-- Filters by state, search by Shopify order name/number or Zendrop order id, plus a state count summary strip.
+## Options, ranked
 
-**2. Order detail** `/control/orders/$orderId`
-- Header: state pill, Shopify order link, Zendrop order/store ids, paid/submitted/shipped/delivered stamps.
-- Shopify and webhook panel: financial and fulfillment status, plus that order's webhook deliveries with topic, attempts, status and last error.
-- Zendrop panel: store id, order id/number, supplier status, fulfilment operation id, dispatch idempotency key, preview reference/scope/age and whether the preview is a credit redeem.
-- Line mapping table: each Shopify line beside its linked Zendrop line, with an explicit unlinked warning where mapping is missing rather than an empty cell.
-- Tracking panel: carrier, number, link out, last observed by the tracking job. Never render a fabricated tracking value.
-- Event timeline from `commerce_order_events`, newest first, with expandable jsonb detail.
-- Financials: order total in order currency, supplier product/shipping/fulfilment cost labelled "supplier quoted", gross margin shown only when both sides are present and comparable, otherwise "not comparable".
+### Option A, recommended: add our own return CTA with a Thank you / Order status UI extension
 
-**3. Operations panel** (top of list page)
-- Safety flags read-out: auto fulfilment, supplier credit, max orders per run, safe test order ids. Toggles are admin-only server actions with a typed confirmation for enabling auto fulfilment or supplier credit.
-- Cron health: both order jobs with schedule, enabled state, last run and last status, drawn from `automation_jobs`.
-- Manual "run fulfilment queue" and "run tracking sync" buttons that call the existing job entry points.
+Build a small Shopify app extension using `purchase.thank-you.block.render` plus `customer-account.order-status.block.render`, rendering a clear primary action such as "Return to NUR GOODS" that links to `https://nurgoods.com`, styled with the checkout branding so it reads as ours.
 
-**4. Manual review actions** (order detail, all admin-verified server functions)
-- Quote/preview supplier cost (read-only supplier call, no confirmation).
-- Confirm dispatch, gated by: auto fulfilment off means explicit owner confirmation, a typed order number, and a disabled button whenever `zendrop_order_id` or `dispatch_idempotency_key` is already set.
-- Link an externally placed supplier order (the manual backfill path used for #1001) without any supplier write.
-- Mark resolved / return to queue / cancel orchestration, each writing a `commerce_order_events` row.
+- Safest and fully supported, no deprecated surface, works on Basic.
+- Placement is chosen by the merchant in the checkout and accounts editor, so the block can sit above the native button and become the visually dominant action.
+- Limitation to accept: the native "Continue shopping" button remains and still points at `shop.nurgoods.com`.
+- Requires deploying a Shopify app extension and enabling the block in the editor, which is work outside this codebase.
 
-**Duplicate submission safeguards**
-- Server side remains authoritative: confirm refuses when a dispatch key or supplier order id already exists, and reuses the existing key otherwise.
-- UI shows the existing dispatch key and supplier order id prominently and disables confirm on their presence.
-- Single-flight confirm button with server round-trip acknowledgement, no optimistic state.
-- Any confirm timeout lands in manual review rather than auto retrying, matching the current orchestrator behaviour.
+### Option B: make `shop.nurgoods.com` bounce post purchase traffic home
 
-## Technical notes
+Leave the checkout as is and make the checkout host forward shoppers who arrive at its storefront pages back to `nurgoods.com`, so pressing the native button still lands them on our site.
 
-- Add `src/lib/commerce/commerce.functions.ts` with read fns (list, detail, settings, cron health) and mutation fns, all behind `requireSupabaseAuth` plus an explicit `has_role(uid,'admin')` check, loading `*.server` modules inside handlers.
-- Routes live under `src/routes/_authenticated/control.orders.*`; nav item added to `ADMIN_NAV`.
-- Reads may go through the existing admin-only SELECT policies; no RLS or grant changes are required for the read screens. Mutation fns use verified admin identity, not the anon path.
-- No changes to safety flags, cron schedules, or supplier behaviour as part of building the UI.
+- No app extension needed, and it fixes the native button's real world outcome rather than the label.
+- Risk: `finaliseCheckoutUrl` deliberately refuses a checkout host that redirects back to this site, because that pattern breaks checkout links. Any forwarding must be scoped strictly to non checkout paths and proven not to disturb the probe. This needs careful verification before it can be trusted.
+- Depends on how the checkout host is served, which needs confirming in the store admin before committing.
+
+### Option C: accept it and improve our own pre checkout messaging
+
+Set expectations on the basket and checkout handoff so the domain change is not surprising, and rely on order confirmation emails, which we can brand and link to `nurgoods.com`.
+
+- Zero risk, zero platform work, but does not change the button.
+- Reasonable interim step while Option A is built.
+
+### Not viable
+
+- Passing a return URL on the checkout link. Unsupported, no such field.
+- Changing the button target in admin. No such setting exists.
+- Additional Scripts or `checkout.liquid` redirects. Sunsetting 26 August 2026.
+- Shopify Functions. They cover discounts, shipping, payment and validation logic, never page navigation.
+
+## Shopify admin changes each option needs
+
+- Option A: install or deploy the app carrying the extension, then place the block on the Thank you and Order status pages in the checkout and accounts editor. Optionally align checkout branding with NUR GOODS.
+- Option B: domain and hosting configuration for `shop.nurgoods.com`, plus a re-check that the checkout host still answers as the store.
+- Option C: none.
+
+## Straight answer on the native button
+
+On Shopify Basic the native "Continue shopping" button cannot be repointed, hidden or overridden. It can only be out-ranked visually by a block extension, or made harmless by forwarding the destination host.
+
+## Recommendation
+
+Option A as the real fix, with Option C copy work alongside it now. Evaluate Option B only after confirming how `shop.nurgoods.com` is served, because it interacts with the existing checkout host safety gate.
+
+Nothing has been implemented. Confirm which option to build and I will scope the implementation.
