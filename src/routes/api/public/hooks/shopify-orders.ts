@@ -33,7 +33,7 @@ export const Route = createFileRoute("/api/public/hooks/shopify-orders")({
       POST: async ({ request }) => {
         const body = await request.text();
         const signature = request.headers.get("x-shopify-hmac-sha256") ?? "";
-        const topic = request.headers.get("x-shopify-topic") ?? "";
+        const topic = (request.headers.get("x-shopify-topic") ?? "").toLowerCase();
         // A stable identity. When the store sends no delivery header the exact
         // raw body is hashed, so a genuine redelivery is still recognised.
         const webhookId =
