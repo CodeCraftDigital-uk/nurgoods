@@ -106,14 +106,32 @@ export function validateIntake(
     "Not a prohibited category",
     !prohibited.prohibited,
     prohibited.reason ?? "No prohibited category signal",
+    "the product is in a prohibited category",
   );
 
+  /**
+   * Store state.
+   *
+   * A supplier origin product arrives as a draft staging record because the
+   * supplier push has no way to hold it anywhere else. That alone is not a
+   * quality problem, so draft is accepted for supplier origin records and the
+   * final activation happens only after every other gate has passed. A store
+   * origin product keeps the store's own decision: draft and archived stay out
+   * of the catalogue and are never activated automatically.
+   */
   const status = (product.status ?? "").toLowerCase();
+  const statusAllowed =
+    status === "" ||
+    status === "active" ||
+    (origin === "supplier" && status === "draft");
   add(
     "eligible_status",
-    "Product is active in the store",
-    status === "" || status === "active",
+    origin === "supplier"
+      ? "Store record is active or awaiting activation"
+      : "Product is active in the store",
+    statusAllowed,
     status || "unknown",
+    `the store product is ${status || "in an unknown state"}`,
   );
 
   const title = (product.title ?? "").trim();
