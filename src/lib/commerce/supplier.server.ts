@@ -30,7 +30,7 @@ function toNumber(value: unknown): number | null {
 function firstList(payload: any): any[] {
   const source = unwrapContent(payload);
   if (Array.isArray(source)) return source;
-  for (const key of ["orders", "data", "results", "items", "events", "tracking_events"]) {
+  for (const key of ["stores", "orders", "data", "results", "items", "events", "tracking_events"]) {
     if (Array.isArray(source?.[key])) return source[key];
   }
   return [];
