@@ -49,3 +49,35 @@ export function isInfrastructurePath(pathname: string): boolean {
     /\.[a-z0-9]+$/i.test(pathname)
   );
 }
+
+/**
+ * Guard for links shown to shoppers.
+ *
+ * shop.nurgoods.com is checkout and payment infrastructure only. A browsing
+ * link, logo, breadcrumb, cart continuation or return link must always point
+ * at nurgoods.com, so anything that resolves to the checkout host is refused
+ * rather than quietly sending a shopper to a second storefront.
+ */
+export function assertStorefrontUrl(url: string): string {
+  let host: string;
+  try {
+    host = normaliseHost(new URL(url, `https://${PUBLIC_HOST}`).hostname);
+  } catch {
+    throw new Error(`"${url}" is not a usable storefront link.`);
+  }
+  if (host === CHECKOUT_HOST) {
+    throw new Error(
+      `Refusing to link a shopper to ${CHECKOUT_HOST}. That host is checkout infrastructure, not the NUR GOODS storefront.`,
+    );
+  }
+  return url;
+}
+
+/** True when a link would send a shopper to the checkout host. */
+export function isCheckoutInfrastructureUrl(url: string): boolean {
+  try {
+    return normaliseHost(new URL(url, `https://${PUBLIC_HOST}`).hostname) === CHECKOUT_HOST;
+  } catch {
+    return false;
+  }
+}
