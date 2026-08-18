@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Calculator, RefreshCw, ShieldCheck } from "lucide-react";
+import { Calculator, RefreshCw, ShieldCheck, Truck } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { SectionCard } from "@/components/admin/SectionCard";
@@ -21,6 +21,7 @@ import {
   applyPricingAuditFn,
   getPricingAudit,
   recoverSupplierLinkageFn,
+  refreshShippingQuotesFn,
   runPricingAuditFn,
   syncVariantCostsFn,
 } from "@/lib/pricing/pricing.functions";
@@ -91,6 +92,16 @@ function CataloguePricingPage() {
     onError: (error: Error) => toast.error(error.message),
   });
 
+  const quotesFn = useServerFn(refreshShippingQuotesFn);
+  const refreshQuotes = useMutation({
+    mutationFn: () => quotesFn({ data: {} }),
+    onSuccess: (result) => {
+      toast.success(result.message);
+      invalidate();
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
   const runFn = useServerFn(runPricingAuditFn);
   const runAudit = useMutation({
     mutationFn: () => runFn({}),
@@ -126,6 +137,7 @@ function CataloguePricingPage() {
   const heldTotal =
     (totals?.held_missing_cost ?? 0) +
     (totals?.held_missing_uk_shipping ?? 0) +
+    (totals?.held_stale_shipping_quote ?? 0) +
     (totals?.held_unreliable_linkage ?? 0);
 
   return (
@@ -133,7 +145,7 @@ function CataloguePricingPage() {
       <PageHeader
         eyebrow="Catalogue pricing"
         title="Existing listing repricing"
-        description="A dry run first. Every existing listing is measured against landed cost divided by one minus the target gross margin, then rounded. Nothing changes in the store until an administrator applies a reviewed audit."
+        description="A dry run first. Every listing is measured against protected landed cost plus payment fees, solved back to the price that holds the target margin, then rounded up. Nothing changes in the store until an administrator applies a reviewed audit."
         actions={
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" onClick={() => syncCosts.mutate()} disabled={syncCosts.isPending}>
@@ -148,6 +160,15 @@ function CataloguePricingPage() {
             >
               <RefreshCw className="mr-2 h-4 w-4" />
               {recoverLinkage.isPending ? "Rebuilding links" : "Rebuild supplier links"}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => refreshQuotes.mutate()}
+              disabled={refreshQuotes.isPending}
+            >
+              <Truck className="mr-2 h-4 w-4" />
+              {refreshQuotes.isPending ? "Quoting shipping" : "Refresh UK shipping quotes"}
             </Button>
             <Button size="sm" onClick={() => runAudit.mutate()} disabled={runAudit.isPending}>
               <Calculator className="mr-2 h-4 w-4" />
@@ -187,6 +208,11 @@ function CataloguePricingPage() {
           label="Missing UK shipping"
           value={String(totals?.held_missing_uk_shipping ?? 0)}
           hint="No confirmed destination shipping cost"
+        />
+        <Metric
+          label="Stale shipping quote"
+          value={String(totals?.held_stale_shipping_quote ?? 0)}
+          hint="The destination quote is older than the freshness policy allows"
         />
         <Metric
           label="Unreliable linkage"
@@ -256,10 +282,14 @@ function CataloguePricingPage() {
                   <TableHead>Current</TableHead>
                   <TableHead>Cost</TableHead>
                   <TableHead>UK shipping</TableHead>
-                  <TableHead>Landed</TableHead>
-                  <TableHead>Formula price</TableHead>
+                  <TableHead>Landed (protected)</TableHead>
+                  <TableHead>Required</TableHead>
+                  <TableHead>Advertised</TableHead>
+                  <TableHead>Fee</TableHead>
+                  <TableHead>Payout</TableHead>
+                  <TableHead>Profit</TableHead>
                   <TableHead>Current margin</TableHead>
-                  <TableHead>Proposed margin</TableHead>
+                  <TableHead>Expected margin</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Reason and sources</TableHead>
                 </TableRow>
@@ -289,12 +319,18 @@ function CataloguePricingPage() {
                     <TableCell>{formatMoney(item.current_price, item.currency)}</TableCell>
                     <TableCell>{formatMoney(item.unit_cost, item.currency)}</TableCell>
                     <TableCell>{formatMoney(item.shipping_cost, item.currency)}</TableCell>
-                    <TableCell>{formatMoney(item.landed_cost, item.currency)}</TableCell>
+                    <TableCell>
+                      {formatMoney(item.protected_landed_cogs ?? item.landed_cost, item.currency)}
+                    </TableCell>
+                    <TableCell>{formatMoney(item.required_price ?? null, item.currency)}</TableCell>
                     <TableCell className="font-medium">
                       {formatMoney(item.calculated_price, item.currency)}
                     </TableCell>
+                    <TableCell>{formatMoney(item.expected_fee ?? null, item.currency)}</TableCell>
+                    <TableCell>{formatMoney(item.expected_payout ?? null, item.currency)}</TableCell>
+                    <TableCell>{formatMoney(item.expected_profit ?? null, item.currency)}</TableCell>
                     <TableCell>{formatPercent(item.current_margin)}</TableCell>
-                    <TableCell>{formatPercent(item.proposed_margin)}</TableCell>
+                    <TableCell>{formatPercent(item.expected_margin ?? item.proposed_margin)}</TableCell>
                     <TableCell>
                       <StatusPill tone={STATUS_TONE[item.status]}>
                         {AUDIT_STATUS_LABEL[item.status] ?? item.status}
@@ -303,8 +339,23 @@ function CataloguePricingPage() {
                     <TableCell className="max-w-[260px] text-xs text-muted-foreground">
                       {item.reason ?? "Within policy"}
                       <span className="block opacity-70">
-                        {[item.cost_source, item.shipping_source].filter(Boolean).join(" · ") ||
-                          "No cost source recorded"}
+                        {[item.cost_source, item.shipping_source, item.shipping_service]
+                          .filter(Boolean)
+                          .join(" · ") || "No cost source recorded"}
+                      </span>
+                      <span className="block opacity-70">
+                        {item.fx_effective_rate
+                          ? `Protected rate ${Number(item.fx_effective_rate).toFixed(4)} ${
+                              item.supplier_currency ?? "USD"
+                            } to ${item.currency}${item.fx_as_of ? `, reference ${item.fx_as_of}` : ""}`
+                          : "No protected exchange rate applied"}
+                      </span>
+                      <span className="block opacity-70">
+                        {item.shipping_quoted_at
+                          ? `Shipping quoted ${new Date(item.shipping_quoted_at).toLocaleDateString("en-GB")}${
+                              item.shipping_destination ? ` for ${item.shipping_destination}` : ""
+                            }`
+                          : "No dated destination shipping quote"}
                       </span>
                     </TableCell>
                   </TableRow>
