@@ -36,6 +36,7 @@ import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[
 import { Route as AuthenticatedControlIndexRouteImport } from './routes/_authenticated/control.index'
 import { Route as AuthenticatedControlAutomationsRouteImport } from './routes/_authenticated/control.automations'
 import { Route as AuthenticatedControlCatalogueRouteImport } from './routes/_authenticated/control.catalogue'
+import { Route as AuthenticatedControlChannelsRouteImport } from './routes/_authenticated/control.channels'
 import { Route as AuthenticatedControlContactRouteImport } from './routes/_authenticated/control.contact'
 import { Route as AuthenticatedControlIntakeRouteImport } from './routes/_authenticated/control.intake'
 import { Route as AuthenticatedControlIntegrationsRouteImport } from './routes/_authenticated/control.integrations'
@@ -205,6 +206,12 @@ const AuthenticatedControlCatalogueRoute =
   AuthenticatedControlCatalogueRouteImport.update({
     id: '/catalogue',
     path: '/catalogue',
+    getParentRoute: () => AuthenticatedControlRoute,
+  } as any)
+const AuthenticatedControlChannelsRoute =
+  AuthenticatedControlChannelsRouteImport.update({
+    id: '/channels',
+    path: '/channels',
     getParentRoute: () => AuthenticatedControlRoute,
   } as any)
 const AuthenticatedControlContactRoute =
@@ -404,6 +411,7 @@ export interface FileRoutesByFullPath {
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/control/automations': typeof AuthenticatedControlAutomationsRoute
   '/control/catalogue': typeof AuthenticatedControlCatalogueRoute
+  '/control/channels': typeof AuthenticatedControlChannelsRoute
   '/control/contact': typeof AuthenticatedControlContactRoute
   '/control/intake': typeof AuthenticatedControlIntakeRoute
   '/control/integrations': typeof AuthenticatedControlIntegrationsRoute
@@ -461,6 +469,7 @@ export interface FileRoutesByTo {
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/control/automations': typeof AuthenticatedControlAutomationsRoute
   '/control/catalogue': typeof AuthenticatedControlCatalogueRoute
+  '/control/channels': typeof AuthenticatedControlChannelsRoute
   '/control/contact': typeof AuthenticatedControlContactRoute
   '/control/intake': typeof AuthenticatedControlIntakeRoute
   '/control/integrations': typeof AuthenticatedControlIntegrationsRoute
@@ -519,6 +528,7 @@ export interface FileRoutesById {
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/_authenticated/control/automations': typeof AuthenticatedControlAutomationsRoute
   '/_authenticated/control/catalogue': typeof AuthenticatedControlCatalogueRoute
+  '/_authenticated/control/channels': typeof AuthenticatedControlChannelsRoute
   '/_authenticated/control/contact': typeof AuthenticatedControlContactRoute
   '/_authenticated/control/intake': typeof AuthenticatedControlIntakeRoute
   '/_authenticated/control/integrations': typeof AuthenticatedControlIntegrationsRoute
@@ -579,6 +589,7 @@ export interface FileRouteTypes {
     | '/.mcp/invoke-tool/$tool'
     | '/control/automations'
     | '/control/catalogue'
+    | '/control/channels'
     | '/control/contact'
     | '/control/intake'
     | '/control/integrations'
@@ -636,6 +647,7 @@ export interface FileRouteTypes {
     | '/.mcp/invoke-tool/$tool'
     | '/control/automations'
     | '/control/catalogue'
+    | '/control/channels'
     | '/control/contact'
     | '/control/intake'
     | '/control/integrations'
@@ -693,6 +705,7 @@ export interface FileRouteTypes {
     | '/.mcp/invoke-tool/$tool'
     | '/_authenticated/control/automations'
     | '/_authenticated/control/catalogue'
+    | '/_authenticated/control/channels'
     | '/_authenticated/control/contact'
     | '/_authenticated/control/intake'
     | '/_authenticated/control/integrations'
@@ -953,6 +966,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedControlCatalogueRouteImport
       parentRoute: typeof AuthenticatedControlRoute
     }
+    '/_authenticated/control/channels': {
+      id: '/_authenticated/control/channels'
+      path: '/channels'
+      fullPath: '/control/channels'
+      preLoaderRoute: typeof AuthenticatedControlChannelsRouteImport
+      parentRoute: typeof AuthenticatedControlRoute
+    }
     '/_authenticated/control/contact': {
       id: '/_authenticated/control/contact'
       path: '/contact'
@@ -1206,6 +1226,7 @@ const AuthenticatedControlOrdersRouteWithChildren =
 interface AuthenticatedControlRouteChildren {
   AuthenticatedControlAutomationsRoute: typeof AuthenticatedControlAutomationsRoute
   AuthenticatedControlCatalogueRoute: typeof AuthenticatedControlCatalogueRoute
+  AuthenticatedControlChannelsRoute: typeof AuthenticatedControlChannelsRoute
   AuthenticatedControlContactRoute: typeof AuthenticatedControlContactRoute
   AuthenticatedControlIntakeRoute: typeof AuthenticatedControlIntakeRoute
   AuthenticatedControlIntegrationsRoute: typeof AuthenticatedControlIntegrationsRoute
@@ -1224,6 +1245,7 @@ interface AuthenticatedControlRouteChildren {
 const AuthenticatedControlRouteChildren: AuthenticatedControlRouteChildren = {
   AuthenticatedControlAutomationsRoute: AuthenticatedControlAutomationsRoute,
   AuthenticatedControlCatalogueRoute: AuthenticatedControlCatalogueRoute,
+  AuthenticatedControlChannelsRoute: AuthenticatedControlChannelsRoute,
   AuthenticatedControlContactRoute: AuthenticatedControlContactRoute,
   AuthenticatedControlIntakeRoute: AuthenticatedControlIntakeRoute,
   AuthenticatedControlIntegrationsRoute: AuthenticatedControlIntegrationsRoute,
