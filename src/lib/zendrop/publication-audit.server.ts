@@ -55,7 +55,13 @@ export interface PublicationAuditOptions {
   policy?: PublicationPolicy | undefined;
 }
 
+/** A read only pass may look at more products because it changes nothing. */
 const MAX_BATCH = 50;
+/**
+ * A live pass writes to the store, so it is capped hard here rather than in
+ * the admin screen. A caller cannot widen it by sending a larger limit.
+ */
+const MAX_LIVE_BATCH = 10;
 
 /**
  * Runs the audit. Dry run by default.
