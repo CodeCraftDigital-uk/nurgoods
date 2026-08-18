@@ -48,21 +48,24 @@ function clean(value: unknown): string {
 }
 
 /**
- * The fingerprint covers title, handle, status, vendor, product type, tags,
+ * The fingerprint covers title, handle, vendor, product type, tags,
  * description, option structure, imagery and variant identity. It deliberately
- * excludes price, compare at price, inventory quantity, availability and every
- * timestamp.
+ * excludes price, compare at price, inventory quantity, availability, every
+ * timestamp and the store publication status. Status is excluded because the
+ * expected draft to active activation is a NUR GOODS decision, not a supplier
+ * content change, and including it would requeue every product the platform
+ * had just made live. Status is still enforced separately by validation.
  */
 export function materialIntakeFingerprint(product: MaterialProductInput | null | undefined): string | null {
   if (!product) return null;
   const parts: string[] = [
     clean(product.title),
     clean(product.handle),
-    clean(product.status).toLowerCase(),
     clean(product.vendor),
     clean(product.productType),
     [...(product.tags ?? [])].map(clean).sort().join("|"),
     clean(product.description || product.descriptionHtml),
+
     (product.options ?? [])
       .map((option) => `${clean(option?.name)}=${[...(option?.values ?? [])].map(clean).sort().join(",")}`)
       .sort()
@@ -87,6 +90,19 @@ export function materialIntakeFingerprint(product: MaterialProductInput | null |
 
 /** Intake states that mean the product is settled and should stay settled. */
 export const SETTLED_INTAKE_STATES = ["published_to_storefront", "approved", "rejected"];
+
+/**
+ * States that mean the product was held back for a reason that a corrected
+ * supplier record can genuinely resolve. A material correction is exactly the
+ * evidence needed to try again.
+ */
+export const CORRECTABLE_INTAKE_STATES = ["quarantined", "failed", "held", "needs_review"];
+
+/**
+ * A deliberate rejection is a decision, not a fault. It is never undone by a
+ * supplier edit and only a manual retry moves it.
+ */
+export const DELIBERATE_INTAKE_STATES = ["rejected"];
 
 export interface ExistingIntakeRow {
   state: string;
@@ -118,6 +134,8 @@ export function decideRequeue(input: {
   if (!existing) return { action: "create", reason: "New product detected" };
 
   const settled = SETTLED_INTAKE_STATES.includes(existing.state);
+  const deliberate = DELIBERATE_INTAKE_STATES.includes(existing.state);
+  const correctable = CORRECTABLE_INTAKE_STATES.includes(existing.state);
 
   // Preferred path. A known content fingerprint gives a direct answer and does
   // not depend on the sync timestamp at all.
@@ -128,11 +146,18 @@ export function decideRequeue(input: {
         reason: "Only price, stock or sync timestamp changed",
       };
     }
+    if (deliberate) {
+      return { action: "touch", reason: "Rejected by decision, so it waits for a manual retry" };
+    }
+    if (correctable) {
+      return { action: "requeue", reason: "Held record was materially corrected" };
+    }
     if (!settled) {
       return { action: "touch", reason: "Already queued, content recorded" };
     }
     return { action: "requeue", reason: "Material catalogue content changed" };
   }
+
 
   // Safe fallback when no content fingerprint could be determined. The original
   // version based behaviour applies, which errs towards reprocessing.

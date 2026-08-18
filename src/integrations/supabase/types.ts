@@ -609,12 +609,15 @@ export type Database = {
           id: string
           last_error: string | null
           line_count: number
+          lines_linked_at: string | null
           orchestration_state: string
           order_total: number | null
           paid_at: string | null
           preview_at: string | null
           preview_is_credit_redeem: boolean
           preview_payload: Json | null
+          preview_reference: string | null
+          preview_scope: string | null
           product_cost: number | null
           retry_count: number
           shipped_at: string | null
@@ -647,12 +650,15 @@ export type Database = {
           id?: string
           last_error?: string | null
           line_count?: number
+          lines_linked_at?: string | null
           orchestration_state?: string
           order_total?: number | null
           paid_at?: string | null
           preview_at?: string | null
           preview_is_credit_redeem?: boolean
           preview_payload?: Json | null
+          preview_reference?: string | null
+          preview_scope?: string | null
           product_cost?: number | null
           retry_count?: number
           shipped_at?: string | null
@@ -685,12 +691,15 @@ export type Database = {
           id?: string
           last_error?: string | null
           line_count?: number
+          lines_linked_at?: string | null
           orchestration_state?: string
           order_total?: number | null
           paid_at?: string | null
           preview_at?: string | null
           preview_is_credit_redeem?: boolean
           preview_payload?: Json | null
+          preview_reference?: string | null
+          preview_scope?: string | null
           product_cost?: number | null
           retry_count?: number
           shipped_at?: string | null
@@ -747,24 +756,39 @@ export type Database = {
       }
       commerce_webhook_deliveries: {
         Row: {
+          attempts: number
           id: string
+          last_error: string | null
+          processed_at: string | null
           received_at: string
           shopify_order_id: string | null
+          status: string
           topic: string | null
+          updated_at: string
           webhook_id: string
         }
         Insert: {
+          attempts?: number
           id?: string
+          last_error?: string | null
+          processed_at?: string | null
           received_at?: string
           shopify_order_id?: string | null
+          status?: string
           topic?: string | null
+          updated_at?: string
           webhook_id: string
         }
         Update: {
+          attempts?: number
           id?: string
+          last_error?: string | null
+          processed_at?: string | null
           received_at?: string
           shopify_order_id?: string | null
+          status?: string
           topic?: string | null
+          updated_at?: string
           webhook_id?: string
         }
         Relationships: []

@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { dispatchKey, linkageDecision, paymentEvidence, supplierStatusToState } from "./types";
+import {
+  PREVIEW_TTL_MS,
+  dispatchKey,
+  lineLinkageDecision,
+  linkageDecision,
+  paymentEvidence,
+  previewScope,
+  previewValidity,
+  supplierStatusToState,
+} from "./types";
 import { normaliseOrderPayload, verifyStoreSignature } from "./webhook";
 import { processFulfilmentQueue } from "./orchestrator";
 import type { LedgerPort, SupplierPort } from "./ports";
@@ -138,14 +147,22 @@ function makeOrder(overrides: Partial<OrderRecord> = {}): OrderRecord {
   };
 }
 
-function makeLedger(orders: OrderRecord[], settings: Partial<CommerceSettings> = {}) {
+function makeLedger(
+  orders: OrderRecord[],
+  settings: Partial<CommerceSettings> = {},
+  lines: any[] = [STORE_LINE],
+) {
   const patches: Record<string, unknown>[] = [];
+  const linked: any[] = [];
   const ledger: LedgerPort = {
     async claim() {
       return orders;
     },
     async lines() {
-      return [];
+      return lines;
+    },
+    async linkLines(_id, mappings) {
+      linked.push(...mappings);
     },
     async update(_id, patch) {
       patches.push(patch);
@@ -156,10 +173,21 @@ function makeLedger(orders: OrderRecord[], settings: Partial<CommerceSettings> =
       return { ...DEFAULT_COMMERCE_SETTINGS, ...settings };
     },
   };
-  return { ledger, patches };
+  return { ledger, patches, linked };
 }
 
-function makeSupplier(calls: string[]): SupplierPort {
+const STORE_LINE = {
+  id: "line-1",
+  shopify_line_item_id: "9001",
+  shopify_variant_id: "5001",
+  shopify_product_id: "4001",
+  sku: "NG-001",
+  quantity: 1,
+};
+
+const SUPPLIER_LINE = { variantId: "5001", productId: "4001", sku: "NG-001", quantity: 1, raw: {} };
+
+function makeSupplier(calls: string[], supplierLines: any[] = [SUPPLIER_LINE]): SupplierPort {
   return {
     async available() {
       return { ready: true, missing: [] };
@@ -172,11 +200,22 @@ function makeSupplier(calls: string[]): SupplierPort {
       return [{ id: 77, orderNumber: "1042", name: "#1042", status: "processing" }];
     },
     async getOrder() {
-      return null;
+      calls.push("getOrder");
+      return {
+        id: 77,
+        orderNumber: "1042",
+        name: "#1042",
+        status: "processing",
+        lines: supplierLines,
+      };
+    },
+    async quoteFulfilmentCost() {
+      calls.push("quote");
+      return { productCost: 10, shippingCost: 2, totalCost: 12, currency: "GBP", reference: null, raw: {} };
     },
     async previewFulfilment() {
       calls.push("preview");
-      return { productCost: 10, shippingCost: 2, totalCost: 12, currency: "GBP", raw: {} };
+      return { productCost: 10, shippingCost: 2, totalCost: 12, currency: "GBP", reference: "quote-1", raw: {} };
     },
     async confirmFulfilment() {
       calls.push("confirm");
@@ -196,7 +235,7 @@ describe("fulfilment queue", () => {
     const calls: string[] = [];
     const { ledger } = makeLedger([makeOrder()]);
     const summary = await processFulfilmentQueue(ledger, makeSupplier(calls));
-    expect(calls).toEqual(["list", "preview"]);
+    expect(calls).toEqual(["list", "getOrder", "preview"]);
     expect(summary.dispatched).toBe(0);
     expect(summary.previewed).toBe(1);
   });
@@ -231,5 +270,91 @@ describe("fulfilment queue", () => {
     const summary = await processFulfilmentQueue(ledger, supplier as SupplierPort);
     expect(calls).toEqual([]);
     expect(summary.considered).toBe(0);
+  });
+});
+
+describe("supplier line linkage", () => {
+  const storeLines = [
+    { id: "l1", shopify_line_item_id: "9001", shopify_variant_id: "5001", shopify_product_id: "4001", sku: "NG-001", quantity: 2 },
+  ];
+
+  it("links an exact match", () => {
+    const decision = lineLinkageDecision({
+      storeLines: storeLines as never,
+      supplierLines: [{ variantId: "5001", productId: "4001", sku: "NG-001", quantity: 2, raw: {} }] as never,
+    });
+    expect(decision.ok).toBe(true);
+    expect(decision.mappings).toHaveLength(1);
+  });
+
+  it("holds an order when a store line has no supplier line", () => {
+    const decision = lineLinkageDecision({
+      storeLines: storeLines as never,
+      supplierLines: [{ variantId: "9999", productId: "8888", sku: "OTHER", quantity: 2, raw: {} }] as never,
+    });
+    expect(decision.ok).toBe(false);
+    expect(decision.state).toBe("manual_review");
+  });
+
+  it("holds an order when a store line matches more than one supplier line", () => {
+    const decision = lineLinkageDecision({
+      storeLines: storeLines as never,
+      supplierLines: [
+        { variantId: "5001", productId: null, sku: null, quantity: 2, raw: {} },
+        { variantId: null, productId: "4001", sku: null, quantity: 2, raw: {} },
+      ] as never,
+    });
+    expect(decision.ok).toBe(false);
+    expect(decision.state).toBe("manual_review");
+  });
+
+  it("holds an order when quantities disagree", () => {
+    const decision = lineLinkageDecision({
+      storeLines: storeLines as never,
+      supplierLines: [{ variantId: "5001", productId: "4001", sku: "NG-001", quantity: 1, raw: {} }] as never,
+    });
+    expect(decision.ok).toBe(false);
+    expect(decision.state).toBe("manual_review");
+  });
+
+  it("holds an order when the supplier exposes no line detail", () => {
+    const decision = lineLinkageDecision({ storeLines: storeLines as never, supplierLines: [] });
+    expect(decision.ok).toBe(false);
+  });
+});
+
+describe("fulfilment quote validity", () => {
+  const scope = previewScope({ storeId: 5, orderId: 77, useCredit: false });
+
+  it("accepts a fresh quote in the same scope", () => {
+    const result = previewValidity({
+      previewAt: new Date(Date.now() - 60_000).toISOString(),
+      previewScope: scope,
+      requiredScope: scope,
+    });
+    expect(result.valid).toBe(true);
+  });
+
+  it("rejects a quote older than the supplier window", () => {
+    const result = previewValidity({
+      previewAt: new Date(Date.now() - PREVIEW_TTL_MS - 1_000).toISOString(),
+      previewScope: scope,
+      requiredScope: scope,
+    });
+    expect(result.valid).toBe(false);
+  });
+
+  it("rejects a quote taken under a different credit scope", () => {
+    const result = previewValidity({
+      previewAt: new Date().toISOString(),
+      previewScope: previewScope({ storeId: 5, orderId: 77, useCredit: true }),
+      requiredScope: scope,
+    });
+    expect(result.valid).toBe(false);
+  });
+
+  it("rejects a missing quote", () => {
+    const result = previewValidity({ previewAt: null, previewScope: null, requiredScope: scope });
+    expect(result.valid).toBe(false);
   });
 });

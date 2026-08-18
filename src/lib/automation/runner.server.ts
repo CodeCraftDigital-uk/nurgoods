@@ -31,7 +31,9 @@ export type JobKey =
   | "prohibited_category_sweep"
   | "live_pricing_integrity"
   | "product_intake_delta_sync"
-  | "product_intake_worker";
+  | "product_intake_worker"
+  | "order_fulfilment_queue"
+  | "order_tracking_sync";
 
 export interface JobRunResult {
   jobKey: string;

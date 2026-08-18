@@ -45,6 +45,8 @@ export const Route = createFileRoute("/api/public/hooks/automation")({
           "supplier_sourcing_hourly",
           "prohibited_category_sweep",
           "live_pricing_integrity",
+          "order_fulfilment_queue",
+          "order_tracking_sync",
         ]);
         if (!allowed.has(jobKey)) {
           return Response.json({ error: "Unknown job" }, { status: 400 });

@@ -99,6 +99,9 @@ export interface OrderRecord {
   tracking_url: string | null;
   preview_at: string | null;
   preview_is_credit_redeem: boolean;
+  preview_reference?: string | null;
+  preview_scope?: string | null;
+  lines_linked_at?: string | null;
   dispatch_idempotency_key: string | null;
   retry_count: number;
   paid_at: string | null;
@@ -239,3 +242,179 @@ export function supplierStatusToState(status: string | null | undefined): Orches
 export function dispatchKey(shopifyOrderId: string, supplierOrderId: number | string): string {
   return `${shopifyOrderId}::${supplierOrderId}`;
 }
+
+/* ------------------------- fulfilment quote validity ---------------------- */
+
+/**
+ * The supplier holds a fulfilment quote for five minutes. A confirmation is
+ * only ever sent against a quote that is still inside that window and was
+ * taken under exactly the same store, order and credit scope.
+ */
+export const PREVIEW_TTL_MS = 5 * 60 * 1000;
+
+/** Describes the exact scope a quote was taken under. */
+export function previewScope(input: { storeId: number; orderId: number; useCredit: boolean }): string {
+  return `${input.storeId}:${input.orderId}:${input.useCredit ? "credit" : "cash"}`;
+}
+
+export function previewValidity(input: {
+  previewAt: string | null;
+  previewScope: string | null;
+  requiredScope: string;
+  now?: number;
+}): { valid: boolean; reason: string } {
+  if (!input.previewAt) {
+    return { valid: false, reason: "There is no supplier quote to confirm" };
+  }
+  if (input.previewScope !== input.requiredScope) {
+    return { valid: false, reason: "The supplier quote was taken under a different scope" };
+  }
+  const at = Date.parse(input.previewAt);
+  if (!Number.isFinite(at)) {
+    return { valid: false, reason: "The supplier quote timestamp could not be read" };
+  }
+  const age = (input.now ?? Date.now()) - at;
+  if (age < 0 || age >= PREVIEW_TTL_MS) {
+    return { valid: false, reason: "The supplier quote has expired" };
+  }
+  return { valid: true, reason: "The supplier quote is current" };
+}
+
+/* ---------------------------- line item linkage --------------------------- */
+
+export interface SupplierLine {
+  id: string | null;
+  productId: string | null;
+  variantId: string | null;
+  sku: string | null;
+  quantity: number | null;
+}
+
+export interface StoreLine {
+  id: string;
+  shopify_line_item_id: string;
+  shopify_variant_id: string | null;
+  shopify_product_id: string | null;
+  sku: string | null;
+  quantity: number;
+}
+
+export interface LineMapping {
+  lineId: string;
+  zendrop_line_item_id: string | null;
+  zendrop_product_id: string | null;
+  zendrop_variant_id: string | null;
+}
+
+function normaliseId(value: unknown): string {
+  const raw = String(value ?? "").trim();
+  if (raw === "") return "";
+  const tail = raw.split("/").pop() ?? raw;
+  return tail.toLowerCase();
+}
+
+/**
+ * Compares the supplier order against the store order line by line.
+ *
+ * Nothing is guessed. A line must resolve to exactly one supplier line on a
+ * shared identifier and the quantities must agree. Anything else, including a
+ * supplier line the store order does not contain, stops the order.
+ */
+export function lineLinkageDecision(input: {
+  storeLines: StoreLine[];
+  supplierLines: SupplierLine[] | null | undefined;
+}): { ok: boolean; state: OrchestrationState; reason: string; mappings: LineMapping[] } {
+  const storeLines = input.storeLines;
+  const supplierLines = input.supplierLines ?? [];
+
+  if (storeLines.length === 0) {
+    return { ok: false, state: "manual_review", reason: "The store order has no recorded lines", mappings: [] };
+  }
+  if (supplierLines.length === 0) {
+    return {
+      ok: false,
+      state: "manual_review",
+      reason: "The supplier order does not expose any line detail to compare",
+      mappings: [],
+    };
+  }
+
+  const mappings: LineMapping[] = [];
+  const used = new Set<number>();
+
+  for (const line of storeLines) {
+    const keys = [
+      normaliseId(line.shopify_variant_id),
+      normaliseId(line.shopify_product_id),
+      (line.sku ?? "").trim().toLowerCase(),
+    ].filter((value) => value !== "");
+
+    const matched: number[] = [];
+    supplierLines.forEach((supplierLine, index) => {
+      const candidateKeys = [
+        normaliseId(supplierLine.variantId),
+        normaliseId(supplierLine.productId),
+        (supplierLine.sku ?? "").trim().toLowerCase(),
+      ].filter((value) => value !== "");
+      if (candidateKeys.some((value) => keys.includes(value))) matched.push(index);
+    });
+
+    if (matched.length === 0) {
+      return {
+        ok: false,
+        state: "manual_review",
+        reason: `No supplier line matches store line ${line.sku ?? line.shopify_line_item_id}`,
+        mappings: [],
+      };
+    }
+    if (matched.length > 1) {
+      return {
+        ok: false,
+        state: "manual_review",
+        reason: `More than one supplier line matches store line ${line.sku ?? line.shopify_line_item_id}`,
+        mappings: [],
+      };
+    }
+
+    const index = matched[0]!;
+    if (used.has(index)) {
+      return {
+        ok: false,
+        state: "manual_review",
+        reason: "Two store lines resolve to the same supplier line",
+        mappings: [],
+      };
+    }
+    used.add(index);
+
+    const supplierLine = supplierLines[index]!;
+    const supplierQuantity = supplierLine.quantity;
+    if (typeof supplierQuantity === "number" && supplierQuantity !== line.quantity) {
+      return {
+        ok: false,
+        state: "manual_review",
+        reason: `Quantity disagrees on ${line.sku ?? line.shopify_line_item_id}: the store says ${line.quantity} and the supplier says ${supplierQuantity}`,
+        mappings: [],
+      };
+    }
+
+    mappings.push({
+      lineId: line.id,
+      zendrop_line_item_id: supplierLine.id,
+      zendrop_product_id: supplierLine.productId,
+      zendrop_variant_id: supplierLine.variantId,
+    });
+  }
+
+  if (used.size !== supplierLines.length) {
+    return {
+      ok: false,
+      state: "manual_review",
+      reason: "The supplier order contains lines the store order does not",
+      mappings: [],
+    };
+  }
+
+  return { ok: true, state: "awaiting_fulfilment_preview", reason: "Every line matched the supplier order", mappings };
+}
+
