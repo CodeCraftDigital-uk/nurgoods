@@ -82,6 +82,8 @@ export async function loadPublicationPolicy(): Promise<PublicationPolicy> {
       await (supabaseAdmin as any).from("integration_events").insert({
         integration_id: integration.id,
         event_type: "publication_channel_override",
+        status: "warning",
+        message: "Online Store publication re-enabled by an explicit admin setting",
         payload: {
           channel: "Online Store",
           enabled: true,
