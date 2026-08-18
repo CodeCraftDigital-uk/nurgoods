@@ -99,6 +99,9 @@ export interface DetectionInput {
   productId?: string | null;
   updatedAt?: string | null;
   source: IntakeSource;
+  /** Hash of the catalogue content intake actually reasons about. */
+  materialFingerprint?: string | null;
+  origin?: IntakeOrigin;
 }
 
 export interface DetectionResult {
@@ -108,9 +111,12 @@ export interface DetectionResult {
 }
 
 /**
- * Records newly seen or newly changed products. An existing record whose
- * version fingerprint has not moved is left completely alone, which is what
- * keeps webhook and delta sync from duplicating work.
+ * Records newly seen or newly changed products.
+ *
+ * A record whose material catalogue content has not moved is never sent back
+ * through the pipeline. Price, stock and routine sync timestamp movement are
+ * recorded quietly instead, which is what keeps a published product from being
+ * reclassified and reoptimised for no reason.
  */
 export async function detectProducts(db: Db, inputs: DetectionInput[]): Promise<DetectionResult> {
   const result: DetectionResult = { created: 0, requeued: 0, unchanged: 0 };
@@ -119,15 +125,25 @@ export async function detectProducts(db: Db, inputs: DetectionInput[]): Promise<
   const ids = [...new Set(inputs.map((item) => item.shopifyProductId))];
   const { data: existing } = await db
     .from("product_intake_records")
-    .select("id, shopify_product_id, state, version_fingerprint, processed_fingerprint")
+    .select(
+      "id, shopify_product_id, product_id, title, handle, state, version_fingerprint, processed_fingerprint, material_fingerprint",
+    )
     .in("shopify_product_id", ids);
   const byShopifyId = new Map(((existing ?? []) as any[]).map((row) => [row.shopify_product_id, row]));
 
   for (const input of inputs) {
     const fingerprint = versionFingerprint(input.shopifyProductId, input.updatedAt ?? null);
+    const material = input.materialFingerprint ?? null;
     const row = byShopifyId.get(input.shopifyProductId);
 
-    if (!row) {
+    const decision = decideRequeue({
+      existing: row ?? null,
+      versionFingerprint: fingerprint,
+      materialFingerprint: material,
+      hasVersion: Boolean(input.updatedAt),
+    });
+
+    if (decision.action === "create") {
       const { data: inserted } = await db
         .from("product_intake_records")
         .insert({
@@ -136,10 +152,12 @@ export async function detectProducts(db: Db, inputs: DetectionInput[]): Promise<
           title: input.title ?? null,
           handle: input.handle ?? null,
           source: input.source,
+          origin: input.origin ?? "store",
           state: "detected",
           reason_code: "detected",
           reason: `Detected from ${input.source === "webhook" ? "a store webhook" : "the scheduled sync"}`,
           version_fingerprint: fingerprint,
+          material_fingerprint: material,
         } as never)
         .select("id")
         .maybeSingle();
@@ -158,24 +176,24 @@ export async function detectProducts(db: Db, inputs: DetectionInput[]): Promise<
       continue;
     }
 
-    if (!input.updatedAt) {
-      // Without a version we cannot tell whether anything actually changed, so
-      // an existing record is left exactly as it is.
+    if (decision.action === "skip") {
       result.unchanged += 1;
       continue;
     }
-    const alreadyProcessed = row.processed_fingerprint === fingerprint;
-    const openState = !["published_to_storefront", "approved", "rejected"].includes(row.state);
-    if (alreadyProcessed && !openState) {
-      result.unchanged += 1;
-      continue;
-    }
-    if (row.version_fingerprint === fingerprint && openState) {
-      // Already queued at this exact version.
-      result.unchanged += 1;
-      continue;
-    }
-    if (alreadyProcessed) {
+
+    if (decision.action === "touch") {
+      // Nothing material moved, so the record keeps its state and only the
+      // fingerprints are refreshed.
+      await db
+        .from("product_intake_records")
+        .update({
+          version_fingerprint: fingerprint,
+          material_fingerprint: material ?? row.material_fingerprint ?? null,
+          title: input.title ?? row.title ?? null,
+          handle: input.handle ?? row.handle ?? null,
+          product_id: input.productId ?? row.product_id ?? null,
+        } as never)
+        .eq("id", row.id);
       result.unchanged += 1;
       continue;
     }
@@ -187,11 +205,13 @@ export async function detectProducts(db: Db, inputs: DetectionInput[]): Promise<
         title: input.title ?? row.title ?? null,
         handle: input.handle ?? row.handle ?? null,
         source: input.source,
+        ...(input.origin ? { origin: input.origin } : {}),
         state: "detected",
         previous_state: row.state,
         reason_code: "changed",
-        reason: "A newer version of this product arrived from the store",
+        reason: decision.reason,
         version_fingerprint: fingerprint,
+        material_fingerprint: material,
         attempts: 0,
         locked_at: null,
         lock_token: null,
@@ -205,7 +225,7 @@ export async function detectProducts(db: Db, inputs: DetectionInput[]): Promise<
       row.state,
       "detected",
       "changed",
-      "A newer version arrived from the store",
+      decision.reason,
     );
     result.requeued += 1;
   }
