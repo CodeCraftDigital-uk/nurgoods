@@ -42,6 +42,7 @@ import { Route as AuthenticatedControlIntegrationsRouteImport } from './routes/_
 import { Route as AuthenticatedControlJournalRouteImport } from './routes/_authenticated/control.journal'
 import { Route as AuthenticatedControlLegalRouteImport } from './routes/_authenticated/control.legal'
 import { Route as AuthenticatedControlMcpRouteImport } from './routes/_authenticated/control.mcp'
+import { Route as AuthenticatedControlOrdersRouteImport } from './routes/_authenticated/control.orders'
 import { Route as AuthenticatedControlPreviewRouteImport } from './routes/_authenticated/control.preview'
 import { Route as AuthenticatedControlPricingRouteImport } from './routes/_authenticated/control.pricing'
 import { Route as AuthenticatedControlReviewsRouteImport } from './routes/_authenticated/control.reviews'
@@ -50,6 +51,7 @@ import { Route as AuthenticatedControlSourcingRouteImport } from './routes/_auth
 import { Route as AuthenticatedControlJournalIndexRouteImport } from './routes/_authenticated/control.journal.index'
 import { Route as AuthenticatedControlJournalArticleIdRouteImport } from './routes/_authenticated/control.journal.$articleId'
 import { Route as AuthenticatedControlJournalNewRouteImport } from './routes/_authenticated/control.journal.new'
+import { Route as AuthenticatedControlOrdersIndexRouteImport } from './routes/_authenticated/control.orders.index'
 import { Route as ApiPublicHooksAutomationRouteImport } from './routes/api/public/hooks/automation'
 import { Route as ApiPublicHooksShopifyIntakeRouteImport } from './routes/api/public/hooks/shopify-intake'
 import { Route as ApiPublicHooksShopifyOrdersRouteImport } from './routes/api/public/hooks/shopify-orders'
@@ -239,6 +241,12 @@ const AuthenticatedControlMcpRoute = AuthenticatedControlMcpRouteImport.update({
   path: '/mcp',
   getParentRoute: () => AuthenticatedControlRoute,
 } as any)
+const AuthenticatedControlOrdersRoute =
+  AuthenticatedControlOrdersRouteImport.update({
+    id: '/orders',
+    path: '/orders',
+    getParentRoute: () => AuthenticatedControlRoute,
+  } as any)
 const AuthenticatedControlPreviewRoute =
   AuthenticatedControlPreviewRouteImport.update({
     id: '/preview',
@@ -285,6 +293,12 @@ const AuthenticatedControlJournalNewRoute =
     id: '/new',
     path: '/new',
     getParentRoute: () => AuthenticatedControlJournalRoute,
+  } as any)
+const AuthenticatedControlOrdersIndexRoute =
+  AuthenticatedControlOrdersIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedControlOrdersRoute,
   } as any)
 const ApiPublicHooksAutomationRoute =
   ApiPublicHooksAutomationRouteImport.update({
@@ -389,6 +403,7 @@ export interface FileRoutesByFullPath {
   '/control/journal': typeof AuthenticatedControlJournalRouteWithChildren
   '/control/legal': typeof AuthenticatedControlLegalRoute
   '/control/mcp': typeof AuthenticatedControlMcpRoute
+  '/control/orders': typeof AuthenticatedControlOrdersRouteWithChildren
   '/control/preview': typeof AuthenticatedControlPreviewRoute
   '/control/pricing': typeof AuthenticatedControlPricingRoute
   '/control/reviews': typeof AuthenticatedControlReviewsRoute
@@ -407,6 +422,7 @@ export interface FileRoutesByFullPath {
   '/api/public/v1/products': typeof ApiPublicV1ProductsRouteWithChildren
   '/api/public/v1/store': typeof ApiPublicV1StoreRoute
   '/control/journal/': typeof AuthenticatedControlJournalIndexRoute
+  '/control/orders/': typeof AuthenticatedControlOrdersIndexRoute
   '/api/public/v1/': typeof ApiPublicV1IndexRoute
   '/api/public/v1/articles/$slug': typeof ApiPublicV1ArticlesSlugRoute
   '/api/public/v1/policies/$slug': typeof ApiPublicV1PoliciesSlugRoute
@@ -460,6 +476,7 @@ export interface FileRoutesByTo {
   '/api/public/v1/products': typeof ApiPublicV1ProductsRouteWithChildren
   '/api/public/v1/store': typeof ApiPublicV1StoreRoute
   '/control/journal': typeof AuthenticatedControlJournalIndexRoute
+  '/control/orders': typeof AuthenticatedControlOrdersIndexRoute
   '/api/public/v1': typeof ApiPublicV1IndexRoute
   '/api/public/v1/articles/$slug': typeof ApiPublicV1ArticlesSlugRoute
   '/api/public/v1/policies/$slug': typeof ApiPublicV1PoliciesSlugRoute
@@ -499,6 +516,7 @@ export interface FileRoutesById {
   '/_authenticated/control/journal': typeof AuthenticatedControlJournalRouteWithChildren
   '/_authenticated/control/legal': typeof AuthenticatedControlLegalRoute
   '/_authenticated/control/mcp': typeof AuthenticatedControlMcpRoute
+  '/_authenticated/control/orders': typeof AuthenticatedControlOrdersRouteWithChildren
   '/_authenticated/control/preview': typeof AuthenticatedControlPreviewRoute
   '/_authenticated/control/pricing': typeof AuthenticatedControlPricingRoute
   '/_authenticated/control/reviews': typeof AuthenticatedControlReviewsRoute
@@ -517,6 +535,7 @@ export interface FileRoutesById {
   '/api/public/v1/products': typeof ApiPublicV1ProductsRouteWithChildren
   '/api/public/v1/store': typeof ApiPublicV1StoreRoute
   '/_authenticated/control/journal/': typeof AuthenticatedControlJournalIndexRoute
+  '/_authenticated/control/orders/': typeof AuthenticatedControlOrdersIndexRoute
   '/api/public/v1/': typeof ApiPublicV1IndexRoute
   '/api/public/v1/articles/$slug': typeof ApiPublicV1ArticlesSlugRoute
   '/api/public/v1/policies/$slug': typeof ApiPublicV1PoliciesSlugRoute
@@ -556,6 +575,7 @@ export interface FileRouteTypes {
     | '/control/journal'
     | '/control/legal'
     | '/control/mcp'
+    | '/control/orders'
     | '/control/preview'
     | '/control/pricing'
     | '/control/reviews'
@@ -574,6 +594,7 @@ export interface FileRouteTypes {
     | '/api/public/v1/products'
     | '/api/public/v1/store'
     | '/control/journal/'
+    | '/control/orders/'
     | '/api/public/v1/'
     | '/api/public/v1/articles/$slug'
     | '/api/public/v1/policies/$slug'
@@ -627,6 +648,7 @@ export interface FileRouteTypes {
     | '/api/public/v1/products'
     | '/api/public/v1/store'
     | '/control/journal'
+    | '/control/orders'
     | '/api/public/v1'
     | '/api/public/v1/articles/$slug'
     | '/api/public/v1/policies/$slug'
@@ -665,6 +687,7 @@ export interface FileRouteTypes {
     | '/_authenticated/control/journal'
     | '/_authenticated/control/legal'
     | '/_authenticated/control/mcp'
+    | '/_authenticated/control/orders'
     | '/_authenticated/control/preview'
     | '/_authenticated/control/pricing'
     | '/_authenticated/control/reviews'
@@ -683,6 +706,7 @@ export interface FileRouteTypes {
     | '/api/public/v1/products'
     | '/api/public/v1/store'
     | '/_authenticated/control/journal/'
+    | '/_authenticated/control/orders/'
     | '/api/public/v1/'
     | '/api/public/v1/articles/$slug'
     | '/api/public/v1/policies/$slug'
@@ -958,6 +982,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedControlMcpRouteImport
       parentRoute: typeof AuthenticatedControlRoute
     }
+    '/_authenticated/control/orders': {
+      id: '/_authenticated/control/orders'
+      path: '/orders'
+      fullPath: '/control/orders'
+      preLoaderRoute: typeof AuthenticatedControlOrdersRouteImport
+      parentRoute: typeof AuthenticatedControlRoute
+    }
     '/_authenticated/control/preview': {
       id: '/_authenticated/control/preview'
       path: '/preview'
@@ -1013,6 +1044,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/control/journal/new'
       preLoaderRoute: typeof AuthenticatedControlJournalNewRouteImport
       parentRoute: typeof AuthenticatedControlJournalRoute
+    }
+    '/_authenticated/control/orders/': {
+      id: '/_authenticated/control/orders/'
+      path: '/'
+      fullPath: '/control/orders/'
+      preLoaderRoute: typeof AuthenticatedControlOrdersIndexRouteImport
+      parentRoute: typeof AuthenticatedControlOrdersRoute
     }
     '/api/public/hooks/automation': {
       id: '/api/public/hooks/automation'
@@ -1128,6 +1166,20 @@ const AuthenticatedControlJournalRouteWithChildren =
     AuthenticatedControlJournalRouteChildren,
   )
 
+interface AuthenticatedControlOrdersRouteChildren {
+  AuthenticatedControlOrdersIndexRoute: typeof AuthenticatedControlOrdersIndexRoute
+}
+
+const AuthenticatedControlOrdersRouteChildren: AuthenticatedControlOrdersRouteChildren =
+  {
+    AuthenticatedControlOrdersIndexRoute: AuthenticatedControlOrdersIndexRoute,
+  }
+
+const AuthenticatedControlOrdersRouteWithChildren =
+  AuthenticatedControlOrdersRoute._addFileChildren(
+    AuthenticatedControlOrdersRouteChildren,
+  )
+
 interface AuthenticatedControlRouteChildren {
   AuthenticatedControlAutomationsRoute: typeof AuthenticatedControlAutomationsRoute
   AuthenticatedControlCatalogueRoute: typeof AuthenticatedControlCatalogueRoute
@@ -1137,6 +1189,7 @@ interface AuthenticatedControlRouteChildren {
   AuthenticatedControlJournalRoute: typeof AuthenticatedControlJournalRouteWithChildren
   AuthenticatedControlLegalRoute: typeof AuthenticatedControlLegalRoute
   AuthenticatedControlMcpRoute: typeof AuthenticatedControlMcpRoute
+  AuthenticatedControlOrdersRoute: typeof AuthenticatedControlOrdersRouteWithChildren
   AuthenticatedControlPreviewRoute: typeof AuthenticatedControlPreviewRoute
   AuthenticatedControlPricingRoute: typeof AuthenticatedControlPricingRoute
   AuthenticatedControlReviewsRoute: typeof AuthenticatedControlReviewsRoute
@@ -1155,6 +1208,7 @@ const AuthenticatedControlRouteChildren: AuthenticatedControlRouteChildren = {
     AuthenticatedControlJournalRouteWithChildren,
   AuthenticatedControlLegalRoute: AuthenticatedControlLegalRoute,
   AuthenticatedControlMcpRoute: AuthenticatedControlMcpRoute,
+  AuthenticatedControlOrdersRoute: AuthenticatedControlOrdersRouteWithChildren,
   AuthenticatedControlPreviewRoute: AuthenticatedControlPreviewRoute,
   AuthenticatedControlPricingRoute: AuthenticatedControlPricingRoute,
   AuthenticatedControlReviewsRoute: AuthenticatedControlReviewsRoute,
