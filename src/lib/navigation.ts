@@ -9,6 +9,7 @@ import {
 
   Plug,
   Scale,
+  Truck,
   Search,
   ShoppingBag,
   Sparkles,
@@ -73,6 +74,12 @@ export const ADMIN_NAV: NavItem[] = [
     label: "Integrations",
     description: "Shopify, Zendrop, AI, Publiko and MCP connection state.",
     icon: Plug,
+  },
+  {
+    to: "/control/orders",
+    label: "Orders & Fulfilment",
+    description: "Live orders, supplier state, tracking and manual review.",
+    icon: Truck,
   },
   {
     to: "/control/contact",
