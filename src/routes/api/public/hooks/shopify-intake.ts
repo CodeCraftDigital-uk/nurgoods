@@ -59,6 +59,7 @@ export const Route = createFileRoute("/api/public/hooks/shopify-intake")({
             productId = map.get(legacyId) ?? null;
           }
 
+          const { materialIntakeFingerprint } = await import("@/lib/intake/fingerprint");
           const detection = await detectProducts(supabaseAdmin as never, [
             {
               shopifyProductId: legacyId,
@@ -67,6 +68,7 @@ export const Route = createFileRoute("/api/public/hooks/shopify-intake")({
               productId,
               updatedAt: (product?.updatedAt ?? payload?.updated_at ?? null) as string | null,
               source: "webhook",
+              materialFingerprint: materialIntakeFingerprint(product as never),
             },
           ]);
 
