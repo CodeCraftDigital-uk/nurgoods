@@ -51,12 +51,26 @@ export function retailRoundingOutcome(bundle: ProductBundle): {
 }
 
 
-export function validateIntake(bundle: ProductBundle, policy: IntakePolicy): ValidationOutcome {
+export function validateIntake(
+  bundle: ProductBundle,
+  policy: IntakePolicy,
+  options: { origin?: IntakeOrigin } = {},
+): ValidationOutcome {
   const product = bundle.product as any;
+  const origin: IntakeOrigin = options.origin ?? "store";
   const checks: IntakeCheck[] = [];
 
-  const add = (code: string, label: string, passed: boolean, detail?: string) => {
-    checks.push(detail === undefined ? { code, label, passed } : { code, label, passed, detail });
+  const add = (
+    code: string,
+    label: string,
+    passed: boolean,
+    detail?: string,
+    failureLabel?: string,
+  ) => {
+    const check: IntakeCheck = { code, label, passed };
+    if (detail !== undefined) check.detail = detail;
+    if (failureLabel !== undefined) check.failureLabel = failureLabel;
+    checks.push(check);
   };
 
   add(
