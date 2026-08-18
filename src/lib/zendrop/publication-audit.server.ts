@@ -45,14 +45,14 @@ export interface PublicationAuditRun {
 
 export interface PublicationAuditOptions {
   /** Live runs must be asked for explicitly. */
-  dryRun?: boolean;
+  dryRun?: boolean | undefined;
   /** How many products to inspect in this pass. */
-  limit?: number;
+  limit?: number | undefined;
   /** Restrict a live run to one product, used for controlled proving. */
-  shopifyProductId?: string;
+  shopifyProductId?: string | undefined;
   /** Recorded on the audit row so a run can be traced back to a person. */
-  actorId?: string | null;
-  policy?: PublicationPolicy;
+  actorId?: string | null | undefined;
+  policy?: PublicationPolicy | undefined;
 }
 
 const MAX_BATCH = 50;
