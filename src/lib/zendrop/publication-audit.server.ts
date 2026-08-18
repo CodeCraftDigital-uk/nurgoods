@@ -176,6 +176,9 @@ export async function runPublicationAudit(
         message: item.message,
       })),
     );
+  }
+
+  if (runId) {
     await (supabase as any)
       .from("publication_audit_runs")
       .update({
