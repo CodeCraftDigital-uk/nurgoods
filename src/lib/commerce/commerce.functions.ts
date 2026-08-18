@@ -132,13 +132,16 @@ export interface OrderEventView {
 
 /** Ledger row as shown in the console, including the currency aware costs. */
 export interface OrderFull extends OrderSummary {
-  shopify_total_price: number | null;
-  shipping_name: string | null;
-  shipping_address1: string | null;
-  shipping_address2: string | null;
-  shipping_zip: string | null;
-  shipping_province: string | null;
-  customer_email: string | null;
+  fulfilment_cost: number | null;
+  product_cost: number | null;
+  shipping_cost: number | null;
+  gross_margin: number | null;
+  zendrop_fulfillment_operation_id: string | null;
+  preview_at: string | null;
+  preview_reference: string | null;
+  preview_scope: string | null;
+  preview_is_credit_redeem: boolean | null;
+  lines_linked_at: string | null;
   supplier_currency: string | null;
   supplier_product_cost: number | null;
   supplier_shipping_cost: number | null;
@@ -146,7 +149,6 @@ export interface OrderFull extends OrderSummary {
   supplier_total: number | null;
   supplier_payment_amount: number | null;
   supplier_payment_currency: string | null;
-  cancelled_at: string | null;
 }
 
 export interface WebhookDeliveryView {
