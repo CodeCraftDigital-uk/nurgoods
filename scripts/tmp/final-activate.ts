@@ -1,6 +1,6 @@
 import { supabaseAdmin as db } from "../../src/integrations/supabase/client.server";
-const { auditPublicationChannels } = await import("../../src/lib/zendrop/publication-audit.server");
-const audit = await auditPublicationChannels({ limit: 300 } as never).catch((e:Error)=>({error:e.message}) as never);
+const { runPublicationAudit } = await import("../../src/lib/zendrop/publication-audit.server");
+const audit = await runPublicationAudit({ limit: 300 } as never).catch((e:Error)=>({error:e.message}) as never);
 console.log("AUDIT", JSON.stringify((audit as any).summary ?? audit).slice(0,800));
 const s = await db.from("commerce_settings").update({ auto_fulfilment_enabled: true } as never).neq("id","").select("*");
 console.log("SETTINGS", JSON.stringify(s.data ?? s.error));
