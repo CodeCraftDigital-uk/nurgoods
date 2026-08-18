@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadBundles } from "@/lib/intelligence/queue.server";
 import { validateIntake } from "./validate";
 import { decideRequeue } from "./fingerprint";
+import { activateForStorefront } from "./activation.server";
 import {
   DEFAULT_INTAKE_POLICY,
   type IntakeCounters,
@@ -244,6 +245,7 @@ export interface IntakeProcessResult {
   classified: number;
   optimised: number;
   identityPasses: number;
+  activationFailures: number;
 }
 
 /** Products waiting for work, oldest first. */
@@ -335,6 +337,7 @@ export async function processIntake(db: Db, limit = 6): Promise<IntakeProcessRes
     classified: 0,
     optimised: 0,
     identityPasses: 0,
+    activationFailures: 0,
   };
 
   const policy = await getIntakePolicy(db);
@@ -368,6 +371,8 @@ export async function processIntake(db: Db, limit = 6): Promise<IntakeProcessRes
       }
     }
   }
+
+  await resolveOrigins(db, claimed);
 
   const productIds = claimed.map((row) => row.product_id).filter(Boolean) as string[];
   const bundles = await loadBundles(db, productIds);
