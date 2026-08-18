@@ -77,6 +77,17 @@ export async function loadPublicationPolicy(): Promise<PublicationPolicy> {
       .maybeSingle();
     const value = (data?.value ?? "").toString().trim().toLowerCase();
     if (value === "true" || value === "on" || value === "1") {
+      // A per channel override is a deliberate widening of the selling path,
+      // so it is recorded every time it takes effect.
+      await (supabaseAdmin as any).from("integration_events").insert({
+        integration_id: integration.id,
+        event_type: "publication_channel_override",
+        payload: {
+          channel: "Online Store",
+          enabled: true,
+          note: "Online Store publication re-enabled by an explicit admin setting",
+        },
+      });
       return { ...DEFAULT_PUBLICATION_POLICY, includeOnlineStore: true };
     }
     return DEFAULT_PUBLICATION_POLICY;
