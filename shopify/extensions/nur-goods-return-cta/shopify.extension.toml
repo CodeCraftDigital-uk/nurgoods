@@ -1,0 +1,40 @@
+# NUR GOODS return CTA
+#
+# Adds a branded "Continue shopping at NUR GOODS" action to the Thank you and
+# Order status pages so a shopper who has just paid is sent back to
+# https://nurgoods.com rather than to the store host that took the payment.
+#
+# This is a checkout UI extension, the only supported route in 2026. It does
+# not use checkout.liquid or Additional Scripts, both of which stop working for
+# non Plus stores on 26 August 2026.
+#
+# This file is scaffolding. It is not deployed by this project. See README.md.
+
+api_version = "2025-10"
+
+[[extensions]]
+type = "ui_extension"
+name = "NUR GOODS return CTA"
+handle = "nur-goods-return-cta"
+
+  [[extensions.targeting]]
+  target = "purchase.thank-you.block.render"
+  module = "./src/ThankYou.jsx"
+
+  [[extensions.targeting]]
+  target = "customer-account.order-status.block.render"
+  module = "./src/OrderStatus.jsx"
+
+  [extensions.settings]
+
+    [[extensions.settings.fields]]
+    key = "storefront_url"
+    type = "single_line_text_field"
+    name = "Storefront URL"
+    description = "Where the button sends the shopper. Must be https://nurgoods.com."
+
+    [[extensions.settings.fields]]
+    key = "cta_label"
+    type = "single_line_text_field"
+    name = "Button label"
+    description = "Defaults to Continue shopping at NUR GOODS."
