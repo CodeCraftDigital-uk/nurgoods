@@ -118,14 +118,35 @@ export interface OrderLineView {
   tracking_number: string | null;
 }
 
+export type Json = string | number | boolean | null | Json[] | { [key: string]: Json };
+
 export interface OrderEventView {
   id: string;
   from_state: string | null;
   to_state: string | null;
   code: string | null;
   message: string | null;
-  detail: Record<string, unknown> | null;
+  detail: Json;
   created_at: string;
+}
+
+/** Ledger row as shown in the console, including the currency aware costs. */
+export interface OrderFull extends OrderSummary {
+  shopify_total_price: number | null;
+  shipping_name: string | null;
+  shipping_address1: string | null;
+  shipping_address2: string | null;
+  shipping_zip: string | null;
+  shipping_province: string | null;
+  customer_email: string | null;
+  supplier_currency: string | null;
+  supplier_product_cost: number | null;
+  supplier_shipping_cost: number | null;
+  supplier_fees: number | null;
+  supplier_total: number | null;
+  supplier_payment_amount: number | null;
+  supplier_payment_currency: string | null;
+  cancelled_at: string | null;
 }
 
 export interface WebhookDeliveryView {
