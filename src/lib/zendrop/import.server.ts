@@ -66,8 +66,20 @@ export async function loadPricingSettings(): Promise<PricingSettings> {
     shipping_market: row.shipping_market ?? DEFAULT_PRICING.shipping_market,
     currency: row.currency ?? DEFAULT_PRICING.currency,
     allow_incomplete_pricing: Boolean(row.allow_incomplete_pricing),
+    fx_source: row.fx_source ?? DEFAULT_PRICING.fx_source,
+    fx_buffer_pct: Number(row.fx_buffer_pct ?? DEFAULT_PRICING.fx_buffer_pct),
+    fx_quote_max_age_hours: Number(
+      row.fx_quote_max_age_hours ?? DEFAULT_PRICING.fx_quote_max_age_hours,
+    ),
+    shipping_quote_max_age_days: Number(
+      row.shipping_quote_max_age_days ?? DEFAULT_PRICING.shipping_quote_max_age_days,
+    ),
+    payment_fee_variable: Number(row.payment_fee_variable ?? DEFAULT_PRICING.payment_fee_variable),
+    payment_fee_fixed: Number(row.payment_fee_fixed ?? DEFAULT_PRICING.payment_fee_fixed),
+    free_shipping_market: row.free_shipping_market ?? DEFAULT_PRICING.free_shipping_market,
   };
 }
+
 
 export async function loadSourcingRules(): Promise<SourcingRules> {
   const supabase = await zendropAdminClient();

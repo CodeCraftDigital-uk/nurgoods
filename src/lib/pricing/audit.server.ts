@@ -2,71 +2,111 @@
  * Safe pricing audit for listings that already exist in the catalogue.
  *
  * The audit is a dry run. It classifies every active variant against the
- * configured pricing formula and records the exact inputs it used, including
- * where each cost input came from. A variant is only ever marked ready to
- * reprice when both a real cost of goods and a real UK shipping figure are
+ * configured economics and records the exact inputs it used, including where
+ * each cost input came from. A variant is only ever marked ready to reprice
+ * when a real cost of goods and a verified destination shipping quote are both
  * available, so no price is ever derived from an invented number.
  *
- *   landed cost = supplier cost of goods + UK shipping attributable to it
- *   base price  = landed cost / (1 - target gross margin), then rounded
+ *   landed cogs   = (supplier shipping + supplier extras) * protected fx rate
+ *                   + supplier item cost already held in pounds
+ *   required price = (landed cogs + fixed fee) / (1 - variable fee - margin)
+ *   advertised     = required price, charm rounded upwards only
  */
-import { applyRounding } from "../zendrop/pricing";
 import { zendropAdminClient } from "../zendrop/client.server";
 import { loadPricingSettings } from "../zendrop/import.server";
+import { getFxRate, type FxQuote } from "../zendrop/fx.server";
+import { computeEconomics } from "./economics";
+import { assessShippingEvidence, type ShippingEvidenceStatus } from "./shipping-evidence";
 import type { AuditStatus, AuditTotals } from "./types";
 import { AUDIT_STATUSES } from "./types";
 
 const PENCE = 0.005;
 
 function round2(value: number): number {
-  return Math.round(value * 100) / 100;
-}
-
-function margin(price: number | null, landed: number | null): number | null {
-  if (price === null || landed === null || price <= 0) return null;
-  return round2((price - landed) / price * 10000) / 10000;
+  return Math.round((value + Number.EPSILON) * 100) / 100;
 }
 
 export interface ShippingBasis {
-  cost: number | null;
+  amount: number | null;
+  currency: string | null;
+  service: string | null;
+  destination: string | null;
+  quotedAt: string | null;
   source: string | null;
   linked: boolean;
 }
 
+const UNLINKED: ShippingBasis = {
+  amount: null,
+  currency: null,
+  service: null,
+  destination: null,
+  quotedAt: null,
+  source: null,
+  linked: false,
+};
+
 /**
- * Shipping can only come from a genuine supplier quote captured at import
- * time. Listings that predate the supplier integration carry no such record,
- * so they are reported as unlinked rather than given a stand-in figure.
+ * Shipping may only come from a genuine destination specific supplier quote.
+ * Listings that predate the supplier integration, or that only carry the old
+ * generic catalogue shipping figure, are reported rather than given a stand in
+ * number. That generic figure is exactly what understated the landed cost on
+ * the first real order.
  */
 export async function loadShippingBasis(): Promise<Map<string, ShippingBasis>> {
   const supabase = await zendropAdminClient();
   const basis = new Map<string, ShippingBasis>();
 
-  const record = (raw: any, source: string) => {
-    const cost = raw.shipping_cost === null ? null : Number(raw.shipping_cost);
-    const entry: ShippingBasis = {
-      cost: Number.isFinite(cost as number) ? (cost as number) : null,
-      source: cost === null ? null : (raw.shipping_source ?? source),
-      linked: true,
-    };
+  const record = (raw: any, entry: ShippingBasis) => {
     if (raw.shopify_product_id) basis.set(String(raw.shopify_product_id), entry);
     if (raw.product_id) basis.set(`uuid:${raw.product_id}`, entry);
   };
 
+  // Legacy evidence first, so verified quotes always win.
   const { data: candidates } = await supabase
     .from("zendrop_import_candidates")
     .select("product_id, shopify_product_id, shipping_cost, currency, updated_at")
     .not("shopify_product_id", "is", null)
     .order("updated_at", { ascending: true });
-  for (const raw of (candidates ?? []) as any[]) record(raw, "supplier_shipping_quote");
+  for (const raw of (candidates ?? []) as any[]) {
+    const cost = raw.shipping_cost === null ? null : Number(raw.shipping_cost);
+    record(raw, {
+      amount: Number.isFinite(cost as number) ? (cost as number) : null,
+      currency: raw.currency ?? null,
+      // The legacy figure names neither a service nor a destination, so the
+      // evidence policy will refuse it.
+      service: null,
+      destination: null,
+      quotedAt: raw.updated_at ?? null,
+      source: "legacy_catalogue_shipping_figure",
+      linked: true,
+    });
+  }
 
-  // Recovered links carry first party supplier evidence, so they take priority.
   const { data: links } = await supabase
     .from("product_supplier_links")
-    .select("product_id, shopify_product_id, shipping_cost, shipping_source, match_confidence")
+    .select(
+      "product_id, shopify_product_id, shipping_cost, shipping_currency, shipping_source, shipping_service, shipping_destination, shipping_quoted_at, quoted_amount, quoted_currency, match_confidence",
+    )
     .eq("match_confidence", "high")
     .order("verified_at", { ascending: true });
-  for (const raw of (links ?? []) as any[]) record(raw, "supplier_shipping_quote");
+  for (const raw of (links ?? []) as any[]) {
+    const amount =
+      raw.quoted_amount !== null && raw.quoted_amount !== undefined
+        ? Number(raw.quoted_amount)
+        : raw.shipping_cost === null
+          ? null
+          : Number(raw.shipping_cost);
+    record(raw, {
+      amount: Number.isFinite(amount as number) ? (amount as number) : null,
+      currency: raw.quoted_currency ?? raw.shipping_currency ?? null,
+      service: raw.shipping_service ?? null,
+      destination: raw.shipping_destination ?? null,
+      quotedAt: raw.shipping_quoted_at ?? null,
+      source: raw.shipping_source ?? "supplier_destination_quote",
+      linked: true,
+    });
+  }
 
   return basis;
 }
@@ -86,6 +126,12 @@ export interface AuditRunSummary {
   message: string;
 }
 
+function statusForEvidence(status: ShippingEvidenceStatus): AuditStatus {
+  if (status === "missing") return "held_missing_uk_shipping";
+  if (status === "stale") return "held_stale_shipping_quote";
+  return "held_unreliable_linkage";
+}
+
 export async function runPricingAudit(userId: string | null): Promise<AuditRunSummary> {
   const supabase = await zendropAdminClient();
   const settings = await loadPricingSettings();
@@ -94,12 +140,34 @@ export async function runPricingAudit(userId: string | null): Promise<AuditRunSu
     loadSuppressedProductIds(),
   ]);
 
+  // The reference rate is fetched once per run so every line in the run is
+  // measured on the same basis. A missing or stale rate stops the run rather
+  // than letting pricing fall back to a guess.
+  let fx: FxQuote | null = null;
+  let fxProblem: string | null = null;
+  try {
+    fx = await getFxRate("USD", settings.currency);
+    const ageHours = (Date.now() - new Date(`${fx.asOf}T00:00:00Z`).getTime()) / 3_600_000;
+    if (Number.isFinite(ageHours) && ageHours > settings.fx_quote_max_age_hours) {
+      fxProblem = `The reference exchange rate is dated ${fx.asOf}, which is older than the ${settings.fx_quote_max_age_hours} hour freshness policy`;
+      fx = null;
+    }
+  } catch (cause) {
+    fxProblem =
+      cause instanceof Error ? cause.message : "The reference exchange rate could not be retrieved";
+  }
+
   const { data: runRow, error: runError } = await supabase
     .from("pricing_audit_runs")
     .insert({
       mode: "preview",
       status: "running",
-      settings: settings as unknown as Record<string, unknown>,
+      settings: {
+        ...settings,
+        fx_reference_rate: fx?.rate ?? null,
+        fx_as_of: fx?.asOf ?? null,
+        fx_problem: fxProblem,
+      } as unknown as Record<string, unknown>,
       created_by: userId,
     } as never)
     .select("id")
@@ -118,15 +186,28 @@ export async function runPricingAudit(userId: string | null): Promise<AuditRunSu
   totals.productsReprisable = 0;
   totals.productsHeld = 0;
 
+  const fee = { variable: settings.payment_fee_variable, fixed: settings.payment_fee_fixed };
   const rows: Record<string, unknown>[] = [];
 
   for (const product of ((products ?? []) as any[])) {
     totals.products += 1;
     const productKey = String(product.shopify_product_id);
     const basis =
-      shipping.get(productKey) ??
-      shipping.get(`uuid:${product.id}`) ??
-      ({ cost: null, source: null, linked: false } as ShippingBasis);
+      shipping.get(productKey) ?? shipping.get(`uuid:${product.id}`) ?? UNLINKED;
+
+    const evidence = assessShippingEvidence(
+      {
+        amount: basis.amount,
+        currency: basis.currency,
+        destination: basis.destination,
+        service: basis.service,
+        quotedAt: basis.quotedAt,
+      },
+      {
+        market: settings.shipping_market,
+        maxAgeDays: settings.shipping_quote_max_age_days,
+      },
+    );
 
     const { data: variants } = await supabase
       .from("shopify_product_variants")
@@ -149,8 +230,17 @@ export async function runPricingAudit(userId: string | null): Promise<AuditRunSu
 
       let status: AuditStatus;
       let reason: string | null = null;
-      let landed: number | null = null;
-      let calculated: number | null = null;
+      let economics = computeEconomics({
+        supplierItemCost: null,
+        supplierShippingCost: null,
+        referenceFxRate: fx?.rate ?? null,
+        fxBufferPct: settings.fx_buffer_pct,
+        targetMargin: settings.target_margin,
+        fee,
+        roundingMode: settings.rounding_mode,
+        promoDiscount: settings.promo_discount,
+        minPromoMargin: settings.min_promo_margin,
+      });
 
       if (excluded) {
         status = "excluded_by_policy";
@@ -167,16 +257,33 @@ export async function runPricingAudit(userId: string | null): Promise<AuditRunSu
       } else if (costCurrency && costCurrency !== settings.currency) {
         status = "held_unreliable_linkage";
         reason = `The recorded cost is in ${costCurrency} but pricing runs in ${settings.currency}, so the basis is not comparable`;
-      } else if (basis.cost === null) {
-        status = "held_missing_uk_shipping";
-        reason = `No confirmed shipping cost to ${settings.shipping_market} is recorded for this listing`;
-      } else if (!(settings.target_margin > 0 && settings.target_margin < 1)) {
+      } else if (!evidence.usable) {
+        status = statusForEvidence(evidence.status);
+        reason = evidence.reason;
+      } else if (!fx) {
         status = "held_unreliable_linkage";
-        reason = "The configured target gross margin is invalid";
+        reason = fxProblem ?? "No usable reference exchange rate is available for this run";
       } else {
-        landed = round2(unitCost + basis.cost);
-        calculated = applyRounding(landed / (1 - settings.target_margin), settings.rounding_mode);
-        if (currentPrice !== null && Math.abs(currentPrice - calculated) < PENCE) {
+        economics = computeEconomics({
+          supplierItemCost: unitCost,
+          itemCostIsSettlementCurrency: true,
+          supplierShippingCost: evidence.amount,
+          referenceFxRate: fx.rate,
+          fxBufferPct: settings.fx_buffer_pct,
+          targetMargin: settings.target_margin,
+          fee,
+          roundingMode: settings.rounding_mode,
+          promoDiscount: settings.promo_discount,
+          minPromoMargin: settings.min_promo_margin,
+        });
+
+        if (!economics.complete || economics.advertisedPrice === null) {
+          status = "held_unreliable_linkage";
+          reason = economics.reason;
+        } else if (
+          currentPrice !== null &&
+          Math.abs(currentPrice - economics.advertisedPrice) < PENCE
+        ) {
           status = "already_correct";
           reason = "The live price already matches the formula";
         } else {
@@ -198,14 +305,49 @@ export async function runPricingAudit(userId: string | null): Promise<AuditRunSu
         current_price: currentPrice,
         unit_cost: unitCost,
         cost_source: variant.cost_source,
-        shipping_cost: basis.cost,
+        shipping_cost: evidence.usable ? evidence.amount : basis.amount,
         shipping_source: basis.source,
-        landed_cost: landed,
-        calculated_price: calculated,
-        current_margin: margin(currentPrice, landed),
-        proposed_margin: margin(calculated, landed),
+        landed_cost: economics.protectedLandedCogs,
+        calculated_price: economics.advertisedPrice,
+        current_margin:
+          currentPrice !== null && economics.protectedLandedCogs !== null && currentPrice > 0
+            ? round2(
+                ((currentPrice -
+                  round2(currentPrice * fee.variable + fee.fixed) -
+                  economics.protectedLandedCogs) /
+                  currentPrice) *
+                  10000,
+              ) / 10000
+            : null,
+        proposed_margin: economics.expectedMargin,
         status,
         reason,
+        supplier_currency: evidence.currency ?? basis.currency,
+        supplier_item_cost_source: null,
+        supplier_shipping_source_amount: evidence.usable ? evidence.amount : basis.amount,
+        supplier_additional_cost: null,
+        supplier_landed_total_source: economics.supplierLandedTotalSource,
+        fx_reference_rate: fx?.rate ?? null,
+        fx_source: fx?.source ?? settings.fx_source,
+        fx_as_of: fx?.asOf ?? null,
+        fx_buffer_pct: settings.fx_buffer_pct,
+        fx_effective_rate: economics.effectiveFxRate,
+        protected_landed_cogs: economics.protectedLandedCogs,
+        fee_variable: fee.variable,
+        fee_fixed: fee.fixed,
+        required_price: economics.requiredPrice,
+        expected_fee: economics.expectedFee,
+        expected_payout: economics.expectedPayout,
+        expected_profit: economics.expectedProfit,
+        expected_margin: economics.expectedMargin,
+        promo_price: economics.promoPrice,
+        promo_profit: economics.promoProfit,
+        promo_margin: economics.promoMargin,
+        promo_within_floor: economics.promoWithinFloor,
+        shipping_service: basis.service,
+        shipping_destination: basis.destination,
+        shipping_quoted_at: basis.quotedAt,
+        evidence_status: evidence.status,
       });
     }
 
@@ -217,11 +359,15 @@ export async function runPricingAudit(userId: string | null): Promise<AuditRunSu
     await supabase.from("pricing_audit_items").insert(rows.slice(index, index + 400) as never);
   }
 
-  const message = `${totals.ready_to_reprice} variant(s) ready to reprice, ${
-    totals.already_correct
-  } already correct, ${
-    totals.held_missing_cost + totals.held_missing_uk_shipping + totals.held_unreliable_linkage
-  } held, ${totals.excluded_by_policy} excluded.`;
+  const held =
+    totals.held_missing_cost +
+    totals.held_missing_uk_shipping +
+    totals.held_stale_shipping_quote +
+    totals.held_unreliable_linkage;
+
+  const message = `${totals.ready_to_reprice} variant(s) ready to reprice, ${totals.already_correct} already correct, ${held} held, ${totals.excluded_by_policy} excluded.${
+    fxProblem ? ` Exchange rate problem: ${fxProblem}` : ""
+  }`;
 
   await supabase
     .from("pricing_audit_runs")

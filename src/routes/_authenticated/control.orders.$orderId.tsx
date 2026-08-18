@@ -18,6 +18,7 @@ import {
   type SupplierSnapshot,
 } from "@/lib/commerce/commerce.functions";
 import { dateTime, money, realisedMargin, stateLabel, stateTone } from "@/lib/commerce/presentation";
+import { reconcileOrderEconomics } from "@/lib/pricing/economics";
 import { ATTENTION_STATES } from "@/lib/commerce/types";
 
 export const Route = createFileRoute("/_authenticated/control/orders/$orderId")({
@@ -127,6 +128,17 @@ function OrderDetailPage() {
     paymentCurrency: order.supplier_payment_currency,
   });
 
+  const economics = reconcileOrderEconomics({
+    grossPayment: order.actual_gross_payment ?? order.order_total,
+    paymentFee: order.actual_payment_fee,
+    payout: order.actual_payout,
+    supplierCostSource: order.actual_supplier_cost_source ?? order.supplier_total,
+    supplierCostSettlement: order.actual_supplier_cost_settlement,
+    forecastProfit: order.forecast_profit,
+  });
+  const percent = (value: number | null) =>
+    value === null ? "Not evidenced" : `${(value * 100).toFixed(1)}%`;
+
   return (
     <div className="space-y-8">
       <PageHeader
@@ -211,6 +223,57 @@ function OrderDetailPage() {
           <div className="mt-3 rounded-lg bg-muted/60 px-3 py-2 text-xs text-muted-foreground">
             Realised margin: {margin.label}
           </div>
+        </SectionCard>
+
+        <SectionCard
+          title="Economics, forecast against actual"
+          description="Only evidenced figures are shown. Nothing here is estimated or back filled from an assumed exchange rate."
+        >
+          <Row
+            label="Customer payment taken"
+            value={money(order.actual_gross_payment ?? order.order_total, order.currency)}
+          />
+          <Row
+            label="Store payment fee"
+            value={money(order.actual_payment_fee, order.currency)}
+          />
+          <Row label="Payout received" value={money(order.actual_payout, order.currency)} />
+          <Row
+            label="Supplier charge, supplier currency"
+            value={money(
+              order.actual_supplier_cost_source ?? order.supplier_total,
+              order.supplier_currency,
+            )}
+          />
+          <Row
+            label="Supplier charge, settled"
+            value={money(order.actual_supplier_cost_settlement, order.supplier_payment_currency)}
+          />
+          <Row
+            label="Realised exchange rate"
+            value={
+              economics.realisedFxRate === null
+                ? "Not derivable"
+                : economics.realisedFxRate.toFixed(4)
+            }
+          />
+          <Row label="Realised profit" value={money(economics.realisedProfit, order.currency)} />
+          <Row label="Realised margin" value={percent(economics.realisedMargin)} />
+          <Row label="Forecast profit" value={money(order.forecast_profit, order.currency)} />
+          <Row
+            label="Variance against forecast"
+            value={money(economics.profitVariance, order.currency)}
+          />
+          {economics.note ? (
+            <p className="mt-3 rounded-lg bg-muted/60 px-3 py-2 text-xs text-muted-foreground">
+              {economics.note}
+            </p>
+          ) : null}
+          {order.economics_note ? (
+            <p className="mt-2 rounded-lg bg-muted/60 px-3 py-2 text-xs text-muted-foreground">
+              {order.economics_note}
+            </p>
+          ) : null}
         </SectionCard>
 
         <SectionCard title="Tracking" description="Delivery progress as recorded by the platform.">

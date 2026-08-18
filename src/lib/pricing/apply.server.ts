@@ -114,9 +114,29 @@ export async function applyPricingAudit(input: {
         rounding_mode: settings.rounding_mode,
         cost_source: item.cost_source,
         shipping_source: item.shipping_source,
+        // Full economics provenance, so a past price can always be explained.
+        supplier_currency: item.supplier_currency,
+        supplier_landed_total_source: item.supplier_landed_total_source,
+        fx_reference_rate: item.fx_reference_rate,
+        fx_source: item.fx_source,
+        fx_as_of: item.fx_as_of,
+        fx_buffer_pct: item.fx_buffer_pct,
+        fx_effective_rate: item.fx_effective_rate,
+        protected_landed_cogs: item.protected_landed_cogs,
+        fee_variable: item.fee_variable,
+        fee_fixed: item.fee_fixed,
+        required_price: item.required_price,
+        expected_fee: item.expected_fee,
+        expected_payout: item.expected_payout,
+        expected_profit: item.expected_profit,
+        expected_margin: item.expected_margin,
+        shipping_service: item.shipping_service,
+        shipping_destination: item.shipping_destination,
+        shipping_quoted_at: item.shipping_quoted_at,
         source: "admin_reprice",
         applied_by: input.userId,
       } as never);
+
 
       await supabase
         .from("pricing_audit_items")

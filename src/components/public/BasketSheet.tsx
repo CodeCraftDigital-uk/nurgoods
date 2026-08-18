@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { Minus, Plus, ShoppingBag, Trash2 } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { FreeShippingNote } from "@/components/public/FreeShippingNote";
 import { useBasket } from "@/lib/basket/BasketProvider";
 import { MAX_LINE_QUANTITY } from "@/lib/basket/model";
 import { formatMoney, lineTotalDisplay, variantPriceDisplay } from "@/lib/pricing/display";
@@ -150,8 +151,9 @@ export function BasketSheet() {
                   {formatMoney(subtotal, currency)}
                 </span>
               </div>
+              <FreeShippingNote className="mt-1" />
               <p className="mt-1 text-xs text-muted-foreground">
-                Delivery and any taxes are calculated at secure store checkout.
+                Any taxes are confirmed at secure store checkout.
               </p>
               <button
                 type="button"

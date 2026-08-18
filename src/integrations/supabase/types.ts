@@ -540,6 +540,7 @@ export type Database = {
           shopify_product_id: string | null
           shopify_variant_id: string | null
           sku: string | null
+          supplier_only: boolean
           supplier_status: string | null
           title: string | null
           tracking_number: string | null
@@ -559,6 +560,7 @@ export type Database = {
           shopify_product_id?: string | null
           shopify_variant_id?: string | null
           sku?: string | null
+          supplier_only?: boolean
           supplier_status?: string | null
           title?: string | null
           tracking_number?: string | null
@@ -578,6 +580,7 @@ export type Database = {
           shopify_product_id?: string | null
           shopify_variant_id?: string | null
           sku?: string | null
+          supplier_only?: boolean
           supplier_status?: string | null
           title?: string | null
           tracking_number?: string | null
@@ -600,11 +603,20 @@ export type Database = {
       }
       commerce_orders: {
         Row: {
+          actual_gross_payment: number | null
+          actual_payment_fee: number | null
+          actual_payout: number | null
+          actual_supplier_cost_settlement: number | null
+          actual_supplier_cost_source: number | null
           created_at: string
           currency: string | null
           delivered_at: string | null
           dispatch_idempotency_key: string | null
+          economics_note: string | null
+          forecast_margin: number | null
+          forecast_profit: number | null
           fulfilment_cost: number | null
+          fulfilment_mode: string | null
           gross_margin: number | null
           id: string
           last_error: string | null
@@ -619,6 +631,10 @@ export type Database = {
           preview_reference: string | null
           preview_scope: string | null
           product_cost: number | null
+          profit_variance: number | null
+          realised_fx_rate: number | null
+          realised_margin: number | null
+          realised_profit: number | null
           retry_count: number
           shipped_at: string | null
           shipping_city: string | null
@@ -648,11 +664,20 @@ export type Database = {
           zendrop_store_id: number | null
         }
         Insert: {
+          actual_gross_payment?: number | null
+          actual_payment_fee?: number | null
+          actual_payout?: number | null
+          actual_supplier_cost_settlement?: number | null
+          actual_supplier_cost_source?: number | null
           created_at?: string
           currency?: string | null
           delivered_at?: string | null
           dispatch_idempotency_key?: string | null
+          economics_note?: string | null
+          forecast_margin?: number | null
+          forecast_profit?: number | null
           fulfilment_cost?: number | null
+          fulfilment_mode?: string | null
           gross_margin?: number | null
           id?: string
           last_error?: string | null
@@ -667,6 +692,10 @@ export type Database = {
           preview_reference?: string | null
           preview_scope?: string | null
           product_cost?: number | null
+          profit_variance?: number | null
+          realised_fx_rate?: number | null
+          realised_margin?: number | null
+          realised_profit?: number | null
           retry_count?: number
           shipped_at?: string | null
           shipping_city?: string | null
@@ -696,11 +725,20 @@ export type Database = {
           zendrop_store_id?: number | null
         }
         Update: {
+          actual_gross_payment?: number | null
+          actual_payment_fee?: number | null
+          actual_payout?: number | null
+          actual_supplier_cost_settlement?: number | null
+          actual_supplier_cost_source?: number | null
           created_at?: string
           currency?: string | null
           delivered_at?: string | null
           dispatch_idempotency_key?: string | null
+          economics_note?: string | null
+          forecast_margin?: number | null
+          forecast_profit?: number | null
           fulfilment_cost?: number | null
+          fulfilment_mode?: string | null
           gross_margin?: number | null
           id?: string
           last_error?: string | null
@@ -715,6 +753,10 @@ export type Database = {
           preview_reference?: string | null
           preview_scope?: string | null
           product_cost?: number | null
+          profit_variance?: number | null
+          realised_fx_rate?: number | null
+          realised_margin?: number | null
+          realised_profit?: number | null
           retry_count?: number
           shipped_at?: string | null
           shipping_city?: string | null
@@ -1534,19 +1576,45 @@ export type Database = {
           currency: string
           current_margin: number | null
           current_price: number | null
+          evidence_status: string | null
+          expected_fee: number | null
+          expected_margin: number | null
+          expected_payout: number | null
+          expected_profit: number | null
+          fee_fixed: number | null
+          fee_variable: number | null
+          fx_as_of: string | null
+          fx_buffer_pct: number | null
+          fx_effective_rate: number | null
+          fx_reference_rate: number | null
+          fx_source: string | null
           handle: string | null
           id: string
           landed_cost: number | null
           product_id: string | null
           product_title: string | null
+          promo_margin: number | null
+          promo_price: number | null
+          promo_profit: number | null
+          promo_within_floor: boolean | null
           proposed_margin: number | null
+          protected_landed_cogs: number | null
           reason: string | null
+          required_price: number | null
           run_id: string
           shipping_cost: number | null
+          shipping_destination: string | null
+          shipping_quoted_at: string | null
+          shipping_service: string | null
           shipping_source: string | null
           shopify_product_id: string
           shopify_variant_id: string
           status: string
+          supplier_additional_cost: number | null
+          supplier_currency: string | null
+          supplier_item_cost_source: number | null
+          supplier_landed_total_source: number | null
+          supplier_shipping_source_amount: number | null
           unit_cost: number | null
           variant_title: string | null
         }
@@ -1557,19 +1625,45 @@ export type Database = {
           currency?: string
           current_margin?: number | null
           current_price?: number | null
+          evidence_status?: string | null
+          expected_fee?: number | null
+          expected_margin?: number | null
+          expected_payout?: number | null
+          expected_profit?: number | null
+          fee_fixed?: number | null
+          fee_variable?: number | null
+          fx_as_of?: string | null
+          fx_buffer_pct?: number | null
+          fx_effective_rate?: number | null
+          fx_reference_rate?: number | null
+          fx_source?: string | null
           handle?: string | null
           id?: string
           landed_cost?: number | null
           product_id?: string | null
           product_title?: string | null
+          promo_margin?: number | null
+          promo_price?: number | null
+          promo_profit?: number | null
+          promo_within_floor?: boolean | null
           proposed_margin?: number | null
+          protected_landed_cogs?: number | null
           reason?: string | null
+          required_price?: number | null
           run_id: string
           shipping_cost?: number | null
+          shipping_destination?: string | null
+          shipping_quoted_at?: string | null
+          shipping_service?: string | null
           shipping_source?: string | null
           shopify_product_id: string
           shopify_variant_id: string
           status: string
+          supplier_additional_cost?: number | null
+          supplier_currency?: string | null
+          supplier_item_cost_source?: number | null
+          supplier_landed_total_source?: number | null
+          supplier_shipping_source_amount?: number | null
           unit_cost?: number | null
           variant_title?: string | null
         }
@@ -1580,19 +1674,45 @@ export type Database = {
           currency?: string
           current_margin?: number | null
           current_price?: number | null
+          evidence_status?: string | null
+          expected_fee?: number | null
+          expected_margin?: number | null
+          expected_payout?: number | null
+          expected_profit?: number | null
+          fee_fixed?: number | null
+          fee_variable?: number | null
+          fx_as_of?: string | null
+          fx_buffer_pct?: number | null
+          fx_effective_rate?: number | null
+          fx_reference_rate?: number | null
+          fx_source?: string | null
           handle?: string | null
           id?: string
           landed_cost?: number | null
           product_id?: string | null
           product_title?: string | null
+          promo_margin?: number | null
+          promo_price?: number | null
+          promo_profit?: number | null
+          promo_within_floor?: boolean | null
           proposed_margin?: number | null
+          protected_landed_cogs?: number | null
           reason?: string | null
+          required_price?: number | null
           run_id?: string
           shipping_cost?: number | null
+          shipping_destination?: string | null
+          shipping_quoted_at?: string | null
+          shipping_service?: string | null
           shipping_source?: string | null
           shopify_product_id?: string
           shopify_variant_id?: string
           status?: string
+          supplier_additional_cost?: number | null
+          supplier_currency?: string | null
+          supplier_item_cost_source?: number | null
+          supplier_landed_total_source?: number | null
+          supplier_shipping_source_amount?: number | null
           unit_cost?: number | null
           variant_title?: string | null
         }
@@ -2124,18 +2244,36 @@ export type Database = {
           applied_by: string | null
           cost_source: string | null
           created_at: string
+          expected_fee: number | null
+          expected_margin: number | null
+          expected_payout: number | null
+          expected_profit: number | null
+          fee_fixed: number | null
+          fee_variable: number | null
+          fx_as_of: string | null
+          fx_buffer_pct: number | null
+          fx_effective_rate: number | null
+          fx_reference_rate: number | null
+          fx_source: string | null
           id: string
           landed_cost: number | null
           new_price: number
           old_price: number | null
           product_id: string | null
+          protected_landed_cogs: number | null
+          required_price: number | null
           rounding_mode: string | null
           run_id: string | null
           shipping_cost: number | null
+          shipping_destination: string | null
+          shipping_quoted_at: string | null
+          shipping_service: string | null
           shipping_source: string | null
           shopify_product_id: string
           shopify_variant_id: string
           source: string
+          supplier_currency: string | null
+          supplier_landed_total_source: number | null
           target_margin: number | null
           unit_cost: number | null
           variant_title: string | null
@@ -2144,18 +2282,36 @@ export type Database = {
           applied_by?: string | null
           cost_source?: string | null
           created_at?: string
+          expected_fee?: number | null
+          expected_margin?: number | null
+          expected_payout?: number | null
+          expected_profit?: number | null
+          fee_fixed?: number | null
+          fee_variable?: number | null
+          fx_as_of?: string | null
+          fx_buffer_pct?: number | null
+          fx_effective_rate?: number | null
+          fx_reference_rate?: number | null
+          fx_source?: string | null
           id?: string
           landed_cost?: number | null
           new_price: number
           old_price?: number | null
           product_id?: string | null
+          protected_landed_cogs?: number | null
+          required_price?: number | null
           rounding_mode?: string | null
           run_id?: string | null
           shipping_cost?: number | null
+          shipping_destination?: string | null
+          shipping_quoted_at?: string | null
+          shipping_service?: string | null
           shipping_source?: string | null
           shopify_product_id: string
           shopify_variant_id: string
           source?: string
+          supplier_currency?: string | null
+          supplier_landed_total_source?: number | null
           target_margin?: number | null
           unit_cost?: number | null
           variant_title?: string | null
@@ -2164,18 +2320,36 @@ export type Database = {
           applied_by?: string | null
           cost_source?: string | null
           created_at?: string
+          expected_fee?: number | null
+          expected_margin?: number | null
+          expected_payout?: number | null
+          expected_profit?: number | null
+          fee_fixed?: number | null
+          fee_variable?: number | null
+          fx_as_of?: string | null
+          fx_buffer_pct?: number | null
+          fx_effective_rate?: number | null
+          fx_reference_rate?: number | null
+          fx_source?: string | null
           id?: string
           landed_cost?: number | null
           new_price?: number
           old_price?: number | null
           product_id?: string | null
+          protected_landed_cogs?: number | null
+          required_price?: number | null
           rounding_mode?: string | null
           run_id?: string | null
           shipping_cost?: number | null
+          shipping_destination?: string | null
+          shipping_quoted_at?: string | null
+          shipping_service?: string | null
           shipping_source?: string | null
           shopify_product_id?: string
           shopify_variant_id?: string
           source?: string
+          supplier_currency?: string | null
+          supplier_landed_total_source?: number | null
           target_margin?: number | null
           unit_cost?: number | null
           variant_title?: string | null
@@ -2303,6 +2477,9 @@ export type Database = {
           quoted_currency: string | null
           shipping_cost: number | null
           shipping_currency: string
+          shipping_destination: string | null
+          shipping_quoted_at: string | null
+          shipping_service: string | null
           shipping_source: string | null
           shopify_product_id: string
           supplier: string
@@ -2325,6 +2502,9 @@ export type Database = {
           quoted_currency?: string | null
           shipping_cost?: number | null
           shipping_currency?: string
+          shipping_destination?: string | null
+          shipping_quoted_at?: string | null
+          shipping_service?: string | null
           shipping_source?: string | null
           shopify_product_id: string
           supplier?: string
@@ -2347,6 +2527,9 @@ export type Database = {
           quoted_currency?: string | null
           shipping_cost?: number | null
           shipping_currency?: string
+          shipping_destination?: string | null
+          shipping_quoted_at?: string | null
+          shipping_service?: string | null
           shipping_source?: string | null
           shopify_product_id?: string
           supplier?: string
@@ -3257,12 +3440,19 @@ export type Database = {
           allow_incomplete_pricing: boolean
           created_at: string
           currency: string
+          free_shipping_market: string
+          fx_buffer_pct: number
+          fx_quote_max_age_hours: number
+          fx_source: string
           id: string
           min_promo_margin: number
+          payment_fee_fixed: number
+          payment_fee_variable: number
           pricing_mode: string
           promo_discount: number
           rounding_mode: string
           shipping_market: string
+          shipping_quote_max_age_days: number
           target_margin: number
           updated_at: string
         }
@@ -3270,12 +3460,19 @@ export type Database = {
           allow_incomplete_pricing?: boolean
           created_at?: string
           currency?: string
+          free_shipping_market?: string
+          fx_buffer_pct?: number
+          fx_quote_max_age_hours?: number
+          fx_source?: string
           id?: string
           min_promo_margin?: number
+          payment_fee_fixed?: number
+          payment_fee_variable?: number
           pricing_mode?: string
           promo_discount?: number
           rounding_mode?: string
           shipping_market?: string
+          shipping_quote_max_age_days?: number
           target_margin?: number
           updated_at?: string
         }
@@ -3283,12 +3480,19 @@ export type Database = {
           allow_incomplete_pricing?: boolean
           created_at?: string
           currency?: string
+          free_shipping_market?: string
+          fx_buffer_pct?: number
+          fx_quote_max_age_hours?: number
+          fx_source?: string
           id?: string
           min_promo_margin?: number
+          payment_fee_fixed?: number
+          payment_fee_variable?: number
           pricing_mode?: string
           promo_discount?: number
           rounding_mode?: string
           shipping_market?: string
+          shipping_quote_max_age_days?: number
           target_margin?: number
           updated_at?: string
         }

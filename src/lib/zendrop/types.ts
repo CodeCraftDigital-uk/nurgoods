@@ -115,7 +115,22 @@ export interface PricingSettings {
   shipping_market: string;
   currency: string;
   allow_incomplete_pricing: boolean;
+  /** Where the reference exchange rate is taken from. */
+  fx_source: string;
+  /** Protection applied on top of the reference rate before pricing. */
+  fx_buffer_pct: number;
+  /** How old a reference exchange rate may be before it is refused. */
+  fx_quote_max_age_hours: number;
+  /** How old a supplier shipping quote may be before it is refused. */
+  shipping_quote_max_age_days: number;
+  /** Proportion of the selling price taken by the payment provider. */
+  payment_fee_variable: number;
+  /** Fixed amount taken per transaction, in the selling currency. */
+  payment_fee_fixed: number;
+  /** Market that receives free delivery at the checkout. */
+  free_shipping_market: string;
 }
+
 
 export interface SourcingRules {
   enabled: boolean;
@@ -155,6 +170,12 @@ export interface CatalogueItem {
   category: string | null;
   cost: number | null;
   shippingCost: number | null;
+  /** Named supplier service the shipping figure was quoted for. */
+  shippingService?: string | null;
+  /** Destination the shipping figure was quoted for. */
+  shippingDestination?: string | null;
+  /** When the shipping figure was quoted. */
+  shippingQuotedAt?: string | null;
   suggestedRetail: number | null;
   inventory: number | null;
   shipsFrom: string | null;
@@ -162,6 +183,7 @@ export interface CatalogueItem {
   currency: string;
   variants: CatalogueVariant[];
 }
+
 
 export interface CatalogueSearchResult {
   items: CatalogueItem[];

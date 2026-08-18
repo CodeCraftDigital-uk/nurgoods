@@ -149,7 +149,17 @@ export interface OrderFull extends OrderSummary {
   supplier_total: number | null;
   supplier_payment_amount: number | null;
   supplier_payment_currency: string | null;
+  // Evidenced order economics. Anything not evidenced stays null.
+  actual_gross_payment: number | null;
+  actual_payment_fee: number | null;
+  actual_payout: number | null;
+  actual_supplier_cost_source: number | null;
+  actual_supplier_cost_settlement: number | null;
+  forecast_profit: number | null;
+  forecast_margin: number | null;
+  economics_note: string | null;
 }
+
 
 export interface WebhookDeliveryView {
   id: string;

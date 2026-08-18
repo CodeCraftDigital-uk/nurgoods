@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { FreeShippingBadge } from "@/components/public/FreeShippingNote";
 import { MissingProductImage } from "@/components/public/MissingProductImage";
 import { formatMoney, productPriceDisplay } from "@/lib/pricing/display";
 import type { StorefrontProductCard } from "@/lib/public-api/storefront.server";
@@ -91,7 +92,7 @@ export function ProductCard({
 
           </p>
         ) : null}
-
+        <FreeShippingBadge />
       </div>
     </Link>
   );
