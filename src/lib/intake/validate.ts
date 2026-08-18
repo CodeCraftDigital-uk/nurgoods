@@ -1,6 +1,6 @@
 import type { ProductBundle } from "@/lib/intelligence/core.server";
 import { screenProhibited } from "@/lib/policy/prohibited";
-import type { IntakeCheck, IntakePolicy } from "./types";
+import type { IntakeCheck, IntakeOrigin, IntakePolicy } from "./types";
 
 /**
  * Deterministic intake validation. No model is involved and nothing is
