@@ -200,6 +200,10 @@ function makeSupplier(calls: string[], supplierLines: any[] = [SUPPLIER_LINE]): 
         lines: supplierLines,
       };
     },
+    async quoteFulfilmentCost() {
+      calls.push("quote");
+      return { productCost: 10, shippingCost: 2, totalCost: 12, currency: "GBP", reference: null, raw: {} };
+    },
     async previewFulfilment() {
       calls.push("preview");
       return { productCost: 10, shippingCost: 2, totalCost: 12, currency: "GBP", reference: "quote-1", raw: {} };
