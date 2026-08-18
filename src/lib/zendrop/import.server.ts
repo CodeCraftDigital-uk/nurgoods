@@ -656,6 +656,9 @@ export async function enqueueDetectedIntoIntake(
           productId: (product?.id ?? row.product_id ?? null) as string | null,
           updatedAt: (product?.updated_at ?? null) as string | null,
           source: "backfill" as const,
+          // Supplier pushed records arrive as store drafts and are activated
+          // by NUR GOODS only after every intake gate passes.
+          origin: "supplier" as const,
         };
       }),
     );
