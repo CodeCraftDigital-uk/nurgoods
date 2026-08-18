@@ -1,13 +1,23 @@
 /**
  * Sales channel publication for supplier imported products.
  *
- * A supplier push can land a product on the Online Store only. The NUR GOODS
- * checkout is served through the headless storefront channel, so a product
- * that is missing from that channel cannot be added to a cart and "Buy now"
- * fails with an unknown merchandise error. Publishing is therefore part of
- * the import, not a manual step.
+ * NUR GOODS is the only shopping and browsing storefront. The store behind it
+ * is the checkout, payment and order engine. A product therefore has to be on
+ * the headless sales channel that issues our checkout links, or "Buy now"
+ * fails with an unknown merchandise error, and it must never be pushed onto
+ * the Shop channel, which is a competing shopping surface.
+ *
+ * The channel rules themselves are pure and tested in publication-policy.ts.
+ * This module only talks to the store.
  */
 import { intakeCredentials, shopifyGraphql } from "../services/shopify.server";
+import {
+  assertNoShopChannel,
+  DEFAULT_PUBLICATION_POLICY,
+  selectPublicationTargets,
+  type Channel,
+  type PublicationPolicy,
+} from "./publication-policy";
 
 const PUBLICATIONS_QUERY = `
   query NurGoodsPublications($id: ID!) {
@@ -26,38 +36,80 @@ const PUBLISH_MUTATION = `
   }
 `;
 
-/** Channels a saleable NUR GOODS product must appear on. */
-const REQUIRED_CHANNEL_PATTERNS = [/online store/i, /headless/i, /^shop$/i];
+/**
+ * Reads the publication policy from the store integration settings.
+ *
+ * Only the Online Store switch is configurable, and it defaults to on. The
+ * Shop channel is never configurable, so no setting can turn it on.
+ */
+export async function loadPublicationPolicy(): Promise<PublicationPolicy> {
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: integration } = await (supabaseAdmin as any)
+      .from("integrations")
+      .select("id")
+      .eq("provider", "shopify")
+      .maybeSingle();
+    if (!integration?.id) return DEFAULT_PUBLICATION_POLICY;
+    const { data } = await (supabaseAdmin as any)
+      .from("integration_settings")
+      .select("value")
+      .eq("integration_id", integration.id)
+      .eq("key", "publication_include_online_store")
+      .maybeSingle();
+    const value = (data?.value ?? "").toString().trim().toLowerCase();
+    if (value === "false" || value === "off" || value === "0") {
+      return { ...DEFAULT_PUBLICATION_POLICY, includeOnlineStore: false };
+    }
+    return DEFAULT_PUBLICATION_POLICY;
+  } catch {
+    // Any doubt about the setting means the safe, buyable configuration.
+    return DEFAULT_PUBLICATION_POLICY;
+  }
+}
 
 export interface PublicationResult {
   published: string[];
   alreadyPublished: string[];
+  /** Channels deliberately skipped, so the decision is visible in the log. */
+  skipped: string[];
   message: string;
 }
 
 export async function ensureStorePublications(
   shopifyProductId: string,
+  policy?: PublicationPolicy,
 ): Promise<PublicationResult> {
+  const effective = policy ?? (await loadPublicationPolicy());
   const credentials = await intakeCredentials();
   const data: any = await shopifyGraphql(credentials, PUBLICATIONS_QUERY, { id: shopifyProductId });
-  const channels: Array<{ id: string; name: string }> = data?.publications?.nodes ?? [];
+  const channels: Channel[] = (data?.publications?.nodes ?? [])
+    .filter((node: any) => node?.id)
+    .map((node: any) => ({ id: String(node.id), name: String(node.name ?? "") }));
+
   const current = new Set(
     (data?.product?.resourcePublicationsV2?.nodes ?? [])
       .filter((node: any) => node?.isPublished)
       .map((node: any) => String(node.publication?.id)),
   );
 
-  const wanted = channels.filter((channel) =>
-    REQUIRED_CHANNEL_PATTERNS.some((pattern) => pattern.test(channel.name ?? "")),
-  );
-  const missing = wanted.filter((channel) => !current.has(channel.id));
-  const alreadyPublished = wanted.filter((channel) => current.has(channel.id)).map((c) => c.name);
+  const { targets, excluded } = selectPublicationTargets(channels, effective);
+  // Belt and braces: nothing classified as the Shop channel may reach the
+  // publish mutation, whatever a caller passed in as policy.
+  assertNoShopChannel(targets);
+
+  const missing = targets.filter((channel) => !current.has(channel.id));
+  const alreadyPublished = targets.filter((channel) => current.has(channel.id)).map((c) => c.name);
+  const skipped = excluded.map((entry) => entry.channel.name);
 
   if (missing.length === 0) {
     return {
       published: [],
       alreadyPublished,
-      message: "Already on every required sales channel",
+      skipped,
+      message: `Already on every required sales channel${
+        skipped.length > 0 ? `. Left alone: ${skipped.join(", ")}` : ""
+      }`,
     };
   }
 
@@ -70,12 +122,44 @@ export async function ensureStorePublications(
     return {
       published: [],
       alreadyPublished,
+      skipped,
       message: errors.map((error: any) => error.message).join(" "),
     };
   }
   return {
     published: missing.map((channel) => channel.name),
     alreadyPublished,
-    message: `Published to ${missing.map((channel) => channel.name).join(", ")}`,
+    skipped,
+    message: `Published to ${missing.map((channel) => channel.name).join(", ")}${
+      skipped.length > 0 ? `. Left alone: ${skipped.join(", ")}` : ""
+    }`,
+  };
+}
+
+/**
+ * Read only channel report for a single product. Used to prove the effect of a
+ * publication change on one controlled product before anything is done in
+ * bulk. It never writes to the store.
+ */
+export async function readStorePublications(shopifyProductId: string): Promise<{
+  channels: Array<{ name: string; published: boolean; wanted: boolean }>;
+}> {
+  const credentials = await intakeCredentials();
+  const data: any = await shopifyGraphql(credentials, PUBLICATIONS_QUERY, { id: shopifyProductId });
+  const channels: Channel[] = (data?.publications?.nodes ?? [])
+    .filter((node: any) => node?.id)
+    .map((node: any) => ({ id: String(node.id), name: String(node.name ?? "") }));
+  const current = new Set(
+    (data?.product?.resourcePublicationsV2?.nodes ?? [])
+      .filter((node: any) => node?.isPublished)
+      .map((node: any) => String(node.publication?.id)),
+  );
+  const wanted = new Set(selectPublicationTargets(channels).targets.map((c) => c.id));
+  return {
+    channels: channels.map((channel) => ({
+      name: channel.name,
+      published: current.has(channel.id),
+      wanted: wanted.has(channel.id),
+    })),
   };
 }
