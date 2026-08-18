@@ -109,6 +109,20 @@ export const recoverSupplierLinkageFn = createServerFn({ method: "POST" })
     return recoverSupplierLinkage();
   });
 
+/**
+ * Read only supplier shipping refresh. It quotes the configured market and
+ * records the service and timestamp. It never creates or confirms an order.
+ */
+export const refreshShippingQuotesFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { limit?: number } | undefined) => input ?? {})
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const { refreshShippingQuotes } = await import("./shipping-quotes.server");
+    return refreshShippingQuotes({ limit: data.limit });
+  });
+
+
 export const runPricingAuditFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
