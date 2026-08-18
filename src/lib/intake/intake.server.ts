@@ -453,18 +453,48 @@ export async function processIntake(db: Db, limit = 6): Promise<IntakeProcessRes
         result.optimised += 1;
       }
 
-      // 5. Approval and exposure.
+      // 5. Approval.
       await transition(db, row, "approved", "approved", "Every required intake gate passed", {
         processed_fingerprint: row.version_fingerprint,
       });
       result.approved += 1;
+
+      // 6. Commerce publication. This is the final step and it fails closed:
+      // the record is only marked live once the store product is genuinely
+      // active and on every required sales channel.
       if (policy.automatic_storefront_exposure) {
+        const activation = await activateForStorefront(row.shopify_product_id, origin);
+        if (!activation.ok) {
+          await db
+            .from("product_intake_records")
+            .update({
+              reason_code: "activation_failed",
+              reason: activation.message,
+              attempts: (row.attempts ?? 0) + 1,
+              last_transition_at: new Date().toISOString(),
+            } as never)
+            .eq("id", row.id);
+          await logEvent(
+            db,
+            row.id,
+            row.shopify_product_id,
+            "approved",
+            "approved",
+            "activation_failed",
+            activation.message,
+            { channels: activation.channels, status: activation.status },
+          );
+          result.activationFailures += 1;
+          result.processed += 1;
+          await release(db, row.id);
+          continue;
+        }
         await transition(
           db,
           row,
           "published_to_storefront",
           "published",
-          "Visible through the NUR GOODS catalogue and search",
+          `Live in the store and visible through the NUR GOODS catalogue. ${activation.message}`,
         );
         result.published += 1;
       }
