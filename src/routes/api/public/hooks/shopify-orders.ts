@@ -14,13 +14,26 @@ import { createHash } from "crypto";
  * part way through stays unprocessed and returns a retryable response, so the
  * store can redeliver it safely.
  */
+/** The only order topics this ingress accepts. Anything else is refused. */
+const SUPPORTED_TOPICS = new Set(["orders/paid", "orders/updated", "orders/cancelled"]);
+
+const methodNotAllowed = () =>
+  Response.json(
+    { error: "Method not allowed. This endpoint accepts signed store order webhooks only." },
+    { status: 405, headers: { Allow: "POST" } },
+  );
+
 export const Route = createFileRoute("/api/public/hooks/shopify-orders")({
   server: {
     handlers: {
+      GET: async () => methodNotAllowed(),
+      PUT: async () => methodNotAllowed(),
+      PATCH: async () => methodNotAllowed(),
+      DELETE: async () => methodNotAllowed(),
       POST: async ({ request }) => {
         const body = await request.text();
         const signature = request.headers.get("x-shopify-hmac-sha256") ?? "";
-        const topic = request.headers.get("x-shopify-topic") ?? "";
+        const topic = (request.headers.get("x-shopify-topic") ?? "").toLowerCase();
         // A stable identity. When the store sends no delivery header the exact
         // raw body is hashed, so a genuine redelivery is still recognised.
         const webhookId =
@@ -35,6 +48,11 @@ export const Route = createFileRoute("/api/public/hooks/shopify-orders")({
         const { verifyStoreSignature, normaliseOrderPayload } = await import("@/lib/commerce/webhook");
         if (!verifyStoreSignature(body, signature, secret)) {
           return Response.json({ error: "Invalid signature" }, { status: 401 });
+        }
+
+        // Topic is only trusted once the signature has been verified.
+        if (!SUPPORTED_TOPICS.has(topic)) {
+          return Response.json({ error: "Unsupported topic" }, { status: 422 });
         }
 
         let payload: any = null;
