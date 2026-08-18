@@ -12,6 +12,7 @@ import { resolvePriceDisplay } from "@/lib/pricing/display";
 
 import { MissingProductImage } from "@/components/public/MissingProductImage";
 import { ReviewPlacementSlot } from "@/components/public/ReviewPlacementSlot";
+import { FreeShippingLine } from "@/components/public/FreeShippingNote";
 import { BRAND } from "@/lib/brand";
 import { getStorefrontProductFn } from "@/lib/services/storefront.functions";
 import { useBasket } from "@/lib/basket/BasketProvider";
@@ -551,9 +552,10 @@ function ProductDetail() {
                 That combination is not offered. Choose another option.
               </p>
             ) : null}
+            <FreeShippingLine className="mt-4" />
             <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
-              Payment, delivery options and order tracking are handled securely on the {BRAND.name}{" "}
-              store. Full terms are set out in the policy pages.
+              Payment and order tracking are handled securely on the {BRAND.name}{" "}
+              store. UK delivery is free and no delivery charge is added at checkout. Full terms are set out in the policy pages.
             </p>
 
 
