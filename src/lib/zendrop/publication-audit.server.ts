@@ -55,7 +55,13 @@ export interface PublicationAuditOptions {
   policy?: PublicationPolicy | undefined;
 }
 
+/** A read only pass may look at more products because it changes nothing. */
 const MAX_BATCH = 50;
+/**
+ * A live pass writes to the store, so it is capped hard here rather than in
+ * the admin screen. A caller cannot widen it by sending a larger limit.
+ */
+const MAX_LIVE_BATCH = 10;
 
 /**
  * Runs the audit. Dry run by default.
@@ -64,7 +70,8 @@ export async function runPublicationAudit(
   options: PublicationAuditOptions = {},
 ): Promise<PublicationAuditRun> {
   const dryRun = options.dryRun !== false;
-  const limit = Math.max(1, Math.min(options.limit ?? MAX_BATCH, MAX_BATCH));
+  const ceiling = dryRun ? MAX_BATCH : MAX_LIVE_BATCH;
+  const limit = Math.max(1, Math.min(options.limit ?? ceiling, ceiling));
   const policy = options.policy ?? (await loadPublicationPolicy());
   const supabase = await zendropAdminClient();
 
@@ -153,7 +160,7 @@ export async function runPublicationAudit(
     }
   }
 
-  if (runId) {
+  if (runId && items.length > 0) {
     await (supabase as any).from("publication_audit_items").insert(
       items.map((item) => ({
         run_id: runId,
@@ -169,6 +176,9 @@ export async function runPublicationAudit(
         message: item.message,
       })),
     );
+  }
+
+  if (runId) {
     await (supabase as any)
       .from("publication_audit_runs")
       .update({

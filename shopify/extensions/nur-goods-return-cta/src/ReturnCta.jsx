@@ -1,12 +1,11 @@
-import {
-  BlockStack,
-  Button,
-  TextBlock,
-  useSettings,
-} from "@shopify/ui-extensions-react/checkout";
-
 /**
  * Shared body for the Thank you and Order status blocks.
+ *
+ * The two surfaces are rendered by different Shopify packages: the Thank you
+ * page comes from the checkout package and the Order status page from the
+ * customer account package. The components are not interchangeable between
+ * them, so this module takes them as arguments rather than importing either
+ * one, and each entry point passes in its own.
  *
  * The store host that took the payment is not a NUR GOODS shopping surface, so
  * the shopper is offered a clear route back to nurgoods.com. The URL is read
@@ -28,23 +27,34 @@ export function resolveStorefrontUrl(value) {
   }
 }
 
-export function ReturnCta() {
-  const settings = useSettings();
-  const url = resolveStorefrontUrl(settings.storefront_url);
-  const label =
-    typeof settings.cta_label === "string" && settings.cta_label.trim() !== ""
-      ? settings.cta_label.trim()
-      : "Continue shopping at NUR GOODS";
+export function resolveLabel(value) {
+  return typeof value === "string" && value.trim() !== ""
+    ? value.trim()
+    : "Continue shopping at NUR GOODS";
+}
 
-  return (
-    <BlockStack spacing="base">
-      <TextBlock>
-        Thank you for your order. Your account, order updates and the rest of the range live at
-        nurgoods.com.
-      </TextBlock>
-      <Button kind="primary" to={url} external>
-        {label}
-      </Button>
-    </BlockStack>
-  );
+/**
+ * Builds the block for one surface from that surface's own components.
+ *
+ * @param {{ BlockStack: any, Button: any, TextBlock: any, useSettings: () => any }} ui
+ */
+export function createReturnCta(ui) {
+  const { BlockStack, Button, TextBlock, useSettings } = ui;
+
+  return function ReturnCta() {
+    const settings = useSettings();
+    const url = resolveStorefrontUrl(settings.storefront_url);
+    const label = resolveLabel(settings.cta_label);
+
+    return (
+      <BlockStack spacing="base">
+        <TextBlock>
+          Your order, order updates and the rest of the range live at nurgoods.com.
+        </TextBlock>
+        <Button kind="primary" to={url} external>
+          {label}
+        </Button>
+      </BlockStack>
+    );
+  };
 }
