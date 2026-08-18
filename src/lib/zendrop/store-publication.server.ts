@@ -77,6 +77,19 @@ export async function loadPublicationPolicy(): Promise<PublicationPolicy> {
       .maybeSingle();
     const value = (data?.value ?? "").toString().trim().toLowerCase();
     if (value === "true" || value === "on" || value === "1") {
+      // A per channel override is a deliberate widening of the selling path,
+      // so it is recorded every time it takes effect.
+      await (supabaseAdmin as any).from("integration_events").insert({
+        integration_id: integration.id,
+        event_type: "publication_channel_override",
+        status: "warning",
+        message: "Online Store publication re-enabled by an explicit admin setting",
+        payload: {
+          channel: "Online Store",
+          enabled: true,
+          note: "Online Store publication re-enabled by an explicit admin setting",
+        },
+      });
       return { ...DEFAULT_PUBLICATION_POLICY, includeOnlineStore: true };
     }
     return DEFAULT_PUBLICATION_POLICY;
@@ -146,7 +159,11 @@ export async function ensureStorePublications(
   options: { removeUnwanted?: boolean; dryRun?: boolean } = {},
 ): Promise<PublicationResult> {
   const effective = policy ?? (await loadPublicationPolicy());
-  const removeUnwanted = options.removeUnwanted ?? true;
+  // Removal is destructive, so it only happens on an explicitly authorised
+  // reconciliation path. Ordinary import activation publishes the headless
+  // channel and never widens to a forbidden one, but it also never strips a
+  // channel a human may have set deliberately.
+  const removeUnwanted = options.removeUnwanted === true;
   const state = await readProductPublicationState(shopifyProductId);
 
   // Fails closed when the headless channel cannot be identified uniquely.

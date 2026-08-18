@@ -18,16 +18,22 @@ Enforced in `src/lib/zendrop/publication-policy.ts`, exercised by
 `src/lib/zendrop/store-publication.server.ts`, and audited by
 `src/lib/zendrop/publication-audit.server.ts`.
 
-## Headless only is proven
+## Headless only is LIVE PROVEN
 
-A controlled product was published to the headless channel only, with Online
-Store, Shop and Point of Sale all off, and checkout still worked end to end.
-The default policy is therefore headless only.
+Proven on the live store on 2026-08-18. The turtle product was set by hand to
+Nur Goods Headless Store only, with Online Store, Shop and Point of Sale all
+off, and checkout still loaded with the exact product, variant and price.
+Headless only is therefore the default and is no longer treated as unverified.
 
-The Online Store can be turned back on by setting the integration setting
-`publication_include_online_store` to `true`. Absence of the setting, or any
-error reading it, means headless only. Shop and Point of Sale have no setting
-at all and are additionally blocked by `assertNoShopChannel`.
+The Online Store can be turned back on only by a deliberate per channel
+override: the integration setting `publication_include_online_store` set to
+`true`. Every time that override takes effect it writes a
+`publication_channel_override` row to `integration_events`. Absence of the
+setting, or any error reading it, means headless only. Shop and Point of Sale
+have no setting at all and are additionally blocked by `assertNoShopChannel`.
+
+If the headless publication cannot be resolved to exactly one channel, nothing
+is published at all. There is no fallback to the Online Store.
 
 ## Identity, not ids
 
@@ -43,6 +49,11 @@ no change rather than a guess.
 for one product. A compliant product yields an empty plan and no store write,
 so re-running an import or a migration pass can never add Shop or Online Store
 back. Product status, price, variants and inventory are never touched.
+
+Removal is destructive, so `ensureStorePublications` only unpublishes when the
+caller asks for it. Ordinary import activation publishes the headless channel
+and never widens to a forbidden one, but leaves existing channels alone. The
+admin reconciliation path is the only caller that passes `removeUnwanted`.
 
 ## Migrating the existing catalogue
 

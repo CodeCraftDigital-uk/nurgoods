@@ -90,6 +90,29 @@ describe("sales channel policy", () => {
     expect(plan.compliant).toBe(true);
   });
 
+  it("unpublishes point of sale and unknown channels during reconciliation", () => {
+    const plan = planPublicationReconciliation(
+      [...CHANNELS, { id: "gid://shopify/Publication/9", name: "Some Marketplace" }],
+      [
+        "gid://shopify/Publication/2",
+        "gid://shopify/Publication/4",
+        "gid://shopify/Publication/9",
+      ],
+    );
+    expect(plan.toPublish).toEqual([]);
+    expect(plan.toUnpublish.map((c) => c.name)).toEqual(["Point of Sale", "Some Marketplace"]);
+  });
+
+  it("keeps the Online Store only while the deliberate override is in force", () => {
+    const withOverride = planPublicationReconciliation(CHANNELS, ["gid://shopify/Publication/1"], {
+      ...DEFAULT_PUBLICATION_POLICY,
+      includeOnlineStore: true,
+    });
+    expect(withOverride.toUnpublish).toEqual([]);
+    const withoutOverride = planPublicationReconciliation(CHANNELS, ["gid://shopify/Publication/1"]);
+    expect(withoutOverride.toUnpublish.map((c) => c.name)).toEqual(["Online Store"]);
+  });
+
   it("refuses outright if the Shop channel ever reaches the publish call", () => {
     expect(() => assertNoShopChannel([{ id: "3", name: "Shop" }])).toThrow(/Shop channel/);
     expect(() => assertNoShopChannel([{ id: "2", name: "Point of Sale" }])).toThrow();
