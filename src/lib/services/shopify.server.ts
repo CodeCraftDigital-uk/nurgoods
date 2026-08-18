@@ -1282,12 +1282,18 @@ export async function registerIntakeWebhooks(
  * Canonical public callback for paid store orders.
  *
  * The store refuses to register a webhook against any hostname already
- * attached to the store itself, which includes nurgoods.com. When the order
- * callback has to answer on a separate hostname, set ORDER_WEBHOOK_URL to that
- * full https URL and registration will use it.
+ * attached to the store itself, which includes nurgoods.com. The admin
+ * hostname is served directly by this app and is not attached to the store,
+ * so it is the default. ORDER_WEBHOOK_URL overrides it when needed. The value
+ * is read at call time, because the environment is injected per request.
  */
-export const ORDER_WEBHOOK_CALLBACK_URL =
-  process.env["ORDER_WEBHOOK_URL"]?.trim() || "https://nurgoods.com/api/public/hooks/shopify-orders";
+export const DEFAULT_ORDER_WEBHOOK_CALLBACK_URL =
+  "https://admin.nurgoods.com/api/public/hooks/shopify-orders";
+
+export function orderWebhookCallbackUrl(): string {
+  return process.env["ORDER_WEBHOOK_URL"]?.trim() || DEFAULT_ORDER_WEBHOOK_CALLBACK_URL;
+}
+
 
 /**
  * Order topics NUR GOODS needs. ORDERS_PAID starts the ledger, and the
