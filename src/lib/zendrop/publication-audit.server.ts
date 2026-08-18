@@ -160,7 +160,7 @@ export async function runPublicationAudit(
     }
   }
 
-  if (runId) {
+  if (runId && items.length > 0) {
     await (supabase as any).from("publication_audit_items").insert(
       items.map((item) => ({
         run_id: runId,
