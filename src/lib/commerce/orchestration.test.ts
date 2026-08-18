@@ -10,6 +10,7 @@ import {
   supplierStatusToState,
 } from "./types";
 import { normaliseOrderPayload, verifyStoreSignature } from "./webhook";
+import { DELIVERY_LEASE_MS, claimDelivery, type DeliveryRow, type DeliveryStore } from "./ledger.server";
 import { processFulfilmentQueue } from "./orchestrator";
 import type { LedgerPort, SupplierPort } from "./ports";
 import { createHmac } from "crypto";
@@ -356,5 +357,200 @@ describe("fulfilment quote validity", () => {
   it("rejects a missing quote", () => {
     const result = previewValidity({ previewAt: null, previewScope: null, requiredScope: scope });
     expect(result.valid).toBe(false);
+  });
+});
+
+describe("typed supplier line matching", () => {
+  const line = (over: Record<string, unknown> = {}) => ({
+    id: "l1",
+    shopify_line_item_id: "9001",
+    shopify_variant_id: "5001",
+    shopify_product_id: "4001",
+    sku: "NG-001",
+    quantity: 2,
+    ...over,
+  });
+
+  it("links on a SKU alone", () => {
+    const decision = lineLinkageDecision({
+      storeLines: [line({ shopify_variant_id: null, shopify_product_id: null })] as never,
+      supplierLines: [{ id: "z1", variantId: null, productId: null, sku: "NG-001", quantity: 2 }] as never,
+    });
+    expect(decision.ok).toBe(true);
+    expect(decision.mappings[0]!.zendrop_line_item_id).toBe("z1");
+  });
+
+  it("links on a variant id alone", () => {
+    const decision = lineLinkageDecision({
+      storeLines: [line({ sku: null, shopify_product_id: null })] as never,
+      supplierLines: [{ id: "z1", variantId: "5001", productId: null, sku: null, quantity: 2 }] as never,
+    });
+    expect(decision.ok).toBe(true);
+  });
+
+  it("links on a product id alone", () => {
+    const decision = lineLinkageDecision({
+      storeLines: [line({ sku: null, shopify_variant_id: null })] as never,
+      supplierLines: [{ id: "z1", variantId: null, productId: "4001", sku: null, quantity: 2 }] as never,
+    });
+    expect(decision.ok).toBe(true);
+  });
+
+  it("refuses a cross type numeric collision", () => {
+    // The supplier product id happens to equal the store variant id. Different
+    // identifier classes must never satisfy each other.
+    const decision = lineLinkageDecision({
+      storeLines: [line({ sku: null, shopify_product_id: null })] as never,
+      supplierLines: [{ id: "z1", variantId: null, productId: "5001", sku: null, quantity: 2 }] as never,
+    });
+    expect(decision.ok).toBe(false);
+    expect(decision.state).toBe("manual_review");
+  });
+
+  it("refuses identifiers that point at different supplier lines", () => {
+    const decision = lineLinkageDecision({
+      storeLines: [line()] as never,
+      supplierLines: [
+        { id: "z1", variantId: null, productId: null, sku: "NG-001", quantity: 2 },
+        { id: "z2", variantId: "5001", productId: "4001", sku: null, quantity: 2 },
+      ] as never,
+    });
+    expect(decision.ok).toBe(false);
+    expect(decision.reason).toContain("two different supplier lines");
+  });
+
+  it("refuses when two supplier lines share the same identifier", () => {
+    const decision = lineLinkageDecision({
+      storeLines: [line({ shopify_variant_id: null, shopify_product_id: null })] as never,
+      supplierLines: [
+        { id: "z1", variantId: null, productId: null, sku: "NG-001", quantity: 2 },
+        { id: "z2", variantId: null, productId: null, sku: "NG-001", quantity: 2 },
+      ] as never,
+    });
+    expect(decision.ok).toBe(false);
+  });
+
+  it("fails closed when the supplier states no quantity", () => {
+    const decision = lineLinkageDecision({
+      storeLines: [line()] as never,
+      supplierLines: [{ id: "z1", variantId: "5001", productId: "4001", sku: "NG-001", quantity: null }] as never,
+    });
+    expect(decision.ok).toBe(false);
+    expect(decision.reason).toContain("quantity");
+  });
+
+  it("refuses an unexpected supplier sale line", () => {
+    const decision = lineLinkageDecision({
+      storeLines: [line()] as never,
+      supplierLines: [
+        { id: "z1", variantId: "5001", productId: "4001", sku: "NG-001", quantity: 2 },
+        { id: "z2", variantId: "7777", productId: "6666", sku: "EXTRA", quantity: 1 },
+      ] as never,
+    });
+    expect(decision.ok).toBe(false);
+    expect(decision.reason).toContain("lines the store order does not");
+  });
+
+  it("refuses two store lines that resolve to one supplier line", () => {
+    const decision = lineLinkageDecision({
+      storeLines: [
+        line({ id: "l1", shopify_line_item_id: "9001" }),
+        line({ id: "l2", shopify_line_item_id: "9002" }),
+      ] as never,
+      supplierLines: [{ id: "z1", variantId: "5001", productId: "4001", sku: "NG-001", quantity: 2 }] as never,
+    });
+    expect(decision.ok).toBe(false);
+  });
+});
+
+describe("webhook delivery claim", () => {
+  function store(initial: DeliveryRow | null, options: { casWins?: boolean } = {}) {
+    const calls: string[] = [];
+    const impl: DeliveryStore = {
+      async find() {
+        calls.push("find");
+        return initial;
+      },
+      async insert() {
+        calls.push("insert");
+        return { id: "d-new", status: "processing", attempts: 1, updated_at: new Date().toISOString() };
+      },
+      async compareAndSet() {
+        calls.push("cas");
+        return options.casWins !== false;
+      },
+    };
+    return { impl, calls };
+  }
+
+  const input = { webhookId: "w1", topic: "orders/paid", shopifyOrderId: "55" };
+
+  it("claims a delivery that has never been seen", async () => {
+    const { impl, calls } = store(null);
+    const claim = await claimDelivery(impl, input);
+    expect(claim).toEqual({ claimed: true, deliveryId: "d-new", attempts: 1 });
+    expect(calls).toContain("insert");
+  });
+
+  it("refuses a delivery that was already processed", async () => {
+    const { impl } = store({ id: "d1", status: "processed", attempts: 1, updated_at: new Date().toISOString() });
+    expect(await claimDelivery(impl, input)).toEqual({ claimed: false, reason: "already_processed" });
+  });
+
+  it("refuses a delivery that is still being processed", async () => {
+    const { impl, calls } = store({ id: "d1", status: "processing", attempts: 1, updated_at: new Date().toISOString() });
+    expect(await claimDelivery(impl, input)).toEqual({ claimed: false, reason: "in_flight" });
+    expect(calls).not.toContain("cas");
+  });
+
+  it("retries a delivery that previously failed", async () => {
+    const { impl } = store({ id: "d1", status: "failed", attempts: 2, updated_at: new Date().toISOString() });
+    expect(await claimDelivery(impl, input)).toEqual({ claimed: true, deliveryId: "d1", attempts: 3 });
+  });
+
+  it("recovers a processing delivery once its lease has expired", async () => {
+    const stale = new Date(Date.now() - DELIVERY_LEASE_MS - 1_000).toISOString();
+    const { impl } = store({ id: "d1", status: "processing", attempts: 1, updated_at: stale });
+    expect(await claimDelivery(impl, input)).toEqual({ claimed: true, deliveryId: "d1", attempts: 2 });
+  });
+
+  it("hands the claim to exactly one worker when two race", async () => {
+    const stale = new Date(Date.now() - DELIVERY_LEASE_MS - 1_000).toISOString();
+    const { impl } = store({ id: "d1", status: "failed", attempts: 1, updated_at: stale }, { casWins: false });
+    expect(await claimDelivery(impl, input)).toEqual({ claimed: false, reason: "in_flight" });
+  });
+});
+
+describe("uncertain supplier confirmation", () => {
+  it("stops for reconciliation and cannot be retried as a fresh confirmation", async () => {
+    const calls: string[] = [];
+    const order = makeOrder({
+      orchestration_state: "awaiting_fulfilment_confirmation",
+      zendrop_order_id: 77,
+      zendrop_store_id: 5,
+      preview_at: new Date().toISOString(),
+      preview_scope: previewScope({ storeId: 5, orderId: 77, useCredit: false }),
+    });
+    const { ledger } = makeLedger([order], { auto_fulfilment_enabled: true });
+    const supplier: SupplierPort = {
+      ...makeSupplier(calls),
+      async confirmFulfilment() {
+        calls.push("confirm");
+        throw new Error("socket hang up");
+      },
+    };
+
+    const first = await processFulfilmentQueue(ledger, supplier);
+    expect(calls.filter((call) => call === "confirm")).toHaveLength(1);
+    expect(first.dispatched).toBe(0);
+    expect(order.orchestration_state).toBe("manual_review");
+    expect(order.dispatch_idempotency_key).toBe(dispatchKey(order.shopify_order_id, 77));
+
+    // A second pass must not send another confirmation for the same order.
+    order.orchestration_state = "awaiting_fulfilment_confirmation";
+    const second = await processFulfilmentQueue(ledger, supplier);
+    expect(calls.filter((call) => call === "confirm")).toHaveLength(1);
+    expect(second.dispatched).toBe(0);
+    expect(second.skipped).toBe(1);
   });
 });
