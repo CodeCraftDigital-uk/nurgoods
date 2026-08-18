@@ -8,6 +8,9 @@ import { BasketButton, BasketSheet } from "@/components/public/BasketSheet";
 import { BrandLogo, BrandWordmark } from "@/components/admin/BrandLogo";
 import { BRAND } from "@/lib/brand";
 import { ReviewPlacementSlot } from "@/components/public/ReviewPlacementSlot";
+import { PUBLIC_FREE_SHIPPING_MARKETS } from "@/components/public/FreeShippingNote";
+import { freeShippingHeadline } from "@/lib/pricing/markets";
+
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 
 const PRIMARY_NAV = [
