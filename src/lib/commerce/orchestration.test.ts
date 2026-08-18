@@ -263,3 +263,89 @@ describe("fulfilment queue", () => {
     expect(summary.considered).toBe(0);
   });
 });
+
+describe("supplier line linkage", () => {
+  const storeLines = [
+    { id: "l1", shopify_line_item_id: "9001", shopify_variant_id: "5001", shopify_product_id: "4001", sku: "NG-001", quantity: 2 },
+  ];
+
+  it("links an exact match", () => {
+    const decision = lineLinkageDecision({
+      storeLines: storeLines as never,
+      supplierLines: [{ variantId: "5001", productId: "4001", sku: "NG-001", quantity: 2, raw: {} }] as never,
+    });
+    expect(decision.ok).toBe(true);
+    expect(decision.mappings).toHaveLength(1);
+  });
+
+  it("holds an order when a store line has no supplier line", () => {
+    const decision = lineLinkageDecision({
+      storeLines: storeLines as never,
+      supplierLines: [{ variantId: "9999", productId: "8888", sku: "OTHER", quantity: 2, raw: {} }] as never,
+    });
+    expect(decision.ok).toBe(false);
+    expect(decision.state).toBe("manual_review");
+  });
+
+  it("holds an order when a store line matches more than one supplier line", () => {
+    const decision = lineLinkageDecision({
+      storeLines: storeLines as never,
+      supplierLines: [
+        { variantId: "5001", productId: null, sku: null, quantity: 2, raw: {} },
+        { variantId: null, productId: "4001", sku: null, quantity: 2, raw: {} },
+      ] as never,
+    });
+    expect(decision.ok).toBe(false);
+    expect(decision.state).toBe("manual_review");
+  });
+
+  it("holds an order when quantities disagree", () => {
+    const decision = lineLinkageDecision({
+      storeLines: storeLines as never,
+      supplierLines: [{ variantId: "5001", productId: "4001", sku: "NG-001", quantity: 1, raw: {} }] as never,
+    });
+    expect(decision.ok).toBe(false);
+    expect(decision.state).toBe("manual_review");
+  });
+
+  it("holds an order when the supplier exposes no line detail", () => {
+    const decision = lineLinkageDecision({ storeLines: storeLines as never, supplierLines: [] });
+    expect(decision.ok).toBe(false);
+  });
+});
+
+describe("fulfilment quote validity", () => {
+  const scope = previewScope({ storeId: 5, orderId: 77, useCredit: false });
+
+  it("accepts a fresh quote in the same scope", () => {
+    const result = previewValidity({
+      previewAt: new Date(Date.now() - 60_000).toISOString(),
+      previewScope: scope,
+      requiredScope: scope,
+    });
+    expect(result.valid).toBe(true);
+  });
+
+  it("rejects a quote older than the supplier window", () => {
+    const result = previewValidity({
+      previewAt: new Date(Date.now() - PREVIEW_TTL_MS - 1_000).toISOString(),
+      previewScope: scope,
+      requiredScope: scope,
+    });
+    expect(result.valid).toBe(false);
+  });
+
+  it("rejects a quote taken under a different credit scope", () => {
+    const result = previewValidity({
+      previewAt: new Date().toISOString(),
+      previewScope: previewScope({ storeId: 5, orderId: 77, useCredit: true }),
+      requiredScope: scope,
+    });
+    expect(result.valid).toBe(false);
+  });
+
+  it("rejects a missing quote", () => {
+    const result = previewValidity({ previewAt: null, previewScope: null, requiredScope: scope });
+    expect(result.valid).toBe(false);
+  });
+});
