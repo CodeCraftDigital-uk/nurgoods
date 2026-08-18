@@ -285,6 +285,42 @@ async function release(db: Db, id: string, patch: Record<string, unknown> = {}):
     .eq("id", id);
 }
 
+function originOf(row: { origin?: string | null }): IntakeOrigin {
+  return row.origin === "supplier" ? "supplier" : "store";
+}
+
+/**
+ * Marks records that came from the supplier. A supplier pushed product is a
+ * draft staging record in the store, so intake must know the difference before
+ * it judges the store state.
+ */
+async function resolveOrigins(db: Db, rows: any[]): Promise<void> {
+  const unknown = rows.filter((row) => row.origin !== "supplier");
+  if (unknown.length === 0) return;
+  const gids = unknown.map((row) => String(row.shopify_product_id));
+  const numeric = gids.map((id) => id.replace("gid://shopify/Product/", ""));
+  const { data } = await db
+    .from("zendrop_import_candidates")
+    .select("shopify_product_id")
+    .in("shopify_product_id", [...gids, ...numeric]);
+  if (!data || (data as any[]).length === 0) return;
+  const supplier = new Set(
+    (data as any[]).map((candidate) => String(candidate.shopify_product_id).replace("gid://shopify/Product/", "")),
+  );
+  const matched = unknown.filter((row) =>
+    supplier.has(String(row.shopify_product_id).replace("gid://shopify/Product/", "")),
+  );
+  if (matched.length === 0) return;
+  for (const row of matched) row.origin = "supplier";
+  await db
+    .from("product_intake_records")
+    .update({ origin: "supplier" } as never)
+    .in(
+      "id",
+      matched.map((row) => row.id),
+    );
+}
+
 /**
  * Moves claimed products through validation, identity, classification and
  * search intelligence. Each product is handled inside its own try block.
