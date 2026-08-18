@@ -240,13 +240,34 @@ export async function processFulfilmentQueue(
           continue;
         }
 
+        // The key is written before the call, so a lost response can never be
+        // replayed as a fresh confirmation.
         await ledger.update(order.id, { dispatch_idempotency_key: key });
-        const operation = await supplier.confirmFulfilment({
-          storeId,
-          orderId: supplierOrderId,
-          useCredit,
-          idempotencyKey: key,
-        });
+        order.dispatch_idempotency_key = key;
+        let operation;
+        try {
+          operation = await supplier.confirmFulfilment({
+            storeId,
+            orderId: supplierOrderId,
+            useCredit,
+            idempotencyKey: key,
+          });
+        } catch (cause) {
+          // The confirmation may well have reached the supplier. Retrying it
+          // could charge twice, so the order stops for a person to reconcile
+          // it read only through the supplier order and operation lookups.
+          const detail = cause instanceof Error ? cause.message : "The supplier call did not return";
+          await fail(
+            ledger,
+            order,
+            "manual_review",
+            "dispatch_outcome_unknown",
+            `The supplier confirmation outcome is unknown and must be reconciled before any retry. ${detail}`,
+          );
+          summary.failures += 1;
+          continue;
+        }
+
         if (!operation.succeeded && operation.terminal) {
           await fail(
             ledger,
