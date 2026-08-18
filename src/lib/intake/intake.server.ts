@@ -257,7 +257,7 @@ async function claimIntake(db: Db, limit: number): Promise<any[]> {
   const workable: IntakeState[] = ["detected", "validating", "duplicate_check", "classification", "seo", "approved"];
   const { data } = await db
     .from("product_intake_records")
-    .select("id, shopify_product_id, product_id, title, handle, state, attempts, version_fingerprint")
+    .select("id, shopify_product_id, product_id, title, handle, state, attempts, version_fingerprint, origin")
     .in("state", workable)
     .is("locked_at", null)
     .order("detected_at", { ascending: true })
@@ -274,7 +274,7 @@ async function claimIntake(db: Db, limit: number): Promise<any[]> {
       rows.map((row) => row.id),
     )
     .is("lock_token", null)
-    .select("id, shopify_product_id, product_id, title, handle, state, attempts, version_fingerprint");
+    .select("id, shopify_product_id, product_id, title, handle, state, attempts, version_fingerprint, origin");
   return (claimed ?? rows) as any[];
 }
 
@@ -359,7 +359,8 @@ export async function processIntake(db: Db, limit = 6): Promise<IntakeProcessRes
 
       // 1. Deterministic validation.
       await transition(db, row, "validating", "validating", "Running deterministic quality checks");
-      const outcome = validateIntake(bundle, policy);
+      const origin = originOf(row);
+      const outcome = validateIntake(bundle, policy, { origin });
       await db
         .from("product_intake_records")
         .update({ validation: { checks: outcome.checks } as never })
