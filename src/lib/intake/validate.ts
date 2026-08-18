@@ -135,14 +135,20 @@ export function validateIntake(
   );
 
   const title = (product.title ?? "").trim();
-  add("title", "Title present", title.length >= 3, title.slice(0, 80));
+  add("title", "Title present", title.length >= 3, title.slice(0, 80), "the title is missing or too short");
 
   const handle = (product.handle ?? "").trim();
-  add("handle", "Storefront handle present", handle.length > 0);
+  add("handle", "Storefront handle present", handle.length > 0, undefined, "the storefront handle is missing");
 
   const images = bundle.media.filter((item) => typeof item.url === "string" && /^https?:\/\//.test(item.url));
   if (policy.require_image) {
-    add("image", "At least one real image", images.length > 0, `${images.length} images`);
+    add(
+      "image",
+      "At least one real image",
+      images.length > 0,
+      `${images.length} images`,
+      "there is no usable product image",
+    );
   }
 
   const purchasable = bundle.variants.filter((variant) => variant.available_for_sale !== false);
@@ -152,6 +158,7 @@ export function validateIntake(
       "At least one purchasable variant",
       bundle.variants.length > 0 && purchasable.length > 0,
       `${purchasable.length} of ${bundle.variants.length} purchasable`,
+      "no variant can be purchased",
     );
   }
 
@@ -165,6 +172,7 @@ export function validateIntake(
       "Valid selling price",
       prices.length > 0 && (currency === "" || GBP.has(currency)),
       prices.length > 0 ? `${currency || "GBP"} ${Math.min(...prices).toFixed(2)}` : "no price",
+      "there is no valid selling price in pounds",
     );
   }
 
@@ -174,7 +182,13 @@ export function validateIntake(
   // purchasable variant is checked individually so a multi variant product
   // cannot slip through on the strength of its cheapest option.
   const rounding = retailRoundingOutcome(bundle);
-  add("retail_rounding", "Retail prices follow the approved rounding rule", rounding.passed, rounding.detail);
+  add(
+    "retail_rounding",
+    "Retail prices follow the approved rounding rule",
+    rounding.passed,
+    rounding.detail,
+    "one or more prices do not end in .99",
+  );
 
 
 
@@ -188,6 +202,7 @@ export function validateIntake(
       "Basic description or specification data",
       description.length >= 40 || (description.length >= 15 && specSignals),
       `${description.length} characters`,
+      "the description and specification data are too thin",
     );
   }
 
@@ -197,7 +212,13 @@ export function validateIntake(
     /^(untitled|test product|default title|new product)$/i.test(title) ||
     /lorem ipsum/i.test(title) ||
     /^[0-9\-_.]+$/.test(title);
-  add("well_formed", "Supplier record is well formed", !malformed);
+  add(
+    "well_formed",
+    "Supplier record is well formed",
+    !malformed,
+    undefined,
+    "the supplier record is a placeholder",
+  );
 
   const failed = checks.filter((check) => !check.passed);
   return {
@@ -207,6 +228,8 @@ export function validateIntake(
     summary:
       failed.length === 0
         ? "All intake checks passed"
-        : `Held back by: ${failed.map((check) => check.label.toLowerCase()).join(", ")}`,
+        : `Held back because ${failed
+            .map((check) => check.failureLabel ?? check.label.toLowerCase())
+            .join(", ")}`,
   };
 }
