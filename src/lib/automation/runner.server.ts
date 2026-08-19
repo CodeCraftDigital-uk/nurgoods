@@ -399,13 +399,18 @@ async function runIntelligenceJob(
  * than sourcing twice.
  */
 async function runSourcingJob(ctx: RunContext, jobKey: string): Promise<JobRunResult> {
-  const runKey = `${jobKey}:${new Date().toISOString().slice(0, 13)}`;
+  // Fifteen minute run buckets. The catalogue traversal is checkpointed, so a
+  // more frequent schedule walks deeper rather than repeating work, while the
+  // bucket still stops a duplicated scheduler call inside the same window.
+  const now = new Date();
+  const bucket = `${now.toISOString().slice(0, 13)}:${String(Math.floor(now.getUTCMinutes() / 15) * 15).padStart(2, "0")}`;
+  const runKey = `${jobKey}:${bucket}`;
   const runId = await claimRun(ctx, jobKey, runKey);
   if (!runId) {
     return {
       jobKey,
       status: "skipped",
-      message: "A sourcing run has already happened for this hour.",
+      message: "A sourcing run has already happened in this window.",
       details: {},
     };
   }
