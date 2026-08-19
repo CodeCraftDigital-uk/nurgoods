@@ -39,6 +39,14 @@ export async function loadPublicationConsole(): Promise<PublicationConsoleView> 
       .eq("run_id", run.id)
       .order("drifted", { ascending: false })
       .limit(300);
+    // A Shop refusal is appended to the stored message by the audit, so it is
+    // pulled back out here rather than widening the audit item table.
+    const shopExceptionOf = (message: string | null): string | null => {
+      if (!message) return null;
+      const marker = "Shop exception: ";
+      const at = message.indexOf(marker);
+      return at === -1 ? null : message.slice(at + marker.length).trim() || null;
+    };
     items = (rows ?? []).map((row: any) => ({
       shopifyProductId: String(row.shopify_product_id),
       title: row.product_title ?? null,
@@ -47,6 +55,7 @@ export async function loadPublicationConsole(): Promise<PublicationConsoleView> 
       drifted: Boolean(row.drifted),
       changed: Boolean(row.changed),
       message: row.message ?? null,
+      shopException: shopExceptionOf(row.message ?? null),
     }));
   }
 

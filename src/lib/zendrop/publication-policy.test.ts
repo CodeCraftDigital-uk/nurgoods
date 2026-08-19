@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
-  assertNoShopChannel,
+  assertOnlyApprovedChannels,
   classifyChannel,
   DEFAULT_PUBLICATION_POLICY,
+  evaluateCompliance,
   planPublicationReconciliation,
   resolveHeadlessChannel,
   selectPublicationTargets,
@@ -23,20 +24,25 @@ describe("sales channel policy", () => {
     expect(classifyChannel("Nur Goods Headless Store")).toBe("headless");
   });
 
-  it("publishes to the headless channel only by default", () => {
+  it("publishes to the headless channel and Shop by default", () => {
     const { targets, excluded } = selectPublicationTargets(CHANNELS);
-    expect(targets.map((c) => c.name)).toEqual(["Nur Goods Headless Store"]);
+    expect(targets.map((c) => c.name)).toEqual(["Shop", "Nur Goods Headless Store"]);
     const skipped = excluded.map((e) => e.channel.name);
-    expect(skipped).toEqual(
-      expect.arrayContaining(["Online Store", "Shop", "Point of Sale"]),
-    );
+    expect(skipped).toEqual(expect.arrayContaining(["Online Store", "Point of Sale"]));
   });
 
-  it("never selects the Shop channel even when an opt in is recorded", () => {
+  it("never selects Point of Sale even when an opt in is recorded", () => {
     const { targets } = selectPublicationTargets(CHANNELS, {
       ...DEFAULT_PUBLICATION_POLICY,
-      allowShopChannel: true,
       allowPointOfSale: true,
+    });
+    expect(targets.map((c) => c.name)).not.toContain("Point of Sale");
+  });
+
+  it("drops Shop when the policy switches it off", () => {
+    const { targets } = selectPublicationTargets(CHANNELS, {
+      ...DEFAULT_PUBLICATION_POLICY,
+      includeShopChannel: false,
     });
     expect(targets.map((c) => c.name)).toEqual(["Nur Goods Headless Store"]);
   });
@@ -48,6 +54,7 @@ describe("sales channel policy", () => {
     });
     expect(targets.map((c) => c.name)).toEqual([
       "Online Store",
+      "Shop",
       "Nur Goods Headless Store",
     ]);
   });
@@ -79,12 +86,15 @@ describe("sales channel policy", () => {
       "gid://shopify/Publication/3",
     ]);
     expect(plan.toPublish.map((c) => c.name)).toEqual(["Nur Goods Headless Store"]);
-    expect(plan.toUnpublish.map((c) => c.name)).toEqual(["Online Store", "Shop"]);
+    expect(plan.toUnpublish.map((c) => c.name)).toEqual(["Online Store"]);
     expect(plan.compliant).toBe(false);
   });
 
   it("is idempotent once a product is compliant", () => {
-    const plan = planPublicationReconciliation(CHANNELS, ["gid://shopify/Publication/4"]);
+    const plan = planPublicationReconciliation(CHANNELS, [
+      "gid://shopify/Publication/3",
+      "gid://shopify/Publication/4",
+    ]);
     expect(plan.toPublish).toEqual([]);
     expect(plan.toUnpublish).toEqual([]);
     expect(plan.compliant).toBe(true);
@@ -95,6 +105,7 @@ describe("sales channel policy", () => {
       [...CHANNELS, { id: "gid://shopify/Publication/9", name: "Some Marketplace" }],
       [
         "gid://shopify/Publication/2",
+        "gid://shopify/Publication/3",
         "gid://shopify/Publication/4",
         "gid://shopify/Publication/9",
       ],
@@ -113,9 +124,41 @@ describe("sales channel policy", () => {
     expect(withoutOverride.toUnpublish.map((c) => c.name)).toEqual(["Online Store"]);
   });
 
-  it("refuses outright if the Shop channel ever reaches the publish call", () => {
-    expect(() => assertNoShopChannel([{ id: "3", name: "Shop" }])).toThrow(/Shop channel/);
-    expect(() => assertNoShopChannel([{ id: "2", name: "Point of Sale" }])).toThrow();
-    expect(() => assertNoShopChannel([{ id: "4", name: "Nur Goods Headless Store" }])).not.toThrow();
+  it("refuses outright if an unapproved channel reaches the publish call", () => {
+    expect(() => assertOnlyApprovedChannels([{ id: "2", name: "Point of Sale" }])).toThrow(
+      /Refusing to publish/,
+    );
+    expect(() => assertOnlyApprovedChannels([{ id: "1", name: "Online Store" }])).toThrow();
+    expect(() => assertOnlyApprovedChannels([{ id: "9", name: "Some Marketplace" }])).toThrow();
+    expect(() =>
+      assertOnlyApprovedChannels([
+        { id: "3", name: "Shop" },
+        { id: "4", name: "Nur Goods Headless Store" },
+      ]),
+    ).not.toThrow();
+    expect(() =>
+      assertOnlyApprovedChannels([{ id: "3", name: "Shop" }], {
+        ...DEFAULT_PUBLICATION_POLICY,
+        includeShopChannel: false,
+      }),
+    ).toThrow();
+  });
+
+  it("treats a Shop refusal as an exception and never as drift on the headless channel", () => {
+    const plan = planPublicationReconciliation(CHANNELS, ["gid://shopify/Publication/4"]);
+    expect(plan.toPublish.map((c) => c.name)).toEqual(["Shop"]);
+
+    const drift = evaluateCompliance(plan);
+    expect(drift.compliant).toBe(false);
+    expect(drift.missingRequired).toEqual(["Shop"]);
+    expect(drift.shopException).toBeNull();
+
+    const exception = evaluateCompliance(plan, {
+      shopIneligibleReason: "Product is not eligible for Shop",
+    });
+    expect(exception.missingRequired).toEqual([]);
+    expect(exception.shopException).toBe("Product is not eligible for Shop");
+    expect(exception.compliant).toBe(true);
+    expect(exception.disallowedPresent).toEqual([]);
   });
 });
