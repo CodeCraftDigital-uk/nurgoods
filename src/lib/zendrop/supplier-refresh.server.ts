@@ -163,7 +163,7 @@ export async function runSupplierProductRefresh(options?: {
       );
       const eligibility = await quoteAndRecordMarkets({
         supplierProductId,
-        shopifyProductId: link.shopify_product_id,
+        shopifyProductId: link.shopify_product_id ?? null,
         supported,
         maxAgeDays: settings.shipping_quote_max_age_days,
         supplierCurrency: supplierProduct.currency,
@@ -177,8 +177,9 @@ export async function runSupplierProductRefresh(options?: {
       const evidence = await loadMarketEvidence(supplierProductId);
       for (const row of evidence) {
         if (!eligibleMarkets.includes(row.market)) continue;
-        if (row.amount === null) continue;
-        if (worstShipping === null || row.amount > worstShipping) worstShipping = row.amount;
+        const amount = row.amount;
+        if (amount === null || amount === undefined) continue;
+        if (worstShipping === null || amount > worstShipping) worstShipping = amount;
       }
     } catch (cause) {
       eligibilityReason =
