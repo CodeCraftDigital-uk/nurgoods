@@ -648,7 +648,13 @@ export function buildProductSchemaInputs(
   };
   if (extras.description) schema["description"] = extras.description;
   if (images.length > 0) schema["image"] = [...new Set(images)].slice(0, 6);
-  if (product.vendor) schema["brand"] = { "@type": "Brand", name: product.vendor };
+  // Brand, manufacturer, supplier and marketplace stay separate. The store
+  // vendor value is the marketplace itself, so it never becomes a brand claim.
+  const identity = resolveProductBrand({ vendor: product.vendor });
+  if (identity.brand) schema["brand"] = { "@type": "Brand", name: identity.brand };
+  if (identity.manufacturer) schema["manufacturer"] = { "@type": "Organization", name: identity.manufacturer };
+  schema["seller"] = { "@type": "Organization", name: MARKETPLACE_NAME };
+
   if (extras.categoryPath.length > 0) schema["category"] = extras.categoryPath.join(" > ");
   if (Object.keys(offers).length > 0) schema["offers"] = offers;
 
