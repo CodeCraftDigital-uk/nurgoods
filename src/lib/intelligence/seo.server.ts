@@ -106,8 +106,17 @@ export async function optimiseProduct(
   trail.push({ name: product.title, path: `/shop/${product.handle}` });
   void byId;
 
+  // Separate brand, manufacturer, supplier and marketplace before the model
+  // ever sees the record, so a marketplace vendor value cannot become a maker.
+  const identity = resolveProductBrand({
+    vendor: product.vendor,
+    tags: product.tags ?? [],
+    metafields: (product as any).metafields ?? null,
+  });
+
   const { resolveAdapter } = await import("@/lib/ai/runtime.server");
   const adapter = resolveAdapter();
+
 
   const result = await adapter.complete({
     stage: "metadata_schema",
