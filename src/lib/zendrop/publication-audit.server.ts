@@ -34,6 +34,10 @@ export interface PublicationAuditItem {
 
 export interface PublicationAuditRun {
   runId: string | null;
+  /** Offset this pass started at, and where a following pass should resume. */
+  offset: number;
+  nextOffset: number | null;
+  totalMatched: number | null;
   mode: "dry_run" | "live";
   inspected: number;
   drifted: number;
@@ -102,7 +106,7 @@ export async function runPublicationAudit(
     query = query.eq("status", "active");
   }
 
-  const { data: products } = await query;
+  const { data: products, count: matchedCount } = await query;
   const rows = (products ?? []) as Array<{
     shopify_product_id: string;
     title: string | null;
@@ -222,8 +226,17 @@ export async function runPublicationAudit(
       .eq("id", runId);
   }
 
+  const total = typeof matchedCount === "number" ? matchedCount : null;
+  const nextOffset =
+    rows.length === limit && (total === null || offset + rows.length < total)
+      ? offset + rows.length
+      : null;
+
   return {
     runId,
+    offset,
+    nextOffset,
+    totalMatched: total,
     mode: dryRun ? "dry_run" : "live",
     inspected: items.length,
     drifted,
