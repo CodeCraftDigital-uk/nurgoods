@@ -153,12 +153,20 @@ export async function planWork(
 
     const needsClassify = options?.force || !classification || classification.input_fingerprint !== content;
     const expectedSeoHash = seoInputHash(bundle, classification?.category_slug ?? null);
+    // A record parked for a person, or one that has already burnt its retries
+    // on unchanged source data, is never requeued. Requeueing those is what
+    // previously filled the queue and starved genuinely new work.
+    const parked =
+      Boolean(seo) &&
+      seo.input_hash === expectedSeoHash &&
+      (seo.validation_state === "manual_review" ||
+        Number(seo.regeneration_attempts ?? 0) >= MAX_SEO_REGENERATIONS);
+    const retryRejected =
+      Boolean(seo) && seo.validation_state === "rejected" && !parked && seo.input_hash === expectedSeoHash;
     const needsSeo =
-      options?.force ||
-      !seo ||
-      seo.input_hash !== expectedSeoHash ||
-      seo.validation_state === "rejected" ||
-      needsClassify;
+      !parked &&
+      (options?.force || !seo || seo.input_hash !== expectedSeoHash || retryRejected || needsClassify);
+
     const factsChanged = Boolean(seo) && (seo.schema_inputs?.facts_fingerprint ?? null) !== facts;
 
     if (needsClassify) {
