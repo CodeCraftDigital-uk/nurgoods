@@ -1,72 +1,67 @@
-# Checkout return path: investigation result and options
+# SEO / AEO / GEO / LLMO audit and improvement plan
 
-Customers pay on `shop.nurgoods.com` (the store's own checkout host) and the native "Continue shopping" button after payment sends them there instead of back to `nurgoods.com`.
+## What I checked
 
-## What the code does today
+Live HTML of nurgoods.com (home, /store, /collections, /journal, a product page), robots.txt, sitemap.xml, every route head, structured data, and the existing SEO intelligence engine.
 
-Confirmed by reading `src/lib/services/shopify-storefront.server.ts`:
+## Findings
 
-- The basket creates one cart through the official Cart API and uses the `checkoutUrl` the store issues (`createStorefrontCartLines`).
-- `finaliseCheckoutUrl` only rewrites the host of that link so a shopper is never sent to a host that loops back here. It records nothing about where the shopper should return to.
-- There is no return-path handling anywhere in the basket, checkout or storefront code today.
+### Strong already
+- Product pages are fully server rendered: real H1, breadcrumbs, Product + Offer + BreadcrumbList + FAQPage schema, canonical, duplicate handling with noindex/canonical consolidation.
+- robots.txt is correct, admin host is closed, sitemap is dynamic with 285 URLs.
+- Organization + WebSite schema on the homepage, per-route titles and descriptions, OG/Twitter images.
+- An automated SEO enrichment engine already writes titles, meta descriptions, FAQs, entities and internal links per product.
 
-So this is not a bug in our handoff. The link we hand over is correct. The button after payment is rendered by Shopify.
+### Critical (blocking organic growth and AI citation)
 
-## What Shopify actually allows in 2026
+1. **Hub pages render empty to crawlers.** /store, /collections and /journal return zero product, collection or article links in server HTML because listings load client side. Crawlers and AI answer engines see a heading and nothing else, so 206 product URLs have no internal link path and depend entirely on the sitemap. This is the single biggest issue.
+2. **No listing structured data.** Listing pages emit no ItemList, so they cannot surface as category answers.
+3. **Canonical tags missing** on home, /collections, /journal, /journal/index, /reviews, /contact and /legal pages.
+4. **No llms.txt and no AI-readable content endpoints advertised.** There is an MCP surface and /ai-connectors, but nothing at the well known path AI crawlers check.
+5. **Sitemap gap.** 206 products in the sitemap versus 241 sellable listings, and no lastmod on hub entries.
 
-Verified against current Shopify documentation and changelogs.
+### Important
+6. **No hreflang or market signalling** despite UK and USA targeting, and prices are emitted in GBP only.
+7. **Thin editorial layer.** Journal has effectively no published articles, so there is no non-transactional content for AI citation or top-of-funnel search.
+8. **No entity or trust pages.** No About, no Buying Guides hub, no FAQ hub, no shipping/returns answer pages linked as entities from Organization schema.
+9. **Answer-first formatting is missing** on product pages: no short direct answer block, no comparison or spec table lead, which is what answer engines quote.
+10. **Category pages do not exist as crawlable URLs.** Categories live behind /store?category=slug query parameters, which are weak ranking targets and are not in the sitemap.
 
-1. The Cart API has no return URL. `cartCreate` and the resulting `checkoutUrl` accept no `return_to`, redirect or custom storefront field. Cart `attributes` are free form key and value pairs that ride along to the order as metadata only. Nothing in checkout reads them for navigation.
-2. The native "Continue shopping" target is not configurable. It points at the store's primary Online Store domain. There is no setting for it in the checkout and accounts editor, in domain settings, or in Markets.
-3. Thank you and Order status UI extensions are available on Basic. Since the December 2024 rollout, block extensions on those pages work on every plan, using the `purchase.thank-you.block.render` and `customer-account.order-status.block.render` targets. They are additive only.
-4. **The native button cannot be overridden or hidden on Basic.** Block extensions cannot remove or repoint built in page elements. Replacing native page components sits in the Plus tier of the checkout and accounts editor. So on Basic both buttons will exist side by side.
-5. Legacy routes are closed. Additional Scripts on the Order status page stop running for non Plus stores on 26 August 2026, so a script based redirect is not a durable answer and is excluded here.
+## Plan
 
-## Options, ranked
+### Phase 1 - Crawlability foundations
+- Server render the first page of results for /store, /collections and /journal via route loaders, keeping client filtering for interaction. Include real anchor links to every item.
+- Add ItemList + CollectionPage schema to all three, and BreadcrumbList where missing.
+- Add canonical links to every remaining public route.
+- Extend the sitemap: cover all sellable products, add lastmod to hub entries, add category URLs once they exist.
 
-### Option A, recommended: add our own return CTA with a Thank you / Order status UI extension
+### Phase 2 - Category and entity architecture
+- Introduce crawlable category routes (/category/$slug) generated from the existing NUR GOODS taxonomy, each with its own head, canonical, intro copy, ItemList schema and links to child categories and products.
+- Point /store?category= filters at these canonical URLs and cross-link from product breadcrumbs.
+- Add About, Shipping and Delivery, Returns, and an FAQ hub as answer-formatted pages, and reference them from Organization schema.
 
-Build a small Shopify app extension using `purchase.thank-you.block.render` plus `customer-account.order-status.block.render`, rendering a clear primary action such as "Return to NUR GOODS" that links to `https://nurgoods.com`, styled with the checkout branding so it reads as ours.
+### Phase 3 - AEO and LLMO layer
+- Publish /llms.txt and /llms-full.txt describing the marketplace, key hubs, policies and the public API and MCP endpoints.
+- Add a concise answer block at the top of every product page (what it is, who it suits, delivery to UK and USA, price range) generated by the existing intelligence engine.
+- Emit Offer entries per market with correct currency, add shippingDetails and hasMerchantReturnPolicy where evidence exists.
+- Add FAQPage schema to the FAQ hub and Article/BlogPosting plus speakable to journal posts.
 
-- Safest and fully supported, no deprecated surface, works on Basic.
-- Placement is chosen by the merchant in the checkout and accounts editor, so the block can sit above the native button and become the visually dominant action.
-- Limitation to accept: the native "Continue shopping" button remains and still points at `shop.nurgoods.com`.
-- Requires deploying a Shopify app extension and enabling the block in the editor, which is work outside this codebase.
+### Phase 4 - Editorial engine activation
+- Turn on scheduled Journal generation using the existing pipeline: topic discovery from catalogue and category demand, research with stored sources, draft, fact check, internal links, schema, publish.
+- Target buying guides and comparison formats that map to category pages, with reciprocal internal links.
+- Keep the marketplace identity guard so nothing claims NUR GOODS manufactures products.
 
-### Option B: make `shop.nurgoods.com` bounce post purchase traffic home
+### Phase 5 - Market and measurement
+- Add hreflang alternates for en-GB and en-US, and align displayed currency with market eligibility evidence.
+- Add an SEO health panel in /control covering indexable URL count, canonical coverage, schema validity, sitemap parity and enrichment coverage.
+- Optional: connect Google Search Console for indexing and query feedback.
 
-Leave the checkout as is and make the checkout host forward shoppers who arrive at its storefront pages back to `nurgoods.com`, so pressing the native button still lands them on our site.
+## Technical notes
+- Listing SSR uses TanStack route loaders with ensureQueryData, so client filtering and infinite scroll keep working.
+- Category routes reuse src/lib/intelligence/taxonomy.ts and the existing storefront query layer.
+- llms.txt and category sitemaps ship as server routes alongside the existing sitemap[.]xml.ts and robots[.]txt.ts.
+- Answer blocks and per-market offers reuse product_content and product_market_eligibility, so no new supplier calls.
+- No commerce changes: checkout, Shopify and Zendrop behaviour are untouched.
 
-- No app extension needed, and it fixes the native button's real world outcome rather than the label.
-- Risk: `finaliseCheckoutUrl` deliberately refuses a checkout host that redirects back to this site, because that pattern breaks checkout links. Any forwarding must be scoped strictly to non checkout paths and proven not to disturb the probe. This needs careful verification before it can be trusted.
-- Depends on how the checkout host is served, which needs confirming in the store admin before committing.
-
-### Option C: accept it and improve our own pre checkout messaging
-
-Set expectations on the basket and checkout handoff so the domain change is not surprising, and rely on order confirmation emails, which we can brand and link to `nurgoods.com`.
-
-- Zero risk, zero platform work, but does not change the button.
-- Reasonable interim step while Option A is built.
-
-### Not viable
-
-- Passing a return URL on the checkout link. Unsupported, no such field.
-- Changing the button target in admin. No such setting exists.
-- Additional Scripts or `checkout.liquid` redirects. Sunsetting 26 August 2026.
-- Shopify Functions. They cover discounts, shipping, payment and validation logic, never page navigation.
-
-## Shopify admin changes each option needs
-
-- Option A: install or deploy the app carrying the extension, then place the block on the Thank you and Order status pages in the checkout and accounts editor. Optionally align checkout branding with NUR GOODS.
-- Option B: domain and hosting configuration for `shop.nurgoods.com`, plus a re-check that the checkout host still answers as the store.
-- Option C: none.
-
-## Straight answer on the native button
-
-On Shopify Basic the native "Continue shopping" button cannot be repointed, hidden or overridden. It can only be out-ranked visually by a block extension, or made harmless by forwarding the destination host.
-
-## Recommendation
-
-Option A as the real fix, with Option C copy work alongside it now. Evaluate Option B only after confirming how `shop.nurgoods.com` is served, because it interacts with the existing checkout host safety gate.
-
-Nothing has been implemented. Confirm which option to build and I will scope the implementation.
+## Suggested order
+Phase 1 first, since it unlocks crawling of everything else. Phases 2 and 3 next for ranking and citation surface. Phase 4 is the compounding long-term growth engine. Phase 5 closes the loop with measurement.
