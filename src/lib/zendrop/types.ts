@@ -155,6 +155,15 @@ export interface SourcingRules {
   target_catalogue_size: number | null;
   daily_import_cap: number;
   batch_size: number;
+  /** Persistent supplier catalogue checkpoint, so runs traverse rather than resample. */
+  scan_page: number;
+  scan_cursor: string | null;
+  scan_cycle: number;
+  scan_pages_per_run: number;
+  scan_last_at: string | null;
+  scan_exhausted_at: string | null;
+  /** "any" qualifies a product when any supported market is deliverable. */
+  discovery_market_mode: "any" | "all";
 }
 
 export interface CatalogueVariant {
