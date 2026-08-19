@@ -2,7 +2,27 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { PublicShell } from "@/components/public/PublicShell";
 import { PublikoEmbed } from "@/components/public/PublikoEmbed";
 import { useReviewPlacement } from "@/components/public/ReviewPlacementSlot";
+import { JsonLd } from "@/components/public/JsonLd";
 import { BRAND } from "@/lib/brand";
+
+/** Review specific answers. Every statement restates published policy. */
+const REVIEW_FAQS: { question: string; answer: string }[] = [
+  {
+    question: "Are NUR GOODS reviews genuine?",
+    answer:
+      "Yes. Reviews come from real orders placed through the NUR GOODS store and are published by our review provider exactly as written. We do not write or edit them.",
+  },
+  {
+    question: "Who can leave a review?",
+    answer:
+      "Reviews are collected from customers who have completed an order with NUR GOODS. Reviews are not accepted from people who have not bought from us.",
+  },
+  {
+    question: "Are negative reviews removed?",
+    answer:
+      "No. Reviews are published as submitted by the customer, positive or negative. We would rather show nothing than show reviews that are not genuine.",
+  },
+];
 
 export const Route = createFileRoute("/reviews")({
   head: () => ({
