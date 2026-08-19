@@ -38,8 +38,24 @@ export const Route = createFileRoute("/")({
     ],
     links: [{ rel: "canonical", href: `${BRAND.siteUrl}/` }],
   }),
+  // Server rendered so the home page ships real product, collection and
+  // article links instead of an empty shell.
+  loader: async () => {
+    try {
+      const [newest, browse, collections, articles] = await Promise.all([
+        listStorefrontProductsFn({ data: { limit: 8, sort: "newest" } }),
+        listStorefrontProductsFn({ data: { limit: 8, sort: "featured" } }),
+        listStorefrontCollectionsFn({ data: { withProductsOnly: true } }),
+        listPublicArticles({}),
+      ]);
+      return { newest, browse, collections, articles };
+    } catch {
+      return null;
+    }
+  },
   component: Index,
 });
+
 
 /** Service cues. Every line here is a statement of how the store actually works. */
 const SERVICE_CUES = [
