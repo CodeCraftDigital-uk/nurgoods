@@ -423,7 +423,10 @@ export async function runSeoSweep(db: Db, batchSize = 10): Promise<JobSummary> {
     .or(
       `validation_state.eq.rejected,intelligence_version.neq.${SEO_VERSION},last_analysed_at.lt.${staleBefore}`,
     )
+    .neq("validation_state", "manual_review")
+    .lt("regeneration_attempts", MAX_SEO_REGENERATIONS)
     .limit(50);
+
   const staleIds = ((stale ?? []) as any[]).map((row) => row.product_id as string);
   if (staleIds.length > 0) {
     queued += await enqueue(
