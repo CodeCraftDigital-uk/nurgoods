@@ -7,6 +7,14 @@ import { BRAND } from "@/lib/brand";
 import { listPublicArticles } from "@/lib/services/public-content.functions";
 
 export const Route = createFileRoute("/journal/")({
+  // Server rendered so the article list is crawlable and citable.
+  loader: async () => {
+    try {
+      return await listPublicArticles({});
+    } catch {
+      return null;
+    }
+  },
   head: () => ({
     meta: [
       { title: "Journal | NUR GOODS" },
@@ -22,31 +30,63 @@ export const Route = createFileRoute("/journal/")({
           "Buying guides, care advice and considered writing from NUR GOODS, published only after human review.",
       },
       { property: "og:type", content: "website" },
+      { property: "og:url", content: `${BRAND.siteUrl}/journal` },
       { name: "twitter:card", content: "summary_large_image" },
     ],
+    links: [{ rel: "canonical", href: `${BRAND.siteUrl}/journal` }],
   }),
   component: JournalIndex,
 });
 
 function JournalIndex() {
+  const initialArticles = Route.useLoaderData();
   const fetchArticles = useServerFn(listPublicArticles);
   const articles = useQuery({
     queryKey: ["public-articles"],
     queryFn: () => fetchArticles({}),
+    ...(initialArticles ? { initialData: initialArticles } : {}),
     retry: false,
   });
+
 
   return (
     <PublicShell>
       <JsonLd
-        data={{
-          "@context": "https://schema.org",
-          "@type": "Blog",
-          name: `${BRAND.name} Journal`,
-          url: `${BRAND.siteUrl}/journal`,
-          publisher: { "@type": "Organization", name: BRAND.name, url: BRAND.siteUrl },
-        }}
+        data={[
+          {
+            "@context": "https://schema.org",
+            "@type": "Blog",
+            name: `${BRAND.name} Journal`,
+            url: `${BRAND.siteUrl}/journal`,
+            publisher: { "@type": "Organization", name: BRAND.name, url: BRAND.siteUrl },
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "ItemList",
+            name: `${BRAND.name} Journal articles`,
+            itemListElement: (articles.data ?? []).slice(0, 50).map((article, index) => ({
+              "@type": "ListItem",
+              position: index + 1,
+              url: `${BRAND.siteUrl}/journal/${article.slug}`,
+              name: article.title,
+            })),
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            itemListElement: [
+              { "@type": "ListItem", position: 1, name: "Home", item: `${BRAND.siteUrl}/` },
+              {
+                "@type": "ListItem",
+                position: 2,
+                name: "Journal",
+                item: `${BRAND.siteUrl}/journal`,
+              },
+            ],
+          },
+        ]}
       />
+
       <div className="mx-auto w-full max-w-5xl px-5 pb-8 pt-14 sm:px-8 sm:pt-20">
         <nav aria-label="Breadcrumb" className="text-xs text-muted-foreground">
           <Link to="/" className="hover:text-foreground">

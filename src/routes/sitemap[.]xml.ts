@@ -21,15 +21,24 @@ export const Route = createFileRoute("/sitemap.xml")({
         ];
 
         try {
-          const { listStorefrontCollections, listStorefrontProducts } = await import(
-            "@/lib/public-api/storefront.server"
-          );
-          const [articles, documents, importedPolicies, collections] = await Promise.all([
+          const { listStorefrontCollections, listStorefrontProducts, listStorefrontFacets } =
+            await import("@/lib/public-api/storefront.server");
+          const [articles, documents, importedPolicies, collections, facets] = await Promise.all([
             listPublicArticles({}),
             listPublicLegalDocuments({}),
             listPublicLegalSources({}),
             listStorefrontCollections(),
+            listStorefrontFacets(),
           ]);
+          // Canonical category pages are the topical entry points into the
+          // catalogue, so every category that actually holds products is listed.
+          for (const category of facets.categories) {
+            entries.push({
+              loc: `${BRAND.siteUrl}/category/${category.slug}`,
+              priority: "0.7",
+            });
+          }
+
           // Paged so the whole visible catalogue is listed, bounded so the
           // sitemap can never turn into an unbounded read.
           for (let page = 0; page < 20; page += 1) {

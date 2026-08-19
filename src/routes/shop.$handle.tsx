@@ -291,7 +291,7 @@ function ProductDetail() {
           "@type": "ListItem",
           position: index + 2,
           name: node.name,
-          item: `${BRAND.siteUrl}/store?category=${encodeURIComponent(node.slug)}`,
+          item: `${BRAND.siteUrl}/category/${node.slug}`,
         })),
         {
           "@type": "ListItem",
@@ -324,7 +324,7 @@ function ProductDetail() {
             { label: "Store", href: "/store" },
             ...product.category_path.map((node) => ({
               label: node.name,
-              href: `/store?category=${encodeURIComponent(node.slug)}`,
+              href: `/category/${node.slug}`,
             })),
             { label: product.title },
           ]}
@@ -381,8 +381,8 @@ function ProductDetail() {
 
             {product.category_name ? (
               <Link
-                to="/store"
-                search={{ category: product.category_slug ?? undefined } as never}
+                to="/category/$slug"
+                params={{ slug: product.category_slug ?? "" }}
                 className="inline-flex items-center rounded-full border border-border px-3 py-1 text-[0.7rem] uppercase tracking-[0.14em] text-muted-foreground transition-colors hover:text-foreground"
               >
                 {product.category_name}

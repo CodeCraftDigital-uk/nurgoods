@@ -22,6 +22,9 @@ export const Route = createFileRoute("/robots.txt")({
               "",
               `Sitemap: ${BRAND.siteUrl}/sitemap.xml`,
               "",
+              `# AI orientation file: ${BRAND.siteUrl}/llms.txt`,
+              "",
+
             ].join("\n");
 
         return new Response(body, {

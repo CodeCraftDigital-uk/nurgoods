@@ -1,11 +1,13 @@
 import { createServerFn } from "@tanstack/react-start";
 import type {
+  StorefrontCategoryPage,
   StorefrontCollection,
   StorefrontFacets,
   StorefrontProductCard,
   StorefrontProductDetail,
   StorefrontSort,
 } from "@/lib/public-api/storefront.server";
+
 
 /**
  * Public, read only storefront reads. Row level security keeps these limited to
@@ -86,3 +88,14 @@ export const getStorefrontProductFn = createServerFn({ method: "GET" })
     return getStorefrontProduct(data.handle);
   });
 
+
+export const getStorefrontCategoryFn = createServerFn({ method: "GET" })
+  .inputValidator((input: { slug: string; limit?: number; offset?: number }) => ({
+    slug: String(input.slug).slice(0, 120),
+    limit: input.limit ? Number(input.limit) : undefined,
+    offset: input.offset ? Number(input.offset) : undefined,
+  }))
+  .handler(async ({ data }): Promise<StorefrontCategoryPage | null> => {
+    const { getStorefrontCategory } = await import("@/lib/public-api/storefront.server");
+    return getStorefrontCategory(data.slug, { limit: data.limit, offset: data.offset });
+  });

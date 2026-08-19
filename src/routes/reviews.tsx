@@ -19,9 +19,12 @@ export const Route = createFileRoute("/reviews")({
         content: "Read what NUR GOODS customers say about their orders and delivery experience.",
       },
       { property: "og:type", content: "website" },
+      { property: "og:url", content: `${BRAND.siteUrl}/reviews` },
       { name: "twitter:card", content: "summary" },
     ],
+    links: [{ rel: "canonical", href: `${BRAND.siteUrl}/reviews` }],
   }),
+
   component: ReviewsPage,
 });
 
