@@ -459,8 +459,26 @@ function StoreIndex() {
                   </button>
                 ))}
               </div>
+              {/* Real links so every department is reachable by crawlers and
+                  answer engines, not only by the filter buttons above. */}
+              <nav aria-label="Shop by department" className="mt-3 text-xs text-muted-foreground">
+                <span className="mr-1">Browse department pages:</span>
+                {categories.slice(0, 24).map((category, index) => (
+                  <span key={`link-${category.slug}`}>
+                    {index > 0 ? <span aria-hidden="true">, </span> : null}
+                    <Link
+                      to="/category/$slug"
+                      params={{ slug: category.slug }}
+                      className="underline-offset-2 transition-colors hover:text-foreground hover:underline"
+                    >
+                      {category.name}
+                    </Link>
+                  </span>
+                ))}
+              </nav>
             </div>
           ) : null}
+
 
           <div className="mt-6 flex flex-wrap items-center gap-2">
             <h2 className="mr-1 text-[0.65rem] uppercase tracking-[0.2em] text-muted-foreground">
