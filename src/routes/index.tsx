@@ -38,8 +38,24 @@ export const Route = createFileRoute("/")({
     ],
     links: [{ rel: "canonical", href: `${BRAND.siteUrl}/` }],
   }),
+  // Server rendered so the home page ships real product, collection and
+  // article links instead of an empty shell.
+  loader: async () => {
+    try {
+      const [newest, browse, collections, articles] = await Promise.all([
+        listStorefrontProductsFn({ data: { limit: 8, sort: "newest" } }),
+        listStorefrontProductsFn({ data: { limit: 8, sort: "featured" } }),
+        listStorefrontCollectionsFn({ data: { withProductsOnly: true } }),
+        listPublicArticles({}),
+      ]);
+      return { newest, browse, collections, articles };
+    } catch {
+      return null;
+    }
+  },
   component: Index,
 });
+
 
 /** Service cues. Every line here is a statement of how the store actually works. */
 const SERVICE_CUES = [
@@ -58,6 +74,7 @@ const SERVICE_CUES = [
 ] as const;
 
 function Index() {
+  const initial = Route.useLoaderData();
   const fetchProducts = useServerFn(listStorefrontProductsFn);
   const fetchCollections = useServerFn(listStorefrontCollectionsFn);
   const fetchArticles = useServerFn(listPublicArticles);
@@ -65,23 +82,28 @@ function Index() {
   const newest = useQuery({
     queryKey: ["home-newest"],
     queryFn: () => fetchProducts({ data: { limit: 8, sort: "newest" } }),
+    ...(initial ? { initialData: initial.newest } : {}),
     retry: false,
   });
   const browse = useQuery({
     queryKey: ["home-browse"],
     queryFn: () => fetchProducts({ data: { limit: 8, sort: "featured" } }),
+    ...(initial ? { initialData: initial.browse } : {}),
     retry: false,
   });
   const collections = useQuery({
     queryKey: ["home-collections"],
     queryFn: () => fetchCollections({ data: { withProductsOnly: true } }),
+    ...(initial ? { initialData: initial.collections } : {}),
     retry: false,
   });
   const articles = useQuery({
     queryKey: ["public-articles"],
     queryFn: () => fetchArticles({}),
+    ...(initial ? { initialData: initial.articles } : {}),
     retry: false,
   });
+
 
   const newestItems = newest.data?.items ?? [];
   const browseItems = browse.data?.items ?? [];

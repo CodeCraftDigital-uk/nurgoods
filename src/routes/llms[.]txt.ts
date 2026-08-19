@@ -56,6 +56,7 @@ export const Route = createFileRoute("/llms.txt")({
           `- [Store](${BRAND.siteUrl}/store): full searchable catalogue with categories, price and stock filters`,
           `- [Collections](${BRAND.siteUrl}/collections): the range grouped by how products are used`,
           `- [Journal](${BRAND.siteUrl}/journal): buying guides, comparisons and care advice with cited sources`,
+          `- [About](${BRAND.siteUrl}/about): what NUR GOODS is, the markets served and how ordering works`,
           `- [Reviews](${BRAND.siteUrl}/reviews): customer reviews published by an independent review provider`,
           `- [Legal and policies](${BRAND.siteUrl}/legal): privacy, cookies, terms, returns and refunds, shipping and delivery`,
           `- [Contact](${BRAND.siteUrl}/contact): how to reach the team`,
