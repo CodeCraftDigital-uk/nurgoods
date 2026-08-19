@@ -266,6 +266,37 @@ describe("fulfilment queue", () => {
     expect(summary.dispatched).toBe(1);
   });
 
+  it("refuses to dispatch against stale supplier facts", async () => {
+    const calls: string[] = [];
+    const stale = new Date(Date.now() - 200 * 3_600_000).toISOString();
+    const { ledger } = makeLedger([makeOrder()], { auto_fulfilment_enabled: true }, [STORE_LINE], [
+      healthyLink({ lastSyncAt: stale }),
+    ]);
+    const summary = await processFulfilmentQueue(ledger, makeSupplier(calls));
+    expect(calls).not.toContain("confirm");
+    expect(summary.dispatched).toBe(0);
+  });
+
+  it("refuses to dispatch a variant with no supplier mapping", async () => {
+    const calls: string[] = [];
+    const { ledger } = makeLedger([makeOrder()], { auto_fulfilment_enabled: true }, [STORE_LINE], [
+      healthyLink({ variantMap: [] }),
+    ]);
+    const summary = await processFulfilmentQueue(ledger, makeSupplier(calls));
+    expect(calls).not.toContain("confirm");
+    expect(summary.dispatched).toBe(0);
+  });
+
+  it("refuses to dispatch a listing on a supplier hold", async () => {
+    const calls: string[] = [];
+    const { ledger } = makeLedger([makeOrder()], { auto_fulfilment_enabled: true }, [STORE_LINE], [
+      healthyLink({ syncState: "held_unavailable" }),
+    ]);
+    const summary = await processFulfilmentQueue(ledger, makeSupplier(calls));
+    expect(calls).not.toContain("confirm");
+    expect(summary.dispatched).toBe(0);
+  });
+
   it("never dispatches the same order twice", async () => {
     const calls: string[] = [];
     const order = makeOrder({
