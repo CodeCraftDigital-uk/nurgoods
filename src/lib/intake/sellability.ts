@@ -10,7 +10,8 @@
  *     supplier line at order time,
  *   - the supplier facts behind it are fresh rather than indefinitely stale,
  *   - the link is not on manual hold, and
- *   - shipping to every required market has been quoted by the supplier.
+ *   - shipping to at least one of our markets (UK or USA) has been quoted by
+ *     the supplier.
  *
  * The rules are pure so they can be tested directly and so no caller can
  * quietly widen them. Missing evidence always means not sellable: this gate
@@ -18,7 +19,11 @@
  * after a customer has paid.
  */
 
-/** Markets NUR GOODS sells into. Both must be evidenced. */
+/**
+ * Markets NUR GOODS sells into. At least one of them must be evidenced as
+ * shippable: a product deliverable to only the UK, or only the USA, is still
+ * sellable. Only a product deliverable to neither is held.
+ */
 export const REQUIRED_MARKETS = ["GB", "US"] as const;
 
 /** How old supplier evidence may be before a listing is held. */
@@ -94,18 +99,27 @@ export function evaluateSellability(input: SellabilityInput): SellabilityVerdict
   const byMarket = new Map(
     input.markets.map((entry) => [entry.market.trim().toUpperCase(), entry] as const),
   );
+  /**
+   * One evidenced market is enough. We still record why each other market did
+   * not qualify, so an operator can see UK only or USA only coverage, but that
+   * detail never holds the listing on its own.
+   */
+  const marketDetail: string[] = [];
+  let anyShippable = false;
   for (const market of required) {
     const evidence = byMarket.get(market.toUpperCase());
-    if (!evidence) reasons.push(`no_shipping_evidence_${market.toLowerCase()}`);
-    else if (!evidence.eligible) reasons.push(`not_shippable_${market.toLowerCase()}`);
+    if (!evidence) marketDetail.push(`no_shipping_evidence_${market.toLowerCase()}`);
+    else if (!evidence.eligible) marketDetail.push(`not_shippable_${market.toLowerCase()}`);
+    else anyShippable = true;
   }
+  if (!anyShippable) reasons.push("no_shippable_market", ...marketDetail);
 
   const sellable = reasons.length === 0;
   return {
     sellable,
     reasons,
     message: sellable
-      ? "Supplier mapping and shipping evidence are complete for every required market"
+      ? "Supplier mapping is complete and shipping is evidenced for at least one market"
       : `Held because ${reasons.join(", ").replace(/_/g, " ")}`,
   };
 }

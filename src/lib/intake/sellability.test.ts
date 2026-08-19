@@ -59,20 +59,31 @@ describe("sellability gate", () => {
     ).toContain("no_supplier_verification");
   });
 
-  it("requires shipping evidence for both GB and US", () => {
-    const missingUs = evaluateSellability({
+  it("accepts UK only or USA only shipping evidence", () => {
+    const ukOnly = evaluateSellability({
       link: { variantMap: [{}], lastSupplierSyncAt: fresh },
       markets: [{ market: "GB", eligible: true }],
       now,
     });
-    expect(missingUs.sellable).toBe(false);
-    expect(missingUs.reasons).toContain("no_shipping_evidence_us");
+    expect(ukOnly.sellable).toBe(true);
 
-    const blockedGb = evaluateSellability({
+    const usOnly = evaluateSellability({
       link: { variantMap: [{}], lastSupplierSyncAt: fresh },
       markets: [{ market: "gb", eligible: false }, { market: "US", eligible: true }],
       now,
     });
-    expect(blockedGb.reasons).toContain("not_shippable_gb");
+    expect(usOnly.sellable).toBe(true);
+  });
+
+  it("refuses a product shippable to neither market", () => {
+    const verdict = evaluateSellability({
+      link: { variantMap: [{}], lastSupplierSyncAt: fresh },
+      markets: [{ market: "GB", eligible: false }],
+      now,
+    });
+    expect(verdict.sellable).toBe(false);
+    expect(verdict.reasons).toContain("no_shippable_market");
+    expect(verdict.reasons).toContain("not_shippable_gb");
+    expect(verdict.reasons).toContain("no_shipping_evidence_us");
   });
 });
