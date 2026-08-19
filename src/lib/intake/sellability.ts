@@ -119,7 +119,7 @@ export function evaluateSellability(input: SellabilityInput): SellabilityVerdict
     sellable,
     reasons,
     message: sellable
-      ? "Supplier mapping and shipping evidence are complete for every required market"
+      ? "Supplier mapping is complete and shipping is evidenced for at least one market"
       : `Held because ${reasons.join(", ").replace(/_/g, " ")}`,
   };
 }
