@@ -172,9 +172,8 @@ export const runShopifyCatalogueSync = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<SyncResult> => {
     await assertAdmin(context);
-    const { syncCatalogue, recordSyncEvent, markConnectionState } = await import(
-      "./shopify.server"
-    );
+    const { syncCatalogue, recordSyncEvent, markConnectionState, isTransientShopifyError } =
+      await import("./shopify.server");
 
     try {
       const result = await syncCatalogue(context.supabase);
@@ -197,10 +196,16 @@ export const runShopifyCatalogueSync = createServerFn({ method: "POST" })
     } catch (error) {
       const message = error instanceof Error ? error.message : "Catalogue sync failed";
       await recordSyncEvent(context.supabase, { status: "failed", message });
-      await markConnectionState({ state: "error", error: message });
+      // Rate limits and upstream hiccups do not mean the store connection is
+      // broken, so the state stays connected and only the note is recorded.
+      await markConnectionState({
+        state: isTransientShopifyError(message) ? "connected" : "error",
+        error: message,
+      });
       throw new Error(message);
     }
   });
+
 
 /**
  * Mirrors the store's native policies and published pages. The store remains
