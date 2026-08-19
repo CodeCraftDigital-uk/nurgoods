@@ -2427,9 +2427,13 @@ export type Database = {
           auto_published: boolean
           collection_relevance: Json
           created_at: string
+          description_sections: Json
           entities: string[]
+          entity_summary: string | null
           faqs: Json
           id: string
+          identity_checked_at: string | null
+          identity_findings: Json
           image_alt: string | null
           input_hash: string | null
           intelligence_version: string | null
@@ -2437,6 +2441,7 @@ export type Database = {
           issues: Json
           keywords: string[]
           last_analysed_at: string | null
+          manual_review_reason: string | null
           meta_description: string | null
           model: string | null
           og_description: string | null
@@ -2444,6 +2449,7 @@ export type Database = {
           optimisation_score: number
           primary_topic: string | null
           product_id: string
+          regeneration_attempts: number
           schema_inputs: Json
           seo_title: string | null
           slug_recommendation: string | null
@@ -2454,9 +2460,13 @@ export type Database = {
           auto_published?: boolean
           collection_relevance?: Json
           created_at?: string
+          description_sections?: Json
           entities?: string[]
+          entity_summary?: string | null
           faqs?: Json
           id?: string
+          identity_checked_at?: string | null
+          identity_findings?: Json
           image_alt?: string | null
           input_hash?: string | null
           intelligence_version?: string | null
@@ -2464,6 +2474,7 @@ export type Database = {
           issues?: Json
           keywords?: string[]
           last_analysed_at?: string | null
+          manual_review_reason?: string | null
           meta_description?: string | null
           model?: string | null
           og_description?: string | null
@@ -2471,6 +2482,7 @@ export type Database = {
           optimisation_score?: number
           primary_topic?: string | null
           product_id: string
+          regeneration_attempts?: number
           schema_inputs?: Json
           seo_title?: string | null
           slug_recommendation?: string | null
@@ -2481,9 +2493,13 @@ export type Database = {
           auto_published?: boolean
           collection_relevance?: Json
           created_at?: string
+          description_sections?: Json
           entities?: string[]
+          entity_summary?: string | null
           faqs?: Json
           id?: string
+          identity_checked_at?: string | null
+          identity_findings?: Json
           image_alt?: string | null
           input_hash?: string | null
           intelligence_version?: string | null
@@ -2491,6 +2507,7 @@ export type Database = {
           issues?: Json
           keywords?: string[]
           last_analysed_at?: string | null
+          manual_review_reason?: string | null
           meta_description?: string | null
           model?: string | null
           og_description?: string | null
@@ -2498,6 +2515,7 @@ export type Database = {
           optimisation_score?: number
           primary_topic?: string | null
           product_id?: string
+          regeneration_attempts?: number
           schema_inputs?: Json
           seo_title?: string | null
           slug_recommendation?: string | null

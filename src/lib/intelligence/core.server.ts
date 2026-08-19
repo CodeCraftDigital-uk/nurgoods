@@ -1,4 +1,12 @@
 import { createHash } from "crypto";
+import {
+  MARKETPLACE_NAME,
+  enforceMarketplaceIdentity,
+  isMarketplaceName,
+  resolveProductBrand,
+  type IdentityFinding,
+} from "./marketplace-identity";
+
 
 /**
  * Deterministic half of the intelligence layer.
@@ -255,7 +263,12 @@ export interface SeoDraft {
   faqs: Array<{ question: string; answer: string }>;
   internal_links: Array<{ anchor_text: string; target_type: string; target_reference: string }>;
   collection_relevance: Array<{ handle: string; relevance: string }>;
+  /** Long form description broken into useful headings. */
+  description_sections: Array<{ heading: string; body: string }>;
+  /** Plain entity and context paragraph for answer and assistant engines. */
+  entity_summary: string;
 }
+
 
 export interface ValidationIssue {
   code: string;
@@ -284,19 +297,42 @@ export function detectUnsupportedClaims(text: string): string[] {
   return UNSUPPORTED_CLAIM_PATTERNS.filter((rule) => rule.pattern.test(text)).map((rule) => rule.code);
 }
 
-/** Flags a phrase repeated far beyond natural density. */
+/**
+ * Flags a phrase repeated far beyond natural density in prose. Thresholds are
+ * deliberately density based: a short title plus a meta description naturally
+ * repeats the product noun two or three times, and treating that as stuffing
+ * rejected most of the catalogue.
+ */
 export function detectKeywordStuffing(text: string): boolean {
   const words = text
     .toLowerCase()
     .replace(/[^a-z0-9\s]/g, " ")
     .split(/\s+/)
     .filter((word) => word.length > 3 && !STOP_WORDS.has(word));
-  if (words.length < 8) return false;
+  if (words.length < 12) return false;
   const counts = new Map<string, number>();
   for (const word of words) counts.set(word, (counts.get(word) ?? 0) + 1);
   const highest = Math.max(...counts.values());
-  return highest / words.length > 0.22 || highest >= 5;
+  return highest / words.length > 0.28 || highest >= 6;
 }
+
+/**
+ * A keyword list shares a head term by design. Only an almost total repeat of
+ * one token across a long list is worth flagging, and only as a warning.
+ */
+export function detectKeywordListStuffing(keywords: string[]): boolean {
+  const cleaned = keywords.map((item) => item.toLowerCase().trim()).filter(Boolean);
+  if (cleaned.length < 6) return false;
+  const counts = new Map<string, number>();
+  for (const phrase of cleaned) {
+    for (const token of new Set(phrase.split(/\s+/).filter((word) => word.length > 3 && !STOP_WORDS.has(word)))) {
+      counts.set(token, (counts.get(token) ?? 0) + 1);
+    }
+  }
+  if (counts.size === 0) return false;
+  return Math.max(...counts.values()) / cleaned.length >= 0.9;
+}
+
 
 export function slugify(value: string): string {
   return value
@@ -364,7 +400,21 @@ export function validateSeoDraft(
     faqs: [],
     internal_links: [],
     collection_relevance: [],
+    description_sections: [],
+    entity_summary: text(raw.entity_summary, 900),
   };
+
+  if (Array.isArray(raw.description_sections)) {
+    draft.description_sections = raw.description_sections
+      .filter(
+        (item): item is { heading: string; body: string } =>
+          Boolean(item) && typeof (item as any).heading === "string" && typeof (item as any).body === "string",
+      )
+      .map((item) => ({ heading: text(item.heading, 90), body: text(item.body, 900) }))
+      .filter((item) => item.heading && item.body.length > 40)
+      .slice(0, 6);
+  }
+
 
   if (Array.isArray(raw.faqs)) {
     draft.faqs = raw.faqs
@@ -430,6 +480,47 @@ export function validateSeoDraft(
     });
   }
 
+  // Marketplace identity. Every generated string is corrected before anything
+  // else looks at it, so a saved record can never call the platform a maker.
+  const identityFindings: IdentityFinding[] = [];
+  let identityBlocked = false;
+  const guard = (value: string): string => {
+    const outcome = enforceMarketplaceIdentity(value);
+    identityFindings.push(...outcome.findings);
+    if (outcome.blocked) identityBlocked = true;
+    return outcome.text;
+  };
+  draft.seo_title = guard(draft.seo_title).slice(0, 60);
+  draft.meta_description = guard(draft.meta_description).slice(0, 158);
+  draft.og_title = guard(draft.og_title).slice(0, 70);
+  draft.og_description = guard(draft.og_description).slice(0, 200);
+  draft.image_alt = guard(draft.image_alt).slice(0, 125);
+  draft.primary_topic = guard(draft.primary_topic).slice(0, 90);
+  draft.entity_summary = guard(draft.entity_summary).slice(0, 900);
+  draft.faqs = draft.faqs.map((item) => ({ question: guard(item.question), answer: guard(item.answer) }));
+  draft.description_sections = draft.description_sections.map((item) => ({
+    heading: guard(item.heading),
+    body: guard(item.body),
+  }));
+  // Entities and keywords must never carry the marketplace as a brand token.
+  draft.entities = draft.entities.filter((item) => !isMarketplaceName(item));
+  draft.keywords = draft.keywords.filter((item) => !isMarketplaceName(item));
+
+  const seenIdentity = new Set<string>();
+  for (const finding of identityFindings) {
+    const key = `${finding.code}:${finding.severity}`;
+    if (seenIdentity.has(key)) continue;
+    seenIdentity.add(key);
+    issues.push({ code: finding.code, label: finding.label, severity: finding.severity });
+  }
+  if (identityBlocked) {
+    issues.push({
+      code: "marketplace_identity_violation",
+      label: "Wording still presented the marketplace as the maker of the product.",
+      severity: "error",
+    });
+  }
+
   // Unsupported claims anywhere in the generated wording.
   const combined = [
     draft.seo_title,
@@ -437,19 +528,49 @@ export function validateSeoDraft(
     draft.og_title,
     draft.og_description,
     draft.image_alt,
+    draft.entity_summary,
+    ...draft.description_sections.flatMap((item) => [item.heading, item.body]),
     ...draft.faqs.flatMap((item) => [item.question, item.answer]),
   ].join(" \n ");
   const claims = detectUnsupportedClaims(combined);
   if (claims.length > 0) {
-    for (const code of claims) {
+    // Remove the offending long form blocks rather than publishing them, then
+    // re-check what is left so a single bad FAQ does not lose the whole record.
+    draft.faqs = draft.faqs.filter(
+      (item) => detectUnsupportedClaims(`${item.question} ${item.answer}`).length === 0,
+    );
+    draft.description_sections = draft.description_sections.filter(
+      (item) => detectUnsupportedClaims(`${item.heading} ${item.body}`).length === 0,
+    );
+    if (detectUnsupportedClaims(draft.entity_summary).length > 0) draft.entity_summary = "";
+    const remaining = detectUnsupportedClaims(
+      [draft.seo_title, draft.meta_description, draft.og_title, draft.og_description, draft.image_alt].join(" \n "),
+    );
+    for (const code of remaining) {
       issues.push({ code, label: "Generated wording contained a claim the catalogue cannot support.", severity: "error" });
+    }
+    for (const code of claims.filter((item) => !remaining.includes(item))) {
+      issues.push({
+        code,
+        label: "An unsupported claim was removed from the long form content before saving.",
+        severity: "warning",
+      });
     }
   }
 
-  // Keyword stuffing.
-  if (detectKeywordStuffing(`${draft.seo_title} ${draft.meta_description} ${draft.keywords.join(" ")}`)) {
+  // Keyword stuffing. Prose only: a keyword list naturally shares a head term,
+  // so it is checked separately and never rejects an otherwise sound record.
+  if (detectKeywordStuffing(`${draft.seo_title} ${draft.meta_description}`)) {
     issues.push({ code: "keyword_stuffing", label: "The wording repeats a term unnaturally.", severity: "error" });
   }
+  if (detectKeywordListStuffing(draft.keywords)) {
+    issues.push({
+      code: "keyword_list_repetitive",
+      label: "The keyword list repeats one term in nearly every entry.",
+      severity: "warning",
+    });
+  }
+
 
   // Internal links must resolve to something real.
   draft.internal_links = draft.internal_links.filter((link) => {
@@ -527,7 +648,13 @@ export function buildProductSchemaInputs(
   };
   if (extras.description) schema["description"] = extras.description;
   if (images.length > 0) schema["image"] = [...new Set(images)].slice(0, 6);
-  if (product.vendor) schema["brand"] = { "@type": "Brand", name: product.vendor };
+  // Brand, manufacturer, supplier and marketplace stay separate. The store
+  // vendor value is the marketplace itself, so it never becomes a brand claim.
+  const identity = resolveProductBrand({ vendor: product.vendor });
+  if (identity.brand) schema["brand"] = { "@type": "Brand", name: identity.brand };
+  if (identity.manufacturer) schema["manufacturer"] = { "@type": "Organization", name: identity.manufacturer };
+  schema["seller"] = { "@type": "Organization", name: MARKETPLACE_NAME };
+
   if (extras.categoryPath.length > 0) schema["category"] = extras.categoryPath.join(" > ");
   if (Object.keys(offers).length > 0) schema["offers"] = offers;
 

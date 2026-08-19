@@ -2,6 +2,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { assessQuality, findDuplicates } from "./core.server";
 import { CLASSIFIER_VERSION, SEO_VERSION } from "./taxonomy";
 import { enqueue, loadBundles, planWork, processQueue, type ProcessResult } from "./queue.server";
+import { MAX_REGENERATION_ATTEMPTS as MAX_SEO_REGENERATIONS } from "./seo.server";
+
 
 /**
  * Scheduled intelligence jobs.
@@ -159,7 +161,11 @@ export async function runDailyMaintenance(db: Db, batchSize = 12): Promise<JobSu
     .or(
       `validation_state.eq.rejected,intelligence_version.neq.${SEO_VERSION},last_analysed_at.lt.${staleBefore}`,
     )
+    // Parked records wait for a person rather than looping through the worker.
+    .neq("validation_state", "manual_review")
+    .lt("regeneration_attempts", MAX_SEO_REGENERATIONS)
     .limit(100);
+
   const staleIds = ((staleSeo ?? []) as any[]).map((row) => row.product_id as string);
   if (staleIds.length > 0) {
     queued += await enqueue(
@@ -417,7 +423,10 @@ export async function runSeoSweep(db: Db, batchSize = 10): Promise<JobSummary> {
     .or(
       `validation_state.eq.rejected,intelligence_version.neq.${SEO_VERSION},last_analysed_at.lt.${staleBefore}`,
     )
+    .neq("validation_state", "manual_review")
+    .lt("regeneration_attempts", MAX_SEO_REGENERATIONS)
     .limit(50);
+
   const staleIds = ((stale ?? []) as any[]).map((row) => row.product_id as string);
   if (staleIds.length > 0) {
     queued += await enqueue(
@@ -448,6 +457,125 @@ export async function runSeoSweep(db: Db, batchSize = 10): Promise<JobSummary> {
       remaining: progress.queued,
       optimised_total: progress.optimised,
       total: progress.total,
+    },
+  };
+}
+
+/**
+ * Marketplace identity remediation.
+ *
+ * Sweeps stored search intelligence in bounded batches and corrects any saved
+ * wording that presents the platform as the maker or brand of a product.
+ * Accurate copy is preserved: only the offending phrases are rewritten. A
+ * record whose wording cannot be repaired safely is parked for a person.
+ */
+export async function runIdentityRemediation(db: Db, batchSize = 100): Promise<JobSummary> {
+  const { enforceMarketplaceIdentity, isMarketplaceName } = await import("./marketplace-identity");
+
+  const { data, error } = await db
+    .from("product_seo_intelligence")
+    .select(
+      "id, product_id, seo_title, meta_description, og_title, og_description, image_alt, primary_topic, entity_summary, entities, keywords, faqs, description_sections, schema_inputs, identity_checked_at",
+    )
+    .order("identity_checked_at", { ascending: true, nullsFirst: true })
+    .limit(Math.min(batchSize, 200));
+  if (error) throw new Error(error.message);
+
+  const rows = (data ?? []) as any[];
+  let audited = 0;
+  let corrected = 0;
+  let parked = 0;
+  const codes = new Map<string, number>();
+
+  for (const row of rows) {
+    audited += 1;
+    let blocked = false;
+    let changed = false;
+    const record = (value: unknown): string => {
+      const outcome = enforceMarketplaceIdentity(typeof value === "string" ? value : "");
+      for (const finding of outcome.findings) codes.set(finding.code, (codes.get(finding.code) ?? 0) + 1);
+      if (outcome.blocked) blocked = true;
+      if (outcome.changed) changed = true;
+      return outcome.text;
+    };
+
+    const update: Record<string, unknown> = {
+      seo_title: record(row.seo_title),
+      meta_description: row.meta_description ? record(row.meta_description) : row.meta_description,
+      og_title: row.og_title ? record(row.og_title) : row.og_title,
+      og_description: row.og_description ? record(row.og_description) : row.og_description,
+      image_alt: row.image_alt ? record(row.image_alt) : row.image_alt,
+      primary_topic: row.primary_topic ? record(row.primary_topic) : row.primary_topic,
+      entity_summary: row.entity_summary ? record(row.entity_summary) : row.entity_summary,
+      faqs: Array.isArray(row.faqs)
+        ? row.faqs.map((item: any) => ({
+            ...item,
+            question: record(item?.question),
+            answer: record(item?.answer),
+          }))
+        : row.faqs,
+      description_sections: Array.isArray(row.description_sections)
+        ? row.description_sections.map((item: any) => ({
+            ...item,
+            heading: record(item?.heading),
+            body: record(item?.body),
+          }))
+        : row.description_sections,
+      identity_checked_at: new Date().toISOString(),
+    };
+
+    // The marketplace name is never a brand token or an entity of the product.
+    const entities = Array.isArray(row.entities) ? row.entities.filter((item: any) => !isMarketplaceName(item)) : [];
+    const keywords = Array.isArray(row.keywords) ? row.keywords.filter((item: any) => !isMarketplaceName(item)) : [];
+    if (entities.length !== (row.entities?.length ?? 0) || keywords.length !== (row.keywords?.length ?? 0)) {
+      changed = true;
+    }
+    update["entities"] = entities;
+    update["keywords"] = keywords;
+
+    // Stored schema must not carry the marketplace as the product brand.
+    const schema = row.schema_inputs ?? null;
+    if (schema && typeof schema === "object" && schema.product && typeof schema.product === "object") {
+      const brandName = schema.product.brand?.name ?? null;
+      if (isMarketplaceName(brandName)) {
+        const product = { ...schema.product };
+        delete product.brand;
+        product.seller = { "@type": "Organization", name: "NUR GOODS" };
+        update["schema_inputs"] = { ...schema, product };
+        codes.set("identity_schema_brand", (codes.get("identity_schema_brand") ?? 0) + 1);
+        changed = true;
+      }
+    }
+
+    if (blocked) {
+      update["validation_state"] = "manual_review";
+      update["manual_review_reason"] = "Saved wording presented the marketplace as the product maker.";
+      parked += 1;
+    }
+
+    if (!changed && !blocked) {
+      await db.from("product_seo_intelligence").update({ identity_checked_at: update["identity_checked_at"] } as never).eq("id", row.id);
+      continue;
+    }
+
+    const { error: updateError } = await db
+      .from("product_seo_intelligence")
+      .update(update as never)
+      .eq("id", row.id);
+    if (updateError) throw new Error(updateError.message);
+    corrected += 1;
+  }
+
+  return {
+    message:
+      corrected === 0
+        ? `Checked ${audited} records. No marketplace identity problems were found.`
+        : `Corrected ${corrected} of ${audited} records. ${parked} need a person to look.`,
+    details: {
+      audited,
+      corrected,
+      manual_review: parked,
+      findings: [...codes.entries()].map(([code, count]) => `${code}=${count}`).join(", ") || "none",
     },
   };
 }

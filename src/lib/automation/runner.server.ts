@@ -27,6 +27,7 @@ export type JobKey =
   | "catalogue_intelligence_worker"
   | "catalogue_duplicate_identity"
   | "catalogue_seo_sweep"
+  | "catalogue_identity_remediation"
   | "supplier_sourcing_hourly"
   | "prohibited_category_sweep"
   | "live_pricing_integrity"
@@ -181,6 +182,8 @@ async function execute(ctx: RunContext, jobKey: string): Promise<JobRunResult> {
       return runIntelligenceJob(ctx, jobKey, `${jobKey}:${Date.now()}`);
     case "catalogue_seo_sweep":
       return runIntelligenceJob(ctx, jobKey, `${jobKey}:${Date.now()}`);
+    case "catalogue_identity_remediation":
+      return runIntelligenceJob(ctx, jobKey, `${jobKey}:${Date.now()}`);
     case "prohibited_category_sweep": {
       const { quarantineProhibitedCatalogue } = await import("@/lib/policy/quarantine.server");
       const report = await quarantineProhibitedCatalogue();
@@ -327,6 +330,8 @@ async function runIntelligenceJob(
       runIntelligenceWorker,
       runIdentityJob,
       runSeoSweep,
+      runIdentityRemediation,
+
     } = await import("@/lib/intelligence/jobs.server");
     const { data: job } = await ctx.supabase
       .from("automation_jobs")
@@ -346,7 +351,9 @@ async function runIntelligenceJob(
               ? await runIdentityJob(ctx.supabase)
               : jobKey === "catalogue_seo_sweep"
                 ? await runSeoSweep(ctx.supabase, batchSize ?? 10)
-                : await runQualityAudit(ctx.supabase);
+                : jobKey === "catalogue_identity_remediation"
+                  ? await runIdentityRemediation(ctx.supabase, batchSize ?? 100)
+                  : await runQualityAudit(ctx.supabase);
 
     await closeRun(ctx, runId, "succeeded", summary.message, summary.details);
     return { jobKey, status: "succeeded", message: summary.message, details: summary.details };

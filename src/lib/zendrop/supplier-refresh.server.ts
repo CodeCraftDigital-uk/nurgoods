@@ -460,6 +460,20 @@ export async function runSupplierProductRefresh(options?: {
     items.push(item);
   }
 
+  // Supplier refreshes can move title, description or variant wording. The
+  // planner compares fingerprints, so a price or stock only change books no
+  // model run and this stays cheap at catalogue scale.
+  if (!dryRun && items.length > 0) {
+    const refreshedProductIds = [
+      ...new Set(items.map((item) => item.productId).filter((id): id is string => Boolean(id))),
+    ];
+    if (refreshedProductIds.length > 0) {
+      const { planWork } = await import("@/lib/intelligence/queue.server");
+      await planWork(supabase as never, refreshedProductIds, "Supplier record refreshed");
+    }
+  }
+
+
   return {
     inspected: items.length,
     healthy,

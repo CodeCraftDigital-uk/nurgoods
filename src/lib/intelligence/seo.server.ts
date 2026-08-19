@@ -10,7 +10,9 @@ import {
   type ProductBundle,
   type SeoValidationContext,
 } from "./core.server";
+import { MARKETPLACE_IDENTITY_RULES, resolveProductBrand } from "./marketplace-identity";
 import { SEO_VERSION, type CategoryNode } from "./taxonomy";
+
 
 /**
  * SEO Intelligence.
@@ -58,25 +60,34 @@ export async function loadSeoContext(db: Db): Promise<SeoBatchContext> {
 }
 
 const SEO_RULES = [
-  "You write product search metadata for NUR GOODS, a calm premium British retailer.",
-  "Tagline: Good things, brought to light. Use British English.",
+  ...MARKETPLACE_IDENTITY_RULES,
   "Write naturally for people first, then for search engines, answer engines and assistants.",
+  "Use British English. The tagline is: Good things, brought to light.",
   "Only state facts that appear in the supplied product data. If a detail is absent, leave it out.",
   "Never mention price, stock levels, delivery times, warranties, ratings, reviews or certifications.",
+  "Never invent materials, dimensions, compatibility, country of origin, performance figures or health claims.",
   "Never use superlatives such as best, number one or world leading.",
   "Never repeat a keyword unnaturally. Never use em dashes.",
   "Answer questions only when the supplied product data genuinely answers them. Return an empty list otherwise.",
+  "Answer first: the opening sentence of every FAQ answer must answer the question directly.",
   "Return strict JSON only, with no commentary and no code fences.",
 ].join(" ");
+
 
 /** Deterministic input hash. Price and stock changes never invalidate wording. */
 export function seoInputHash(bundle: ProductBundle, categorySlug: string | null): string {
   return sha(`${contentFingerprint(bundle)}|${categorySlug ?? ""}|${SEO_VERSION}`);
 }
 
+/** Failures on unchanged source data park the record after this many tries. */
+export const MAX_REGENERATION_ATTEMPTS = 3;
+
+
+
+
 export interface SeoOutcome {
   productId: string;
-  state: "valid" | "needs_attention" | "rejected";
+  state: "valid" | "needs_attention" | "rejected" | "manual_review";
   score: number;
   issues: Array<{ code: string; label: string; severity: string }>;
   published: boolean;
@@ -101,8 +112,17 @@ export async function optimiseProduct(
   trail.push({ name: product.title, path: `/shop/${product.handle}` });
   void byId;
 
+  // Separate brand, manufacturer, supplier and marketplace before the model
+  // ever sees the record, so a marketplace vendor value cannot become a maker.
+  const identity = resolveProductBrand({
+    vendor: product.vendor,
+    tags: product.tags ?? [],
+    metafields: (product as any).metafields ?? null,
+  });
+
   const { resolveAdapter } = await import("@/lib/ai/runtime.server");
   const adapter = resolveAdapter();
+
 
   const result = await adapter.complete({
     stage: "metadata_schema",
@@ -114,19 +134,24 @@ export async function optimiseProduct(
       { role: "system", content: SEO_RULES },
       {
         role: "user",
-        content: `Produce search intelligence for this product. Return JSON {"seo_title": string under 60 characters, "meta_description": string between 90 and 155 characters, "slug_recommendation": string, "primary_topic": string, "entities": string[], "keywords": string[], "image_alt": string under 125 characters, "og_title": string, "og_description": string, "faqs": [{"question": string, "answer": string}], "internal_links": [{"anchor_text": string, "target_type": "product"|"collection", "target_reference": string}], "collection_relevance": [{"handle": string, "relevance": string}]}.\n\nProduct:\n${JSON.stringify(
+        content: `Produce search intelligence for this product. Return JSON {"seo_title": string under 60 characters, "meta_description": string between 90 and 155 characters, "slug_recommendation": string, "primary_topic": string, "entities": string[], "keywords": string[], "image_alt": string under 125 characters, "og_title": string, "og_description": string, "entity_summary": factual paragraph under 800 characters describing what the product is, what it is for and who it suits, "description_sections": [{"heading": string, "body": string}] covering overview, benefits, use cases and specifications only where the data supports them, "faqs": [{"question": string, "answer": string}], "internal_links": [{"anchor_text": string, "target_type": "product"|"collection", "target_reference": string}], "collection_relevance": [{"handle": string, "relevance": string}]}.\n\nProduct:\n${JSON.stringify(
           {
             title: product.title,
             handle: product.handle,
             canonical_category: category ? category.path.join(" > ") : null,
             supplier_product_type: product.product_type,
-            vendor: product.vendor,
+            // Brand and manufacturer are only ever populated from evidenced
+            // source data. The store vendor value is the marketplace itself.
+            brand: identity.brand ?? "not specified",
+            manufacturer: identity.manufacturer ?? "not specified",
+            sold_through_marketplace: "NUR GOODS",
             tags: (product.tags ?? []).slice(0, 30),
             description: (product.description ?? "").slice(0, 3500),
             options: product.options,
             variants: bundle.variants.slice(0, 12).map((variant) => variant.title),
             collections: bundle.collections.map((item) => item.handle),
           },
+
         )}\n\nAvailable link targets:\n${JSON.stringify({
           collections: [...context.validCollectionHandles].slice(0, 60),
           products: [...context.validProductHandles].slice(0, 80),
@@ -160,6 +185,21 @@ export async function optimiseProduct(
     canonicalPath: `/shop/${product.handle}`,
   });
 
+  const inputHash = seoInputHash(bundle, category?.slug ?? null);
+
+  // Loop guard. A record that keeps failing on unchanged source data is parked
+  // for a person instead of being regenerated forever by the worker.
+  const { data: previous } = await db
+    .from("product_seo_intelligence")
+    .select("input_hash, regeneration_attempts")
+    .eq("product_id", product.id)
+    .maybeSingle();
+  const sameInput = previous ? (previous as any).input_hash === inputHash : false;
+  const attempts = sameInput ? Number((previous as any).regeneration_attempts ?? 0) + 1 : 1;
+
+  const identityIssues = validation.issues.filter((issue) => issue.code.startsWith("identity_"));
+  const manualReview = validation.state === "rejected" && attempts >= MAX_REGENERATION_ATTEMPTS;
+  const state = manualReview ? "manual_review" : validation.state;
   const published = validation.state !== "rejected";
 
   const row = {
@@ -174,6 +214,8 @@ export async function optimiseProduct(
     og_title: draft.og_title || draft.seo_title,
     og_description: draft.og_description || draft.meta_description,
     faqs: draft.faqs,
+    description_sections: draft.description_sections,
+    entity_summary: draft.entity_summary || null,
     internal_links: draft.internal_links,
     collection_relevance: draft.collection_relevance,
     schema_inputs: {
@@ -182,9 +224,15 @@ export async function optimiseProduct(
       facts_fingerprint: factsFingerprint(bundle),
     },
     optimisation_score: validation.score,
-    validation_state: validation.state,
+    validation_state: state,
     issues: validation.issues,
-    input_hash: seoInputHash(bundle, category?.slug ?? null),
+    identity_findings: identityIssues,
+    identity_checked_at: new Date().toISOString(),
+    regeneration_attempts: manualReview ? attempts : sameInput ? attempts : 0,
+    manual_review_reason: manualReview
+      ? validation.issues.find((issue) => issue.severity === "error")?.label ?? "Repeated validation failure."
+      : null,
+    input_hash: inputHash,
     model: result.model ?? null,
     intelligence_version: SEO_VERSION,
     auto_published: published,
@@ -196,13 +244,14 @@ export async function optimiseProduct(
     .upsert(row as never, { onConflict: "product_id" });
   if (error) throw new Error(error.message);
 
+
   // Keep the in-memory duplicate guard current inside a batch.
   if (row.seo_title) context.usedTitles.set(row.seo_title.toLowerCase(), product.id);
   if (row.meta_description) context.usedDescriptions.set(row.meta_description.toLowerCase(), product.id);
 
   return {
     productId: product.id,
-    state: validation.state,
+    state,
     score: validation.score,
     issues: validation.issues,
     published,
