@@ -17,7 +17,7 @@ export const Route = createFileRoute("/journal/")({
   },
   head: () => ({
     meta: [
-      { title: "Journal | NUR GOODS" },
+      { title: "Journal: buying guides and care advice | NUR GOODS" },
       {
         name: "description",
         content:
