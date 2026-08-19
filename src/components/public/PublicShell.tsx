@@ -321,12 +321,21 @@ export function PublicShell({ children }: { children: ReactNode }) {
             <ul className="mt-3 space-y-2.5">
               <li>
                 <Link
+                  to="/about"
+                  className="inline-flex min-h-8 items-center text-muted-foreground hover:text-brand"
+                >
+                  About NUR GOODS
+                </Link>
+              </li>
+              <li>
+                <Link
                   to="/reviews"
                   className="inline-flex min-h-8 items-center text-muted-foreground hover:text-brand"
                 >
                   Customer reviews
                 </Link>
               </li>
+
               <li>
                 <a
                   href={`mailto:${BRAND.supportEmail}`}
