@@ -134,7 +134,7 @@ export async function planWork(
     db.from("product_classifications").select("product_id, input_fingerprint, category_slug").in("product_id", ids),
     db
       .from("product_seo_intelligence")
-      .select("product_id, input_hash, schema_inputs, validation_state")
+      .select("product_id, input_hash, schema_inputs, validation_state, regeneration_attempts, intelligence_version")
       .in("product_id", ids),
   ]);
 
