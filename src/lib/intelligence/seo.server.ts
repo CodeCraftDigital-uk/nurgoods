@@ -58,16 +58,19 @@ export async function loadSeoContext(db: Db): Promise<SeoBatchContext> {
 }
 
 const SEO_RULES = [
-  "You write product search metadata for NUR GOODS, a calm premium British retailer.",
-  "Tagline: Good things, brought to light. Use British English.",
+  ...MARKETPLACE_IDENTITY_RULES,
   "Write naturally for people first, then for search engines, answer engines and assistants.",
+  "Use British English. The tagline is: Good things, brought to light.",
   "Only state facts that appear in the supplied product data. If a detail is absent, leave it out.",
   "Never mention price, stock levels, delivery times, warranties, ratings, reviews or certifications.",
+  "Never invent materials, dimensions, compatibility, country of origin, performance figures or health claims.",
   "Never use superlatives such as best, number one or world leading.",
   "Never repeat a keyword unnaturally. Never use em dashes.",
   "Answer questions only when the supplied product data genuinely answers them. Return an empty list otherwise.",
+  "Answer first: the opening sentence of every FAQ answer must answer the question directly.",
   "Return strict JSON only, with no commentary and no code fences.",
 ].join(" ");
+
 
 /** Deterministic input hash. Price and stock changes never invalidate wording. */
 export function seoInputHash(bundle: ProductBundle, categorySlug: string | null): string {
