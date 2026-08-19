@@ -164,6 +164,20 @@ export interface SourcingRules {
   scan_exhausted_at: string | null;
   /** "any" qualifies a product when any supported market is deliverable. */
   discovery_market_mode: "any" | "all";
+  /** Maximum age a supplier fact may reach before the listing is held. */
+  freshness_target_hours: number;
+  /** Lower bound on a reconciliation batch, so small catalogues still move. */
+  refresh_min_batch: number;
+  /** Hard ceiling on a reconciliation batch, protecting the supplier API. */
+  refresh_max_batch: number;
+  /** Spare capacity above the bare requirement, to absorb retries. */
+  refresh_headroom_pct: number;
+  /** How many times per hour the reconciliation job is scheduled. */
+  refresh_runs_per_hour: number;
+  /** Bring a held listing back on sale automatically once it clears again. */
+  auto_recovery_enabled: boolean;
+  /** Merchant override that leaves the store oversell policy alone. */
+  inventory_policy_override: boolean;
 }
 
 export interface CatalogueVariant {
