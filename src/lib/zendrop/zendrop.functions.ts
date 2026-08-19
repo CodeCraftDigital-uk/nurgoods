@@ -66,6 +66,27 @@ export interface SupplierSyncSnapshot {
   total: number;
   byState: Record<string, number>;
   stale: number;
+  neverSynced: number;
+  variantMapped: number;
+  variantUnmapped: number;
+  manualHolds: number;
+  leased: number;
+  retrying: number;
+  oldestFactHours: number | null;
+  freshnessTargetHours: number;
+  batchSize: number;
+  perHour: number;
+  sweepHours: number;
+  slaAtRisk: boolean;
+  slaNote: string;
+  projections: Array<{
+    catalogueSize: number;
+    batchSize: number;
+    perHour: number;
+    sweepHours: number;
+    withinSla: boolean;
+  }>;
+  discovery: { page: number; cycle: number; lastAt: string | null; exhaustedAt: string | null };
   recent: Array<{
     supplierProductId: string;
     shopifyProductId: string | null;
