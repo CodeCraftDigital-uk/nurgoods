@@ -22,7 +22,7 @@ export function CollectionTile({
         {collection.image_url ? (
           <img
             src={collection.image_url}
-            alt=""
+            alt={`${collection.title} collection`}
             width={600}
             height={450}
             loading={eager ? "eager" : "lazy"}
