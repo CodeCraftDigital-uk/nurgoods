@@ -1197,23 +1197,36 @@ export async function runSourcingScreen(input: {
       // already survived the cheap screen, so landed cost is evidenced rather
       // than guessed and supplier traffic stays low.
       let item = raw;
-      if (item.shippingCost === null && settings.shipping_market && shippingQuotes < maxShippingQuotes) {
-        shippingQuotes += 1;
+      if (item.shippingCost === null && shippingQuotes < maxShippingQuotes) {
         const { quoteZendropShipping } = await import("./catalogue.server");
-        try {
-          const quote = await quoteZendropShipping(item.id, settings.shipping_market);
+        // Try each supported market and keep the dearest confirmed quote, so
+        // pricing is set against the worst supported destination rather than
+        // the cheapest one, while a product that only ships to one of the
+        // markets still qualifies instead of being discarded as undeliverable.
+        let worst: { cost: number; estimate: string | null; market: string } | null = null;
+        for (const market of quoteMarkets) {
+          if (shippingQuotes >= maxShippingQuotes) break;
+          shippingQuotes += 1;
+          try {
+            const quote = await quoteZendropShipping(item.id, market);
+            if (quote.cost === null || quote.cost === undefined) continue;
+            if (!worst || quote.cost > worst.cost) {
+              worst = { cost: quote.cost, estimate: quote.estimate ?? null, market };
+            }
+          } catch {
+            // A market that cannot be quoted simply does not count towards
+            // deliverability. It never invents a cost.
+          }
+        }
+        if (worst) {
           item = {
             ...item,
-            shippingCost: quote.cost,
-            deliveryEstimate: item.deliveryEstimate ?? quote.estimate,
+            shippingCost: worst.cost,
+            shippingDestination: worst.market,
+            deliveryEstimate: item.deliveryEstimate ?? worst.estimate,
           };
-        } catch {
-          // A failed quote leaves the cost unknown, which the screen treats as
-          // unconfirmed delivery and holds the product.
         }
       }
-
-
 
       const screen = screenCandidate({
         item,
