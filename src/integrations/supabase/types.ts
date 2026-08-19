@@ -2521,13 +2521,23 @@ export type Database = {
           evidence: Json
           fx_as_of: string | null
           fx_rate: number | null
+          held_at: string | null
+          held_reason: string | null
           id: string
+          landed_cost: number | null
+          last_error: string | null
           last_supplier_sync_at: string | null
+          lease_expires_at: string | null
+          lease_owner: string | null
+          manual_hold: boolean
           match_confidence: string
           match_method: string
+          next_retry_at: string | null
           product_id: string | null
           quoted_amount: number | null
           quoted_currency: string | null
+          recovered_at: string | null
+          retry_count: number
           shipping_cost: number | null
           shipping_currency: string
           shipping_destination: string | null
@@ -2537,6 +2547,8 @@ export type Database = {
           shopify_product_id: string
           supplier: string
           supplier_available: boolean | null
+          supplier_cost: number | null
+          supplier_cost_currency: string | null
           supplier_import_list_id: string | null
           supplier_inventory: number | null
           supplier_product_id: string
@@ -2545,6 +2557,8 @@ export type Database = {
           sync_state: string
           updated_at: string
           variant_map: Json
+          variant_map_synced_at: string | null
+          variant_stock: Json | null
           verified_at: string
         }
         Insert: {
@@ -2553,13 +2567,23 @@ export type Database = {
           evidence?: Json
           fx_as_of?: string | null
           fx_rate?: number | null
+          held_at?: string | null
+          held_reason?: string | null
           id?: string
+          landed_cost?: number | null
+          last_error?: string | null
           last_supplier_sync_at?: string | null
+          lease_expires_at?: string | null
+          lease_owner?: string | null
+          manual_hold?: boolean
           match_confidence?: string
           match_method: string
+          next_retry_at?: string | null
           product_id?: string | null
           quoted_amount?: number | null
           quoted_currency?: string | null
+          recovered_at?: string | null
+          retry_count?: number
           shipping_cost?: number | null
           shipping_currency?: string
           shipping_destination?: string | null
@@ -2569,6 +2593,8 @@ export type Database = {
           shopify_product_id: string
           supplier?: string
           supplier_available?: boolean | null
+          supplier_cost?: number | null
+          supplier_cost_currency?: string | null
           supplier_import_list_id?: string | null
           supplier_inventory?: number | null
           supplier_product_id: string
@@ -2577,6 +2603,8 @@ export type Database = {
           sync_state?: string
           updated_at?: string
           variant_map?: Json
+          variant_map_synced_at?: string | null
+          variant_stock?: Json | null
           verified_at?: string
         }
         Update: {
@@ -2585,13 +2613,23 @@ export type Database = {
           evidence?: Json
           fx_as_of?: string | null
           fx_rate?: number | null
+          held_at?: string | null
+          held_reason?: string | null
           id?: string
+          landed_cost?: number | null
+          last_error?: string | null
           last_supplier_sync_at?: string | null
+          lease_expires_at?: string | null
+          lease_owner?: string | null
+          manual_hold?: boolean
           match_confidence?: string
           match_method?: string
+          next_retry_at?: string | null
           product_id?: string | null
           quoted_amount?: number | null
           quoted_currency?: string | null
+          recovered_at?: string | null
+          retry_count?: number
           shipping_cost?: number | null
           shipping_currency?: string
           shipping_destination?: string | null
@@ -2601,6 +2639,8 @@ export type Database = {
           shopify_product_id?: string
           supplier?: string
           supplier_available?: boolean | null
+          supplier_cost?: number | null
+          supplier_cost_currency?: string | null
           supplier_import_list_id?: string | null
           supplier_inventory?: number | null
           supplier_product_id?: string
@@ -2609,6 +2649,8 @@ export type Database = {
           sync_state?: string
           updated_at?: string
           variant_map?: Json
+          variant_map_synced_at?: string | null
+          variant_stock?: Json | null
           verified_at?: string
         }
         Relationships: [
@@ -3680,6 +3722,7 @@ export type Database = {
       zendrop_sourcing_rules: {
         Row: {
           allowed_categories: string[]
+          auto_recovery_enabled: boolean
           batch_size: number
           blocked_categories: string[]
           continuous_sourcing: boolean
@@ -3688,13 +3731,19 @@ export type Database = {
           discovery_market_mode: string
           duplicate_precheck: boolean
           enabled: boolean
+          freshness_target_hours: number
           id: string
+          inventory_policy_override: boolean
           max_landed_cost: number | null
           max_retail_price: number | null
           max_variant_count: number | null
           min_landed_cost: number | null
           min_retail_price: number | null
           min_suitability_score: number
+          refresh_headroom_pct: number
+          refresh_max_batch: number
+          refresh_min_batch: number
+          refresh_runs_per_hour: number
           require_image: boolean
           require_stock: boolean
           require_uk_shipping: boolean
@@ -3710,6 +3759,7 @@ export type Database = {
         }
         Insert: {
           allowed_categories?: string[]
+          auto_recovery_enabled?: boolean
           batch_size?: number
           blocked_categories?: string[]
           continuous_sourcing?: boolean
@@ -3718,13 +3768,19 @@ export type Database = {
           discovery_market_mode?: string
           duplicate_precheck?: boolean
           enabled?: boolean
+          freshness_target_hours?: number
           id?: string
+          inventory_policy_override?: boolean
           max_landed_cost?: number | null
           max_retail_price?: number | null
           max_variant_count?: number | null
           min_landed_cost?: number | null
           min_retail_price?: number | null
           min_suitability_score?: number
+          refresh_headroom_pct?: number
+          refresh_max_batch?: number
+          refresh_min_batch?: number
+          refresh_runs_per_hour?: number
           require_image?: boolean
           require_stock?: boolean
           require_uk_shipping?: boolean
@@ -3740,6 +3796,7 @@ export type Database = {
         }
         Update: {
           allowed_categories?: string[]
+          auto_recovery_enabled?: boolean
           batch_size?: number
           blocked_categories?: string[]
           continuous_sourcing?: boolean
@@ -3748,13 +3805,19 @@ export type Database = {
           discovery_market_mode?: string
           duplicate_precheck?: boolean
           enabled?: boolean
+          freshness_target_hours?: number
           id?: string
+          inventory_policy_override?: boolean
           max_landed_cost?: number | null
           max_retail_price?: number | null
           max_variant_count?: number | null
           min_landed_cost?: number | null
           min_retail_price?: number | null
           min_suitability_score?: number
+          refresh_headroom_pct?: number
+          refresh_max_batch?: number
+          refresh_min_batch?: number
+          refresh_runs_per_hour?: number
           require_image?: boolean
           require_stock?: boolean
           require_uk_shipping?: boolean
@@ -3797,6 +3860,61 @@ export type Database = {
       }
     }
     Functions: {
+      claim_supplier_links: {
+        Args: { _batch: number; _lease_seconds?: number; _owner: string }
+        Returns: {
+          consecutive_sync_failures: number
+          created_at: string
+          evidence: Json
+          fx_as_of: string | null
+          fx_rate: number | null
+          held_at: string | null
+          held_reason: string | null
+          id: string
+          landed_cost: number | null
+          last_error: string | null
+          last_supplier_sync_at: string | null
+          lease_expires_at: string | null
+          lease_owner: string | null
+          manual_hold: boolean
+          match_confidence: string
+          match_method: string
+          next_retry_at: string | null
+          product_id: string | null
+          quoted_amount: number | null
+          quoted_currency: string | null
+          recovered_at: string | null
+          retry_count: number
+          shipping_cost: number | null
+          shipping_currency: string
+          shipping_destination: string | null
+          shipping_quoted_at: string | null
+          shipping_service: string | null
+          shipping_source: string | null
+          shopify_product_id: string
+          supplier: string
+          supplier_available: boolean | null
+          supplier_cost: number | null
+          supplier_cost_currency: string | null
+          supplier_import_list_id: string | null
+          supplier_inventory: number | null
+          supplier_product_id: string
+          supplier_status: string | null
+          sync_reason: string | null
+          sync_state: string
+          updated_at: string
+          variant_map: Json
+          variant_map_synced_at: string | null
+          variant_stock: Json | null
+          verified_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "product_supplier_links"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       delete_integration_secret: { Args: { _name: string }; Returns: undefined }
       get_integration_secret: { Args: { _name: string }; Returns: string }
       has_role: {
@@ -3834,6 +3952,7 @@ export type Database = {
         Args: { _name: string; _secret: string }
         Returns: undefined
       }
+      supplier_sync_health: { Args: { _stale_hours?: number }; Returns: Json }
     }
     Enums: {
       app_role: "admin" | "staff" | "viewer"

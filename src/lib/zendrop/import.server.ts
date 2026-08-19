@@ -57,6 +57,13 @@ export const DEFAULT_RULES: SourcingRules = {
   scan_last_at: null,
   scan_exhausted_at: null,
   discovery_market_mode: "any",
+  freshness_target_hours: 48,
+  refresh_min_batch: 10,
+  refresh_max_batch: 60,
+  refresh_headroom_pct: 0.3,
+  refresh_runs_per_hour: 4,
+  auto_recovery_enabled: true,
+  inventory_policy_override: false,
 };
 
 export async function loadPricingSettings(): Promise<PricingSettings> {
@@ -143,6 +150,15 @@ export async function loadSourcingRules(): Promise<SourcingRules> {
     scan_last_at: row.scan_last_at ?? null,
     scan_exhausted_at: row.scan_exhausted_at ?? null,
     discovery_market_mode: row.discovery_market_mode === "all" ? "all" : "any",
+    freshness_target_hours: Number(
+      row.freshness_target_hours ?? DEFAULT_RULES.freshness_target_hours,
+    ),
+    refresh_min_batch: Number(row.refresh_min_batch ?? DEFAULT_RULES.refresh_min_batch),
+    refresh_max_batch: Number(row.refresh_max_batch ?? DEFAULT_RULES.refresh_max_batch),
+    refresh_headroom_pct: Number(row.refresh_headroom_pct ?? DEFAULT_RULES.refresh_headroom_pct),
+    refresh_runs_per_hour: Number(row.refresh_runs_per_hour ?? DEFAULT_RULES.refresh_runs_per_hour),
+    auto_recovery_enabled: row.auto_recovery_enabled !== false,
+    inventory_policy_override: Boolean(row.inventory_policy_override),
   };
 }
 

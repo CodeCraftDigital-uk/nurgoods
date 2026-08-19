@@ -63,6 +63,26 @@ export function createLedger(db: Db): LedgerPort {
     async settings() {
       return readCommerceSettings(db);
     },
+    async supplierHealth(shopifyProductIds: string[]) {
+      if (shopifyProductIds.length === 0) return [];
+      const { data } = await db
+        .from("product_supplier_links")
+        .select(
+          "shopify_product_id, sync_state, last_supplier_sync_at, manual_hold, landed_cost, variant_map, variant_stock",
+        )
+        .in("shopify_product_id", shopifyProductIds);
+      return ((data ?? []) as any[]).map((row) => ({
+        shopifyProductId: row.shopify_product_id ?? null,
+        syncState: row.sync_state ?? null,
+        lastSyncAt: row.last_supplier_sync_at ?? null,
+        manualHold: row.manual_hold === true,
+        landedCost: row.landed_cost === null ? null : Number(row.landed_cost),
+        variantMap: Array.isArray(row.variant_map) ? row.variant_map : [],
+        blockedVariantSkus: Array.isArray(row.variant_stock?.blocked_skus)
+          ? row.variant_stock.blocked_skus.map(String)
+          : [],
+      }));
+    },
   };
 }
 

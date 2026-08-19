@@ -148,10 +148,24 @@ function makeOrder(overrides: Partial<OrderRecord> = {}): OrderRecord {
   };
 }
 
+function healthyLink(overrides: Record<string, unknown> = {}) {
+  return {
+    shopifyProductId: "4001",
+    syncState: "healthy",
+    lastSyncAt: new Date().toISOString(),
+    manualHold: false,
+    landedCost: 4.2,
+    variantMap: [{ store_variant_id: "5001", sku: "NG-001" }],
+    blockedVariantSkus: [],
+    ...overrides,
+  };
+}
+
 function makeLedger(
   orders: OrderRecord[],
   settings: Partial<CommerceSettings> = {},
   lines: any[] = [STORE_LINE],
+  health: any[] = [healthyLink()],
 ) {
   const patches: Record<string, unknown>[] = [];
   const linked: any[] = [];
@@ -172,6 +186,9 @@ function makeLedger(
     async event() {},
     async settings() {
       return { ...DEFAULT_COMMERCE_SETTINGS, ...settings };
+    },
+    async supplierHealth() {
+      return health;
     },
   };
   return { ledger, patches, linked };
@@ -247,6 +264,37 @@ describe("fulfilment queue", () => {
     const summary = await processFulfilmentQueue(ledger, makeSupplier(calls));
     expect(calls).toContain("confirm");
     expect(summary.dispatched).toBe(1);
+  });
+
+  it("refuses to dispatch against stale supplier facts", async () => {
+    const calls: string[] = [];
+    const stale = new Date(Date.now() - 200 * 3_600_000).toISOString();
+    const { ledger } = makeLedger([makeOrder()], { auto_fulfilment_enabled: true }, [STORE_LINE], [
+      healthyLink({ lastSyncAt: stale }),
+    ]);
+    const summary = await processFulfilmentQueue(ledger, makeSupplier(calls));
+    expect(calls).not.toContain("confirm");
+    expect(summary.dispatched).toBe(0);
+  });
+
+  it("refuses to dispatch a variant with no supplier mapping", async () => {
+    const calls: string[] = [];
+    const { ledger } = makeLedger([makeOrder()], { auto_fulfilment_enabled: true }, [STORE_LINE], [
+      healthyLink({ variantMap: [] }),
+    ]);
+    const summary = await processFulfilmentQueue(ledger, makeSupplier(calls));
+    expect(calls).not.toContain("confirm");
+    expect(summary.dispatched).toBe(0);
+  });
+
+  it("refuses to dispatch a listing on a supplier hold", async () => {
+    const calls: string[] = [];
+    const { ledger } = makeLedger([makeOrder()], { auto_fulfilment_enabled: true }, [STORE_LINE], [
+      healthyLink({ syncState: "held_unavailable" }),
+    ]);
+    const summary = await processFulfilmentQueue(ledger, makeSupplier(calls));
+    expect(calls).not.toContain("confirm");
+    expect(summary.dispatched).toBe(0);
   });
 
   it("never dispatches the same order twice", async () => {

@@ -43,6 +43,7 @@ export const Route = createFileRoute("/api/public/hooks/automation")({
           "product_intake_worker",
           "catalogue_seo_sweep",
           "supplier_sourcing_hourly",
+          "supplier_product_refresh",
           "prohibited_category_sweep",
           "live_pricing_integrity",
           "order_fulfilment_queue",

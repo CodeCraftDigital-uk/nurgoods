@@ -84,14 +84,16 @@ export function SupplierSyncPanel({ snapshot }: { snapshot: SupplierSyncSnapshot
         </div>
       }
     >
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-xl border border-border/60 p-4">
           <p className="text-2xl font-semibold">{snapshot?.total ?? 0}</p>
           <p className="text-sm text-muted-foreground">Supplier backed listings</p>
         </div>
         <div className="rounded-xl border border-border/60 p-4">
           <p className="text-2xl font-semibold">{snapshot?.stale ?? 0}</p>
-          <p className="text-sm text-muted-foreground">Awaiting a fresh reading</p>
+          <p className="text-sm text-muted-foreground">
+            Past the {snapshot?.freshnessTargetHours ?? 72} hour freshness limit
+          </p>
         </div>
         <div className="rounded-xl border border-border/60 p-4">
           <p className="text-2xl font-semibold">
@@ -99,7 +101,91 @@ export function SupplierSyncPanel({ snapshot }: { snapshot: SupplierSyncSnapshot
           </p>
           <p className="text-sm text-muted-foreground">Confirmed on the last pass</p>
         </div>
+        <div className="rounded-xl border border-border/60 p-4">
+          <p className="text-2xl font-semibold">
+            {snapshot ? `${snapshot.sweepHours}h` : "-"}
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Full catalogue revisit at {snapshot?.perHour ?? 0} listings per hour
+          </p>
+        </div>
       </div>
+
+      <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="rounded-xl border border-border/60 p-4">
+          <p className="text-2xl font-semibold">
+            {snapshot?.oldestFactHours === null || snapshot?.oldestFactHours === undefined
+              ? "-"
+              : `${Math.round(snapshot.oldestFactHours)}h`}
+          </p>
+          <p className="text-sm text-muted-foreground">Oldest supplier fact</p>
+        </div>
+        <div className="rounded-xl border border-border/60 p-4">
+          <p className="text-2xl font-semibold">
+            {snapshot?.variantMapped ?? 0}
+            <span className="text-base font-normal text-muted-foreground">
+              {" "}
+              / {snapshot?.variantUnmapped ?? 0}
+            </span>
+          </p>
+          <p className="text-sm text-muted-foreground">Variant mapped / unmapped</p>
+        </div>
+        <div className="rounded-xl border border-border/60 p-4">
+          <p className="text-2xl font-semibold">{snapshot?.neverSynced ?? 0}</p>
+          <p className="text-sm text-muted-foreground">Never reconciled yet</p>
+        </div>
+        <div className="rounded-xl border border-border/60 p-4">
+          <p className="text-2xl font-semibold">
+            {snapshot?.leased ?? 0}
+            <span className="text-base font-normal text-muted-foreground">
+              {" "}
+              / {snapshot?.retrying ?? 0}
+            </span>
+          </p>
+          <p className="text-sm text-muted-foreground">In flight / retrying</p>
+        </div>
+      </div>
+
+      {snapshot ? (
+        <div className="mt-4 space-y-3">
+          <StatusPill tone={snapshot.slaAtRisk ? "warning" : "positive"}>
+            {snapshot.slaAtRisk ? "Freshness at risk" : "Freshness on target"}: {snapshot.slaNote}
+          </StatusPill>
+          <p className="text-sm text-muted-foreground">
+            Supplier catalogue discovery is on page {snapshot.discovery.page} of pass{" "}
+            {snapshot.discovery.cycle}, last advanced {ago(snapshot.discovery.lastAt)}.
+          </p>
+          <div className="overflow-x-auto rounded-xl border border-border/60">
+            <table className="w-full text-sm">
+              <thead className="text-left text-muted-foreground">
+                <tr>
+                  <th className="p-3 font-medium">Catalogue size</th>
+                  <th className="p-3 font-medium">Batch</th>
+                  <th className="p-3 font-medium">Per hour</th>
+                  <th className="p-3 font-medium">Full sweep</th>
+                  <th className="p-3 font-medium">Within target</th>
+                </tr>
+              </thead>
+              <tbody>
+                {snapshot.projections.map((row) => (
+                  <tr key={row.catalogueSize} className="border-t border-border/60">
+                    <td className="p-3">{row.catalogueSize.toLocaleString()}</td>
+                    <td className="p-3">{row.batchSize}</td>
+                    <td className="p-3">{row.perHour}</td>
+                    <td className="p-3">{row.sweepHours}h</td>
+                    <td className="p-3">
+                      <StatusPill tone={row.withinSla ? "positive" : "warning"}>
+                        {row.withinSla ? "Yes" : "No"}
+                      </StatusPill>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : null}
+
 
       {states.length > 0 ? (
         <div className="mt-4 flex flex-wrap gap-2">
