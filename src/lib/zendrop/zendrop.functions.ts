@@ -62,6 +62,20 @@ export const disconnectZendropFn = createServerFn({ method: "POST" })
 
 /* -------------------------------- overview -------------------------------- */
 
+export interface SupplierSyncSnapshot {
+  total: number;
+  byState: Record<string, number>;
+  stale: number;
+  recent: Array<{
+    supplierProductId: string;
+    shopifyProductId: string | null;
+    state: string;
+    reason: string | null;
+    inventory: number | null;
+    syncedAt: string | null;
+  }>;
+}
+
 export interface SourcingOverview {
   connection: ZendropConnectionStatus;
   pricing: PricingSettings;
@@ -69,6 +83,7 @@ export interface SourcingOverview {
   counters: SourcingCounters;
   rateLimit: RateLimitSnapshot;
   candidates: CandidateRow[];
+  supplierSync: SupplierSyncSnapshot;
 }
 
 export const getSourcingOverview = createServerFn({ method: "GET" })
@@ -98,6 +113,10 @@ export const getSourcingOverview = createServerFn({ method: "GET" })
       counters: await loadCounters(),
       rateLimit: rateLimitSnapshot(),
       candidates: (candidates ?? []) as unknown as CandidateRow[],
+      supplierSync: await (async () => {
+        const { supplierSyncSnapshot } = await import("./supplier-refresh.server");
+        return supplierSyncSnapshot();
+      })(),
     };
   });
 
@@ -354,4 +373,29 @@ export const runSourcingBatch = createServerFn({ method: "POST" })
     const queued = await queueCandidates(ready);
     const outcome = await runImportQueue(Math.min(queued, 20));
     return { ...selection, queued, ...outcome };
+  });
+
+/* --------------------------- supplier reconciliation ---------------------- */
+
+/**
+ * Read only supplier health preview. Reports what the reconciliation pass
+ * would change without touching the store or the supplier beyond reads.
+ */
+export const previewSupplierRefresh = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { batchSize?: number } | undefined) => input ?? {})
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const { runSupplierProductRefresh } = await import("./supplier-refresh.server");
+    return runSupplierProductRefresh({ batchSize: data.batchSize ?? 10, dryRun: true });
+  });
+
+/** Live supplier reconciliation for a bounded batch. */
+export const runSupplierRefreshFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { batchSize?: number } | undefined) => input ?? {})
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const { runSupplierProductRefresh } = await import("./supplier-refresh.server");
+    return runSupplierProductRefresh({ batchSize: Math.min(data.batchSize ?? 25, 50) });
   });
