@@ -119,19 +119,24 @@ export async function optimiseProduct(
       { role: "system", content: SEO_RULES },
       {
         role: "user",
-        content: `Produce search intelligence for this product. Return JSON {"seo_title": string under 60 characters, "meta_description": string between 90 and 155 characters, "slug_recommendation": string, "primary_topic": string, "entities": string[], "keywords": string[], "image_alt": string under 125 characters, "og_title": string, "og_description": string, "faqs": [{"question": string, "answer": string}], "internal_links": [{"anchor_text": string, "target_type": "product"|"collection", "target_reference": string}], "collection_relevance": [{"handle": string, "relevance": string}]}.\n\nProduct:\n${JSON.stringify(
+        content: `Produce search intelligence for this product. Return JSON {"seo_title": string under 60 characters, "meta_description": string between 90 and 155 characters, "slug_recommendation": string, "primary_topic": string, "entities": string[], "keywords": string[], "image_alt": string under 125 characters, "og_title": string, "og_description": string, "entity_summary": factual paragraph under 800 characters describing what the product is, what it is for and who it suits, "description_sections": [{"heading": string, "body": string}] covering overview, benefits, use cases and specifications only where the data supports them, "faqs": [{"question": string, "answer": string}], "internal_links": [{"anchor_text": string, "target_type": "product"|"collection", "target_reference": string}], "collection_relevance": [{"handle": string, "relevance": string}]}.\n\nProduct:\n${JSON.stringify(
           {
             title: product.title,
             handle: product.handle,
             canonical_category: category ? category.path.join(" > ") : null,
             supplier_product_type: product.product_type,
-            vendor: product.vendor,
+            // Brand and manufacturer are only ever populated from evidenced
+            // source data. The store vendor value is the marketplace itself.
+            brand: identity.brand ?? "not specified",
+            manufacturer: identity.manufacturer ?? "not specified",
+            sold_through_marketplace: "NUR GOODS",
             tags: (product.tags ?? []).slice(0, 30),
             description: (product.description ?? "").slice(0, 3500),
             options: product.options,
             variants: bundle.variants.slice(0, 12).map((variant) => variant.title),
             collections: bundle.collections.map((item) => item.handle),
           },
+
         )}\n\nAvailable link targets:\n${JSON.stringify({
           collections: [...context.validCollectionHandles].slice(0, 60),
           products: [...context.validProductHandles].slice(0, 80),
