@@ -42,6 +42,7 @@ export const Route = createFileRoute("/api/public/hooks/automation")({
           "product_intake_delta_sync",
           "product_intake_worker",
           "catalogue_seo_sweep",
+          "catalogue_identity_remediation",
           "supplier_sourcing_hourly",
           "supplier_product_refresh",
           "prohibited_category_sweep",
