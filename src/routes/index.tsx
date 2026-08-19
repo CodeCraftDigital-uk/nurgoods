@@ -153,6 +153,17 @@ function Index() {
             url: BRAND.siteUrl,
             publisher: { "@type": "Organization", name: BRAND.name },
           },
+          {
+            "@context": "https://schema.org",
+            "@type": "FAQPage",
+            name: `${BRAND.name} frequently asked questions`,
+            url: `${BRAND.siteUrl}/faq`,
+            mainEntity: HOME_FAQS.map((item) => ({
+              "@type": "Question",
+              name: item.question,
+              acceptedAnswer: { "@type": "Answer", text: item.answer },
+            })),
+          },
         ]}
       />
 
