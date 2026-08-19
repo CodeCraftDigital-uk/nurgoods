@@ -1166,6 +1166,10 @@ export async function runSourcingScreen(input: {
             pagesRead,
             catalogueTotal,
             message: "A live currency rate could not be read, so screening stopped rather than guessing.",
+            startPage,
+            nextPage: startPage,
+            cycle: rules.scan_cycle,
+            wrapped: false,
           };
         }
       }
