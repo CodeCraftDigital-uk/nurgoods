@@ -148,10 +148,24 @@ function makeOrder(overrides: Partial<OrderRecord> = {}): OrderRecord {
   };
 }
 
+function healthyLink(overrides: Record<string, unknown> = {}) {
+  return {
+    shopifyProductId: "4001",
+    syncState: "healthy",
+    lastSyncAt: new Date().toISOString(),
+    manualHold: false,
+    landedCost: 4.2,
+    variantMap: [{ store_variant_id: "5001", sku: "NG-001" }],
+    blockedVariantSkus: [],
+    ...overrides,
+  };
+}
+
 function makeLedger(
   orders: OrderRecord[],
   settings: Partial<CommerceSettings> = {},
   lines: any[] = [STORE_LINE],
+  health: any[] = [healthyLink()],
 ) {
   const patches: Record<string, unknown>[] = [];
   const linked: any[] = [];
