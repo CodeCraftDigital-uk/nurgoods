@@ -393,62 +393,101 @@ export async function setCheckoutDomainSetting(value: string | null): Promise<vo
 const SCOPE_ADVICE =
   "Confirm the app version includes read_products, read_inventory, read_legal_policies, read_content and read_online_store_pages, release the version, then reinstall it on this store.";
 
+/**
+ * Rate limiting and upstream hiccups are transient: they say nothing about the
+ * credentials or the store domain, so callers must not treat them as a broken
+ * connection.
+ */
+export function isTransientShopifyError(message: string | null | undefined): boolean {
+  if (!message) return false;
+  return /throttl|rate limit|429|responded with 5\d\d|timed? out|temporarily unavailable|ECONNRESET|fetch failed/i.test(
+    message,
+  );
+}
+
+const MAX_GRAPHQL_ATTEMPTS = 4;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export async function shopifyGraphql<T>(
   credentials: { shopDomain: string; adminToken: string; apiVersion: string },
   query: string,
   variables: Record<string, unknown> = {},
 ): Promise<T> {
-  const response = await fetch(
-    `https://${credentials.shopDomain}/admin/api/${credentials.apiVersion}/graphql.json`,
-    {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "X-Shopify-Access-Token": credentials.adminToken,
+  let lastTransient: Error | null = null;
+
+  for (let attempt = 1; attempt <= MAX_GRAPHQL_ATTEMPTS; attempt += 1) {
+    const response = await fetch(
+      `https://${credentials.shopDomain}/admin/api/${credentials.apiVersion}/graphql.json`,
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "X-Shopify-Access-Token": credentials.adminToken,
+        },
+        body: JSON.stringify({ query, variables }),
       },
-      body: JSON.stringify({ query, variables }),
-    },
-  );
-
-  if (response.status === 401) {
-    throw new Error(
-      `The store at ${credentials.shopDomain} rejected the access token (401). The app may no longer be installed on this store, or the client credentials belong to a different store.`,
     );
-  }
-  if (response.status === 403) {
-    throw new Error(`The access token is missing Admin API scopes (403). ${SCOPE_ADVICE}`);
-  }
-  if (response.status === 404) {
-    throw new Error(
-      `No Admin API was found at ${credentials.shopDomain} for version ${credentials.apiVersion}. Check the .myshopify.com domain and the API version.`,
-    );
-  }
-  if (response.status === 402) {
-    throw new Error("The store is frozen or unavailable for API access (402). Check the store status in Shopify.");
-  }
-  if (response.status === 423) {
-    throw new Error("The store is locked (423) and cannot serve Admin API requests.");
-  }
-  if (!response.ok) {
-    throw new Error(`The store responded with ${response.status}`);
-  }
 
-  const payload = (await response.json()) as { data?: T; errors?: Array<{ message: string }> };
-  if (payload.errors?.length) {
-    const message = payload.errors.map((e) => e.message).join("; ");
-    if (/access denied|not approved|scope/i.test(message)) {
-      throw new Error(`The app is missing an Admin API scope. Shopify said: ${message}. ${SCOPE_ADVICE}`);
-    }
-    if (/unsupported.*version|version.*not.*supported|invalid api version/i.test(message)) {
+    if (response.status === 401) {
       throw new Error(
-        `Shopify does not support Admin API version ${credentials.apiVersion}. Use a supported stable version such as ${DEFAULT_API_VERSION}.`,
+        `The store at ${credentials.shopDomain} rejected the access token (401). The app may no longer be installed on this store, or the client credentials belong to a different store.`,
       );
     }
-    throw new Error(message);
+    if (response.status === 403) {
+      throw new Error(`The access token is missing Admin API scopes (403). ${SCOPE_ADVICE}`);
+    }
+    if (response.status === 404) {
+      throw new Error(
+        `No Admin API was found at ${credentials.shopDomain} for version ${credentials.apiVersion}. Check the .myshopify.com domain and the API version.`,
+      );
+    }
+    if (response.status === 402) {
+      throw new Error("The store is frozen or unavailable for API access (402). Check the store status in Shopify.");
+    }
+    if (response.status === 423) {
+      throw new Error("The store is locked (423) and cannot serve Admin API requests.");
+    }
+    if (response.status === 429 || response.status >= 500) {
+      const retryAfter = Number(response.headers.get("retry-after"));
+      lastTransient = new Error(`The store responded with ${response.status}`);
+      if (attempt === MAX_GRAPHQL_ATTEMPTS) break;
+      const wait = Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 1000 * 2 ** (attempt - 1);
+      await sleep(Math.min(wait, 8000));
+      continue;
+    }
+    if (!response.ok) {
+      throw new Error(`The store responded with ${response.status}`);
+    }
+
+    const payload = (await response.json()) as { data?: T; errors?: Array<{ message: string }> };
+    if (payload.errors?.length) {
+      const message = payload.errors.map((e) => e.message).join("; ");
+      if (/access denied|not approved|scope/i.test(message)) {
+        throw new Error(`The app is missing an Admin API scope. Shopify said: ${message}. ${SCOPE_ADVICE}`);
+      }
+      if (/unsupported.*version|version.*not.*supported|invalid api version/i.test(message)) {
+        throw new Error(
+          `Shopify does not support Admin API version ${credentials.apiVersion}. Use a supported stable version such as ${DEFAULT_API_VERSION}.`,
+        );
+      }
+      if (/throttl/i.test(message)) {
+        lastTransient = new Error(message);
+        if (attempt === MAX_GRAPHQL_ATTEMPTS) break;
+        await sleep(Math.min(1500 * 2 ** (attempt - 1), 8000));
+        continue;
+      }
+      throw new Error(message);
+    }
+    if (!payload.data) throw new Error("The store returned no data");
+    return payload.data;
   }
-  if (!payload.data) throw new Error("The store returned no data");
-  return payload.data;
+
+  throw lastTransient ?? new Error("The store did not respond");
 }
+
 
 const SHOP_QUERY = /* GraphQL */ `
   query NurGoodsShop {

@@ -67,16 +67,28 @@ export async function getOnboardingState(
     (p) => p.enabled && Boolean(p.embed_snippet),
   );
 
+  const shopifyStatus = byProvider.get("shopify") ?? "not_connected";
+  const shopifyMirrored = productCount > 0;
+  // A mirrored catalogue proves the Admin API credentials and store domain are
+  // working, so the checklist must not keep claiming they are missing.
+  const shopifyBlockedBy = shopifyMirrored
+    ? shopifyStatus === "connected"
+      ? "Nothing. The store catalogue is mirrored."
+      : "The last catalogue sync reported a problem. Retry the sync on the Integrations page."
+    : "Shopify Admin API credentials and store domain.";
+
   const items: ChecklistItem[] = [
     {
       key: "shopify",
       label: "Shopify catalogue sync",
-      description:
-        "Connect the Shopify Admin API so products and collections can be mirrored read only.",
-      complete: byProvider.get("shopify") === "connected" && productCount > 0,
-      blockedBy: "Shopify Admin API credentials and store domain.",
+      description: shopifyMirrored
+        ? `The Shopify Admin API is connected and ${productCount} products are mirrored read only.`
+        : "Connect the Shopify Admin API so products and collections can be mirrored read only.",
+      complete: shopifyStatus === "connected" && shopifyMirrored,
+      blockedBy: shopifyBlockedBy,
       href: "/control/integrations",
     },
+
     {
       key: "ai",
       label: "Editorial AI",

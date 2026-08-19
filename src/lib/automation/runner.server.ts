@@ -500,9 +500,13 @@ async function runDailyPublish(ctx: RunContext): Promise<JobRunResult> {
 /* --------------------------- catalogue sync --------------------------- */
 
 async function runCatalogueSync(ctx: RunContext): Promise<JobRunResult> {
-  const { resolveShopifyCredentials, syncCatalogue, recordSyncEvent } = await import(
-    "@/lib/services/shopify.server"
-  );
+  const {
+    resolveShopifyCredentials,
+    syncCatalogue,
+    recordSyncEvent,
+    markConnectionState,
+    isTransientShopifyError,
+  } = await import("@/lib/services/shopify.server");
   const { missing } = await resolveShopifyCredentials();
   if (missing.length > 0) {
     return {
@@ -513,12 +517,26 @@ async function runCatalogueSync(ctx: RunContext): Promise<JobRunResult> {
     };
   }
 
-  const result = await syncCatalogue(ctx.supabase);
+  let result: Awaited<ReturnType<typeof syncCatalogue>>;
+  try {
+    result = await syncCatalogue(ctx.supabase);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Catalogue sync failed";
+    await recordSyncEvent(ctx.supabase, { status: "failed", message });
+    await markConnectionState({
+      state: isTransientShopifyError(message) ? "connected" : "error",
+      error: message,
+    });
+    throw new Error(message);
+  }
   await recordSyncEvent(ctx.supabase, {
     status: "success",
     message: `Mirrored ${result.products} products and ${result.collections} collections.`,
     payload: { products: result.products, collections: result.collections },
   });
+  // A successful scheduled run is what clears a stale error banner in admin.
+  await markConnectionState({ state: "connected", error: null, syncedAt: result.syncedAt });
+
 
   // Legal and policy wording changes rarely, so it rides along with the
   // catalogue run rather than adding a second schedule of API calls.
