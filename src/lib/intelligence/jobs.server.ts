@@ -575,7 +575,7 @@ export async function runIdentityRemediation(db: Db, batchSize = 100): Promise<J
       audited,
       corrected,
       manual_review: parked,
-      findings: Object.fromEntries(codes),
+      findings: [...codes.entries()].map(([code, count]) => `${code}=${count}`).join(", ") || "none",
     },
   };
 }
