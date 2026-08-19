@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   PREVIEW_TTL_MS,
+  classifySupplierStatus,
   dispatchKey,
   lineLinkageDecision,
   linkageDecision,
@@ -80,6 +81,64 @@ describe("supplier linkage", () => {
     expect(decision.ok).toBe(false);
     expect(decision.state).toBe("supplier_processing");
   });
+
+  it("treats Unfulfilled as work still to do, never as fulfilled", () => {
+    const decision = linkageDecision({
+      candidates: [{ id: 4, orderNumber: "1002", status: "Unfulfilled" }],
+      storeOrderNumber: 1002,
+      storeOrderName: "#1002",
+    });
+    expect(decision.ok).toBe(true);
+    expect(decision.supplierOrderId).toBe(4);
+    expect(decision.state).toBe("awaiting_fulfilment_preview");
+  });
+
+  it("holds a partly fulfilled supplier order for a person", () => {
+    const decision = linkageDecision({
+      candidates: [{ id: 5, orderNumber: "1002", status: "Partially Fulfilled" }],
+      storeOrderNumber: 1002,
+      storeOrderName: null,
+    });
+    expect(decision.ok).toBe(false);
+    expect(decision.state).toBe("manual_review");
+  });
+
+  it("stops on a cancelled or rejected supplier order", () => {
+    expect(
+      linkageDecision({
+        candidates: [{ id: 6, orderNumber: "1002", status: "Cancelled" }],
+        storeOrderNumber: 1002,
+        storeOrderName: null,
+      }).state,
+    ).toBe("cancelled");
+    expect(
+      linkageDecision({
+        candidates: [{ id: 7, orderNumber: "1002", status: "Rejected" }],
+        storeOrderNumber: 1002,
+        storeOrderName: null,
+      }).state,
+    ).toBe("supplier_rejected");
+  });
+});
+
+describe("supplier status classification", () => {
+  it("classifies supplier statuses word by word", () => {
+    expect(classifySupplierStatus("Unfulfilled")).toBe("pending");
+    expect(classifySupplierStatus("unshipped")).toBe("pending");
+    expect(classifySupplierStatus("Not yet shipped")).toBe("pending");
+    expect(classifySupplierStatus("Fulfilled")).toBe("fulfilled");
+    expect(classifySupplierStatus("Partially Fulfilled")).toBe("partially_fulfilled");
+    expect(classifySupplierStatus("Processing")).toBe("processing");
+    expect(classifySupplierStatus("Cancelled")).toBe("cancelled");
+    expect(classifySupplierStatus("Shipped")).toBe("shipped");
+    expect(classifySupplierStatus("In transit")).toBe("shipped");
+    expect(classifySupplierStatus("Delivered")).toBe("delivered");
+    expect(classifySupplierStatus("out_of_stock")).toBe("out_of_stock");
+    expect(classifySupplierStatus("Rejected")).toBe("rejected");
+    expect(classifySupplierStatus("")).toBe("unknown");
+    expect(classifySupplierStatus(null)).toBe("unknown");
+    expect(classifySupplierStatus("something new")).toBe("unknown");
+  });
 });
 
 describe("supplier status mapping", () => {
@@ -88,9 +147,11 @@ describe("supplier status mapping", () => {
     expect(supplierStatusToState("delivered")).toBe("delivered");
     expect(supplierStatusToState("out_of_stock")).toBe("out_of_stock");
     expect(supplierStatusToState("rejected")).toBe("supplier_rejected");
+    expect(supplierStatusToState("Unfulfilled")).toBe("supplier_processing");
     expect(supplierStatusToState("something new")).toBeNull();
   });
 });
+
 
 describe("store webhook", () => {
   it("only accepts a signature over the exact raw body", () => {
@@ -370,7 +431,35 @@ describe("supplier line linkage", () => {
     const decision = lineLinkageDecision({ storeLines: storeLines as never, supplierLines: [] });
     expect(decision.ok).toBe(false);
   });
+
+  it("links on the store line id the supplier echoes back", () => {
+    const decision = lineLinkageDecision({
+      storeLines: [
+        {
+          id: "line-1",
+          shopify_line_item_id: "gid://shopify/LineItem/48159170036042",
+          shopify_variant_id: "gid://shopify/ProductVariant/62961656004938",
+          shopify_product_id: "gid://shopify/Product/15968036585802",
+          sku: "Z5RFSCNXI",
+          quantity: 1,
+        },
+      ],
+      supplierLines: [
+        {
+          id: "78797688",
+          storeLineItemId: "48159170036042",
+          productId: null,
+          variantId: null,
+          sku: null,
+          quantity: 1,
+        },
+      ],
+    });
+    expect(decision.ok).toBe(true);
+    expect(decision.mappings[0]?.zendrop_line_item_id).toBe("78797688");
+  });
 });
+
 
 describe("fulfilment quote validity", () => {
   const scope = previewScope({ storeId: 5, orderId: 77, useCredit: false });
@@ -496,7 +585,7 @@ describe("typed supplier line matching", () => {
       ] as never,
     });
     expect(decision.ok).toBe(false);
-    expect(decision.reason).toContain("lines the store order does not");
+    expect(decision.state).toBe("manual_review");
   });
 
   it("refuses two store lines that resolve to one supplier line", () => {
@@ -600,5 +689,47 @@ describe("uncertain supplier confirmation", () => {
     expect(calls.filter((call) => call === "confirm")).toHaveLength(1);
     expect(second.dispatched).toBe(0);
     expect(second.skipped).toBe(1);
+  });
+
+  it("allows a supplier added insert that claims no store line", () => {
+    const decision = lineLinkageDecision({
+      storeLines: [
+        {
+          id: "line-1",
+          shopify_line_item_id: "48159403540810",
+          shopify_variant_id: "62968616911178",
+          shopify_product_id: "15969386922314",
+          sku: "SKU-A",
+          quantity: 1,
+        },
+      ],
+      supplierLines: [
+        { id: "1", storeLineItemId: "48159403540810", productId: null, variantId: null, sku: null, quantity: 1 },
+        { id: "2", storeLineItemId: "TYC-76358978655", productId: null, variantId: null, sku: null, quantity: 1 },
+      ],
+    });
+    expect(decision.ok).toBe(true);
+    expect(decision.mappings).toHaveLength(1);
+  });
+
+  it("still refuses a supplier line that claims a store line the order does not contain", () => {
+    const decision = lineLinkageDecision({
+      storeLines: [
+        {
+          id: "line-1",
+          shopify_line_item_id: "111",
+          shopify_variant_id: "222",
+          shopify_product_id: "333",
+          sku: "SKU-A",
+          quantity: 1,
+        },
+      ],
+      supplierLines: [
+        { id: "1", storeLineItemId: "111", productId: null, variantId: null, sku: null, quantity: 1 },
+        { id: "2", storeLineItemId: "999", productId: null, variantId: null, sku: null, quantity: 1 },
+      ],
+    });
+    expect(decision.ok).toBe(false);
+    expect(decision.reason).toContain("lines the store order does not");
   });
 });

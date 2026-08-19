@@ -200,12 +200,14 @@ export async function runSupplierProductRefresh(options?: {
   const owner = `refresh:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`;
 
   if (options?.supplierProductId) {
+    // A supplier product can back more than one listing, and every one of them
+    // needs honest facts, so none of them are skipped here.
     const { data } = await supabase
       .from("product_supplier_links")
       .select("*")
-      .eq("supplier_product_id", options.supplierProductId)
-      .limit(1);
+      .eq("supplier_product_id", options.supplierProductId);
     links = (data ?? []) as unknown as LinkRow[];
+
   } else if (dryRun) {
     const { data } = await supabase
       .from("product_supplier_links")
