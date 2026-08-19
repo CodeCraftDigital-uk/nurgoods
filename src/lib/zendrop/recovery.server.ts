@@ -12,7 +12,7 @@
  * risk, not a data refresh.
  */
 import { intakeCredentials, shopifyGraphql } from "../services/shopify.server";
-import { isProhibited } from "../policy/prohibited";
+import { screenProhibited } from "../policy/prohibited";
 import { ensureStorePublications } from "./store-publication.server";
 
 const ACTIVATE_MUTATION = `
