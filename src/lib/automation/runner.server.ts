@@ -241,7 +241,12 @@ async function execute(ctx: RunContext, jobKey: string): Promise<JobRunResult> {
       // an automatic hold when the supplier can no longer evidence stock,
       // delivery or profitability. Read only against the supplier.
       const { runSupplierProductRefresh } = await import("@/lib/zendrop/supplier-refresh.server");
-      const batchSize = Number((job as any)?.config?.batch_size) || 25;
+      const { data: refreshJob } = await ctx.supabase
+        .from("automation_jobs")
+        .select("config")
+        .eq("job_key", jobKey)
+        .maybeSingle();
+      const batchSize = Number((refreshJob as any)?.config?.batch_size) || 25;
       const report = await runSupplierProductRefresh({ batchSize });
       return {
         jobKey,

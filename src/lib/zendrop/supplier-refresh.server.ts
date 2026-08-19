@@ -173,7 +173,7 @@ export async function runSupplierProductRefresh(options?: {
         },
       });
       eligibleMarkets = eligibility.eligibleMarkets;
-      eligibilityReason = eligibility.qualifies ? "" : eligibility.reason;
+      eligibilityReason = eligibility.qualifies ? "" : (eligibility.reason ?? "");
       const evidence = await loadMarketEvidence(supplierProductId);
       for (const row of evidence) {
         if (!eligibleMarkets.includes(row.market)) continue;
