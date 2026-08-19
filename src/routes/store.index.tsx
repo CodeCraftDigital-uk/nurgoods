@@ -6,6 +6,8 @@ import { Search, X } from "lucide-react";
 import { PublicShell } from "@/components/public/PublicShell";
 import { Breadcrumbs } from "@/components/public/Breadcrumbs";
 import { ProductCard, ProductCardSkeleton } from "@/components/public/ProductCard";
+import { JsonLd } from "@/components/public/JsonLd";
+
 import { BRAND } from "@/lib/brand";
 import {
   searchCatalogueFn,
@@ -51,7 +53,33 @@ export const Route = createFileRoute("/store/")({
       instock: search["instock"] === true || search["instock"] === "true" ? true : undefined,
     };
   },
-  head: () => ({
+  loaderDeps: ({ search }) => ({ ...search }),
+  // The first page is rendered on the server so crawlers and answer engines
+  // see real product links instead of an empty shell.
+  loader: async ({ deps }) => {
+    try {
+      const page = await searchCatalogueFn({
+        data: {
+          query: deps.q,
+          category: deps.category,
+          collectionHandle: deps.collection,
+          tag: deps.tag,
+          priceMax: deps.max,
+          availableOnly: deps.instock,
+          sort: deps.sort,
+          limit: PAGE_SIZE,
+          offset: 0,
+        },
+      });
+      return {
+        page,
+        refined: Boolean(deps.q || deps.sort || deps.max || deps.instock),
+      };
+    } catch {
+      return null;
+    }
+  },
+  head: ({ loaderData }) => ({
     meta: [
       { title: "Store | Browse the full NUR GOODS range" },
       {
@@ -67,6 +95,9 @@ export const Route = createFileRoute("/store/")({
       { property: "og:type", content: "website" },
       { property: "og:url", content: `${BRAND.siteUrl}/store` },
       { name: "twitter:card", content: "summary_large_image" },
+      // Refined result sets are near duplicates of the main listing, so they
+      // stay crawlable for discovery but out of the index.
+      ...(loaderData?.refined ? [{ name: "robots", content: "noindex, follow" }] : []),
     ],
     links: [{ rel: "canonical", href: `${BRAND.siteUrl}/store` }],
   }),
@@ -75,13 +106,16 @@ export const Route = createFileRoute("/store/")({
 
 function StoreIndex() {
   const search = Route.useSearch();
+  const loaderData = Route.useLoaderData();
+  const initialPage = loaderData?.page ?? null;
   const navigate = useNavigate({ from: "/store/" });
   const [term, setTerm] = useState(search.q ?? "");
   const [expanded, setExpanded] = useState(false);
   const [suggestOpen, setSuggestOpen] = useState(false);
   const [offset, setOffset] = useState(0);
-  const [loaded, setLoaded] = useState<StoreCard[]>([]);
+  const [loaded, setLoaded] = useState<StoreCard[]>(initialPage?.items ?? []);
   const suggestBox = useRef<HTMLDivElement | null>(null);
+
 
   const runSearch = useServerFn(searchCatalogueFn);
   const runSuggest = useServerFn(suggestCatalogueFn);
@@ -90,8 +124,14 @@ function StoreIndex() {
     setTerm(search.q ?? "");
   }, [search.q]);
 
-  // Any change of search or filter restarts the range from the first page.
+  // Any change of search or filter restarts the range from the first page. The
+  // first pass is skipped so the server rendered page is not thrown away.
+  const firstPass = useRef(true);
   useEffect(() => {
+    if (firstPass.current) {
+      firstPass.current = false;
+      return;
+    }
     setOffset(0);
     setLoaded([]);
   }, [
@@ -130,9 +170,11 @@ function StoreIndex() {
           offset,
         },
       }),
+    ...(offset === 0 && initialPage ? { initialData: initialPage } : {}),
     placeholderData: keepPreviousData,
     retry: false,
   });
+
 
   const pageItems = results.data?.items;
   useEffect(() => {
@@ -228,8 +270,40 @@ function StoreIndex() {
 
   return (
     <PublicShell>
+      <JsonLd
+        data={[
+          {
+            "@context": "https://schema.org",
+            "@type": "CollectionPage",
+            name: `The ${BRAND.name} store`,
+            url: `${BRAND.siteUrl}/store`,
+            isPartOf: { "@type": "WebSite", name: BRAND.name, url: BRAND.siteUrl },
+            ...(total ? { numberOfItems: total } : {}),
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "ItemList",
+            name: `${BRAND.name} products`,
+            itemListElement: items.slice(0, 48).map((item, index) => ({
+              "@type": "ListItem",
+              position: index + 1,
+              url: `${BRAND.siteUrl}/shop/${item.handle}`,
+              name: item.title,
+            })),
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            itemListElement: [
+              { "@type": "ListItem", position: 1, name: "Home", item: `${BRAND.siteUrl}/` },
+              { "@type": "ListItem", position: 2, name: "Store", item: `${BRAND.siteUrl}/store` },
+            ],
+          },
+        ]}
+      />
       <div className="mx-auto w-full max-w-7xl px-5 pt-12 sm:px-8 sm:pt-16">
         <Breadcrumbs items={[{ label: "Store", href: "/store" }]} />
+
         <h1 className="mt-4 font-brand text-4xl leading-tight text-foreground sm:text-5xl">
           The {BRAND.name} store
         </h1>

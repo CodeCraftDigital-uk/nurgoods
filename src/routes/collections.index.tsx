@@ -4,10 +4,20 @@ import { useServerFn } from "@tanstack/react-start";
 import { PublicShell } from "@/components/public/PublicShell";
 import { Breadcrumbs } from "@/components/public/Breadcrumbs";
 import { CollectionTile, CollectionTileSkeleton } from "@/components/public/CollectionTile";
+import { JsonLd } from "@/components/public/JsonLd";
+
 import { BRAND } from "@/lib/brand";
 import { listStorefrontCollectionsFn } from "@/lib/services/storefront.functions";
 
 export const Route = createFileRoute("/collections/")({
+  // Server rendered so every collection link is in the crawlable HTML.
+  loader: async () => {
+    try {
+      return await listStorefrontCollectionsFn({ data: { withProductsOnly: true } });
+    } catch {
+      return null;
+    }
+  },
   head: () => ({
     meta: [
       { title: "Collections | NUR GOODS" },
@@ -31,12 +41,15 @@ export const Route = createFileRoute("/collections/")({
 });
 
 function CollectionsIndex() {
+  const initialCollections = Route.useLoaderData();
   const fetchCollections = useServerFn(listStorefrontCollectionsFn);
   const collections = useQuery({
     queryKey: ["storefront-collections"],
     queryFn: () => fetchCollections({ data: { withProductsOnly: true } }),
+    ...(initialCollections ? { initialData: initialCollections } : {}),
     retry: false,
   });
+
 
   const items = [...(collections.data ?? [])].sort(
     (a, b) => b.product_count - a.product_count || a.title.localeCompare(b.title),
@@ -44,7 +57,44 @@ function CollectionsIndex() {
 
   return (
     <PublicShell>
+      <JsonLd
+        data={[
+          {
+            "@context": "https://schema.org",
+            "@type": "CollectionPage",
+            name: `${BRAND.name} collections`,
+            url: `${BRAND.siteUrl}/collections`,
+            isPartOf: { "@type": "WebSite", name: BRAND.name, url: BRAND.siteUrl },
+            ...(items.length ? { numberOfItems: items.length } : {}),
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "ItemList",
+            name: `${BRAND.name} collections`,
+            itemListElement: items.slice(0, 100).map((collection, index) => ({
+              "@type": "ListItem",
+              position: index + 1,
+              url: `${BRAND.siteUrl}/collections/${collection.handle}`,
+              name: collection.title,
+            })),
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            itemListElement: [
+              { "@type": "ListItem", position: 1, name: "Home", item: `${BRAND.siteUrl}/` },
+              {
+                "@type": "ListItem",
+                position: 2,
+                name: "Collections",
+                item: `${BRAND.siteUrl}/collections`,
+              },
+            ],
+          },
+        ]}
+      />
       <section className="mx-auto w-full max-w-5xl px-5 pt-12 sm:px-8 sm:pt-16">
+
         <Breadcrumbs items={[{ label: "Collections", href: "/collections" }]} />
         <h1 className="mt-4 font-brand text-4xl leading-tight text-foreground sm:text-5xl">
           Collections

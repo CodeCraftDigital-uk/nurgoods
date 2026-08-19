@@ -15,6 +15,7 @@ import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AiConnectorsRouteImport } from './routes/ai-connectors'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ContactRouteImport } from './routes/contact'
+import { Route as LlmsDottxtRouteImport } from './routes/llms[.]txt'
 import { Route as McpRouteImport } from './routes/mcp'
 import { Route as ReviewsRouteImport } from './routes/reviews'
 import { Route as RobotsDottxtRouteImport } from './routes/robots[.]txt'
@@ -23,6 +24,7 @@ import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as AuthenticatedControlRouteImport } from './routes/_authenticated/control'
 import { Route as AdminSplatRouteImport } from './routes/admin.$'
+import { Route as CategorySlugRouteImport } from './routes/category.$slug'
 import { Route as CollectionsIndexRouteImport } from './routes/collections.index'
 import { Route as CollectionsHandleRouteImport } from './routes/collections.$handle'
 import { Route as JournalIndexRouteImport } from './routes/journal.index'
@@ -97,6 +99,11 @@ const ContactRoute = ContactRouteImport.update({
   path: '/contact',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LlmsDottxtRoute = LlmsDottxtRouteImport.update({
+  id: '/llms.txt',
+  path: '/llms.txt',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const McpRoute = McpRouteImport.update({
   id: '/mcp',
   path: '/mcp',
@@ -138,6 +145,11 @@ const AdminSplatRoute = AdminSplatRouteImport.update({
   id: '/$',
   path: '/$',
   getParentRoute: () => AdminRoute,
+} as any)
+const CategorySlugRoute = CategorySlugRouteImport.update({
+  id: '/category/$slug',
+  path: '/category/$slug',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const CollectionsIndexRoute = CollectionsIndexRouteImport.update({
   id: '/collections/',
@@ -391,6 +403,7 @@ export interface FileRoutesByFullPath {
   '/ai-connectors': typeof AiConnectorsRoute
   '/auth': typeof AuthRoute
   '/contact': typeof ContactRoute
+  '/llms.txt': typeof LlmsDottxtRoute
   '/mcp': typeof McpRoute
   '/reviews': typeof ReviewsRoute
   '/robots.txt': typeof RobotsDottxtRoute
@@ -399,6 +412,7 @@ export interface FileRoutesByFullPath {
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/control': typeof AuthenticatedControlRouteWithChildren
   '/admin/$': typeof AdminSplatRoute
+  '/category/$slug': typeof CategorySlugRoute
   '/collections/$handle': typeof CollectionsHandleRoute
   '/journal/$slug': typeof JournalSlugRoute
   '/legal/$slug': typeof LegalSlugRoute
@@ -450,6 +464,7 @@ export interface FileRoutesByTo {
   '/ai-connectors': typeof AiConnectorsRoute
   '/auth': typeof AuthRoute
   '/contact': typeof ContactRoute
+  '/llms.txt': typeof LlmsDottxtRoute
   '/mcp': typeof McpRoute
   '/reviews': typeof ReviewsRoute
   '/robots.txt': typeof RobotsDottxtRoute
@@ -457,6 +472,7 @@ export interface FileRoutesByTo {
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin/$': typeof AdminSplatRoute
+  '/category/$slug': typeof CategorySlugRoute
   '/collections/$handle': typeof CollectionsHandleRoute
   '/journal/$slug': typeof JournalSlugRoute
   '/legal/$slug': typeof LegalSlugRoute
@@ -508,6 +524,7 @@ export interface FileRoutesById {
   '/ai-connectors': typeof AiConnectorsRoute
   '/auth': typeof AuthRoute
   '/contact': typeof ContactRoute
+  '/llms.txt': typeof LlmsDottxtRoute
   '/mcp': typeof McpRoute
   '/reviews': typeof ReviewsRoute
   '/robots.txt': typeof RobotsDottxtRoute
@@ -516,6 +533,7 @@ export interface FileRoutesById {
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/_authenticated/control': typeof AuthenticatedControlRouteWithChildren
   '/admin/$': typeof AdminSplatRoute
+  '/category/$slug': typeof CategorySlugRoute
   '/collections/$handle': typeof CollectionsHandleRoute
   '/journal/$slug': typeof JournalSlugRoute
   '/legal/$slug': typeof LegalSlugRoute
@@ -569,6 +587,7 @@ export interface FileRouteTypes {
     | '/ai-connectors'
     | '/auth'
     | '/contact'
+    | '/llms.txt'
     | '/mcp'
     | '/reviews'
     | '/robots.txt'
@@ -577,6 +596,7 @@ export interface FileRouteTypes {
     | '/.well-known/oauth-protected-resource'
     | '/control'
     | '/admin/$'
+    | '/category/$slug'
     | '/collections/$handle'
     | '/journal/$slug'
     | '/legal/$slug'
@@ -628,6 +648,7 @@ export interface FileRouteTypes {
     | '/ai-connectors'
     | '/auth'
     | '/contact'
+    | '/llms.txt'
     | '/mcp'
     | '/reviews'
     | '/robots.txt'
@@ -635,6 +656,7 @@ export interface FileRouteTypes {
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
     | '/admin/$'
+    | '/category/$slug'
     | '/collections/$handle'
     | '/journal/$slug'
     | '/legal/$slug'
@@ -685,6 +707,7 @@ export interface FileRouteTypes {
     | '/ai-connectors'
     | '/auth'
     | '/contact'
+    | '/llms.txt'
     | '/mcp'
     | '/reviews'
     | '/robots.txt'
@@ -693,6 +716,7 @@ export interface FileRouteTypes {
     | '/.well-known/oauth-protected-resource'
     | '/_authenticated/control'
     | '/admin/$'
+    | '/category/$slug'
     | '/collections/$handle'
     | '/journal/$slug'
     | '/legal/$slug'
@@ -746,12 +770,14 @@ export interface RootRouteChildren {
   AiConnectorsRoute: typeof AiConnectorsRoute
   AuthRoute: typeof AuthRoute
   ContactRoute: typeof ContactRoute
+  LlmsDottxtRoute: typeof LlmsDottxtRoute
   McpRoute: typeof McpRoute
   ReviewsRoute: typeof ReviewsRoute
   RobotsDottxtRoute: typeof RobotsDottxtRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  CategorySlugRoute: typeof CategorySlugRoute
   CollectionsHandleRoute: typeof CollectionsHandleRoute
   JournalSlugRoute: typeof JournalSlugRoute
   LegalSlugRoute: typeof LegalSlugRoute
@@ -819,6 +845,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ContactRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/llms.txt': {
+      id: '/llms.txt'
+      path: '/llms.txt'
+      fullPath: '/llms.txt'
+      preLoaderRoute: typeof LlmsDottxtRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/mcp': {
       id: '/mcp'
       path: '/mcp'
@@ -874,6 +907,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/$'
       preLoaderRoute: typeof AdminSplatRouteImport
       parentRoute: typeof AdminRoute
+    }
+    '/category/$slug': {
+      id: '/category/$slug'
+      path: '/category/$slug'
+      fullPath: '/category/$slug'
+      preLoaderRoute: typeof CategorySlugRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/collections/': {
       id: '/collections/'
@@ -1315,6 +1355,7 @@ const rootRouteChildren: RootRouteChildren = {
   AiConnectorsRoute: AiConnectorsRoute,
   AuthRoute: AuthRoute,
   ContactRoute: ContactRoute,
+  LlmsDottxtRoute: LlmsDottxtRoute,
   McpRoute: McpRoute,
   ReviewsRoute: ReviewsRoute,
   RobotsDottxtRoute: RobotsDottxtRoute,
@@ -1322,6 +1363,7 @@ const rootRouteChildren: RootRouteChildren = {
   Char91DotmcpChar93ListToolsRoute: Char91DotmcpChar93ListToolsRoute,
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
+  CategorySlugRoute: CategorySlugRoute,
   CollectionsHandleRoute: CollectionsHandleRoute,
   JournalSlugRoute: JournalSlugRoute,
   LegalSlugRoute: LegalSlugRoute,

@@ -857,3 +857,96 @@ export async function getStorefrontProduct(handle: string): Promise<StorefrontPr
     related,
   };
 }
+
+export interface StorefrontCategoryChild {
+  slug: string;
+  name: string;
+  products: number;
+}
+
+export interface StorefrontCategoryPage {
+  slug: string;
+  name: string;
+  description: string | null;
+  parent: { slug: string; name: string } | null;
+  children: StorefrontCategoryChild[];
+  total: number;
+  items: StorefrontProductCard[];
+}
+
+/**
+ * Crawlable category surface. Counts and products come from the canonical
+ * taxonomy only, never from supplier product_type, and include the whole
+ * branch so parent pages are never empty.
+ */
+export async function getStorefrontCategory(
+  slug: string,
+  options?: { limit?: number | undefined; offset?: number | undefined },
+): Promise<StorefrontCategoryPage | null> {
+  const supabase = await publicClient();
+  const { data: rows } = await supabase
+    .from("catalogue_categories")
+    .select("id, slug, name, parent_id, description")
+    .eq("enabled", true);
+  const nodes = (rows ?? []) as Array<{
+    id: string;
+    slug: string;
+    name: string;
+    parent_id: string | null;
+    description: string | null;
+  }>;
+  const node = nodes.find((row) => row.slug === slug);
+  if (!node) return null;
+
+  const byId = new Map(nodes.map((row) => [row.id, row]));
+  const childrenOf = new Map<string, string[]>();
+  for (const row of nodes) {
+    if (!row.parent_id) continue;
+    const parent = byId.get(row.parent_id);
+    if (!parent) continue;
+    childrenOf.set(parent.slug, [...(childrenOf.get(parent.slug) ?? []), row.slug]);
+  }
+
+  const hidden = new Set(await loadSuppressedProductIds(supabase));
+  const branch = categoryBranch(node.slug, childrenOf);
+  const { data: classified } = await supabase
+    .rpc("public_product_categories")
+    .in("category_slug", branch);
+  const direct = new Map<string, number>();
+  for (const row of ((classified ?? []) as any[])) {
+    if (!row.category_slug || hidden.has(row.product_id)) continue;
+    direct.set(row.category_slug, (direct.get(row.category_slug) ?? 0) + 1);
+  }
+
+  const children: StorefrontCategoryChild[] = (childrenOf.get(node.slug) ?? [])
+    .map((childSlug) => {
+      const child = nodes.find((row) => row.slug === childSlug)!;
+      return {
+        slug: child.slug,
+        name: child.name,
+        products: categoryBranch(child.slug, childrenOf).reduce(
+          (sum, key) => sum + (direct.get(key) ?? 0),
+          0,
+        ),
+      };
+    })
+    .filter((child) => child.products > 0)
+    .sort((a, b) => b.products - a.products || a.name.localeCompare(b.name));
+
+  const page = await listStorefrontProducts({
+    category: node.slug,
+    limit: options?.limit,
+    offset: options?.offset,
+  });
+
+  const parentRow = node.parent_id ? byId.get(node.parent_id) : null;
+  return {
+    slug: node.slug,
+    name: node.name,
+    description: node.description ?? null,
+    parent: parentRow ? { slug: parentRow.slug, name: parentRow.name } : null,
+    children,
+    total: page.total,
+    items: page.items,
+  };
+}
