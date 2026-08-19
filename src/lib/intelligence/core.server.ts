@@ -255,7 +255,12 @@ export interface SeoDraft {
   faqs: Array<{ question: string; answer: string }>;
   internal_links: Array<{ anchor_text: string; target_type: string; target_reference: string }>;
   collection_relevance: Array<{ handle: string; relevance: string }>;
+  /** Long form description broken into useful headings. */
+  description_sections: Array<{ heading: string; body: string }>;
+  /** Plain entity and context paragraph for answer and assistant engines. */
+  entity_summary: string;
 }
+
 
 export interface ValidationIssue {
   code: string;
