@@ -159,7 +159,11 @@ export async function runDailyMaintenance(db: Db, batchSize = 12): Promise<JobSu
     .or(
       `validation_state.eq.rejected,intelligence_version.neq.${SEO_VERSION},last_analysed_at.lt.${staleBefore}`,
     )
+    // Parked records wait for a person rather than looping through the worker.
+    .neq("validation_state", "manual_review")
+    .lt("regeneration_attempts", MAX_SEO_REGENERATIONS)
     .limit(100);
+
   const staleIds = ((staleSeo ?? []) as any[]).map((row) => row.product_id as string);
   if (staleIds.length > 0) {
     queued += await enqueue(
