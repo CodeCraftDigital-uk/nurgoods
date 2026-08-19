@@ -19,6 +19,7 @@ import type {
   TrackingSnapshot,
 } from "./ports";
 import type { SupplierLine } from "./types";
+import { fulfilmentScope } from "./scope";
 
 const REQUIRED: CapabilityRole[] = ["stores_list", "orders_list", "order_get", "order_fulfil"];
 
@@ -160,7 +161,7 @@ export const zendropSupplierPort: SupplierPort = {
         store_id: storeId,
         // Scope is mandatory. Without order_ids the supplier targets every
         // unfulfilled order in the store, so one order could commit many.
-        order_ids: [Number(orderId)],
+        order_ids: fulfilmentScope(orderId),
         is_credit_redeem: useCredit,
         confirmed: false,
       }),
@@ -174,7 +175,7 @@ export const zendropSupplierPort: SupplierPort = {
         unwrapContent(
           await callAction(roles.order_fulfilment_cost, {
             store_id: storeId,
-            order_ids: [Number(orderId)],
+            order_ids: fulfilmentScope(orderId),
             is_credit_redeem: useCredit,
           }),
         ),
@@ -196,7 +197,7 @@ export const zendropSupplierPort: SupplierPort = {
       unwrapContent(
         await callAction(roles.order_fulfilment_cost, {
           store_id: storeId,
-          order_ids: [Number(orderId)],
+          order_ids: fulfilmentScope(orderId),
           is_credit_redeem: useCredit,
         }),
       ),
@@ -212,7 +213,7 @@ export const zendropSupplierPort: SupplierPort = {
         store_id: storeId,
         // Same mandatory scope as the quote, so confirmation can only ever
         // commit the single order this dispatch is for.
-        order_ids: [Number(orderId)],
+        order_ids: fulfilmentScope(orderId),
         is_credit_redeem: useCredit,
         confirmed: true,
       }),
