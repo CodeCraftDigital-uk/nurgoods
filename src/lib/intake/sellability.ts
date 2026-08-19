@@ -98,11 +98,20 @@ export function evaluateSellability(input: SellabilityInput): SellabilityVerdict
   const byMarket = new Map(
     input.markets.map((entry) => [entry.market.trim().toUpperCase(), entry] as const),
   );
+  /**
+   * One evidenced market is enough. We still record why each other market did
+   * not qualify, so an operator can see UK only or USA only coverage, but that
+   * detail never holds the listing on its own.
+   */
+  const marketDetail: string[] = [];
+  let anyShippable = false;
   for (const market of required) {
     const evidence = byMarket.get(market.toUpperCase());
-    if (!evidence) reasons.push(`no_shipping_evidence_${market.toLowerCase()}`);
-    else if (!evidence.eligible) reasons.push(`not_shippable_${market.toLowerCase()}`);
+    if (!evidence) marketDetail.push(`no_shipping_evidence_${market.toLowerCase()}`);
+    else if (!evidence.eligible) marketDetail.push(`not_shippable_${market.toLowerCase()}`);
+    else anyShippable = true;
   }
+  if (!anyShippable) reasons.push("no_shippable_market", ...marketDetail);
 
   const sellable = reasons.length === 0;
   return {
