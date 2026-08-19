@@ -8,6 +8,7 @@
  * evidence of payment, and nothing is dispatched twice.
  */
 import type { LedgerPort, StoreFulfilmentPort, SupplierPort } from "./ports";
+import { supplierPreflightDecision } from "./preflight";
 import {
   dispatchKey,
   lineLinkageDecision,
@@ -236,6 +237,34 @@ export async function processFulfilmentQueue(
             preview_at: null,
             preview_scope: null,
           });
+          summary.skipped += 1;
+          continue;
+        }
+
+        // Last mile supplier validation. The quote can be minutes old while
+        // the underlying supplier facts are days old, so every mapped variant
+        // is re-checked for mapping, freshness, stock and an evidenced landed
+        // cost immediately before any money is committed.
+        const storeLines = (await ledger.lines(order.id)) as unknown as StoreLine[];
+        const productIds = [
+          ...new Set(
+            storeLines
+              .map((storeLine) => storeLine.shopify_product_id)
+              .filter((value): value is string => Boolean(value)),
+          ),
+        ];
+        const links = await ledger.supplierHealth(productIds);
+        const preflight = supplierPreflightDecision({
+          lines: storeLines.map((storeLine) => ({
+            shopifyVariantId: storeLine.shopify_variant_id ?? null,
+            shopifyProductId: storeLine.shopify_product_id ?? null,
+            quantity: Number(storeLine.quantity ?? 0),
+            title: storeLine.sku ?? null,
+          })),
+          links,
+        });
+        if (!preflight.ok) {
+          await fail(ledger, order, "manual_review", preflight.code, preflight.reason);
           summary.skipped += 1;
           continue;
         }
