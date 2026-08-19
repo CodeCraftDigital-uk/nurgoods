@@ -1,0 +1,1 @@
+UPDATE public.automation_jobs SET enabled = false, updated_at = now() WHERE job_key = 'order_fulfilment_queue';
