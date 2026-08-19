@@ -187,6 +187,9 @@ function makeLedger(
     async settings() {
       return { ...DEFAULT_COMMERCE_SETTINGS, ...settings };
     },
+    async supplierHealth() {
+      return health;
+    },
   };
   return { ledger, patches, linked };
 }
