@@ -33,7 +33,8 @@ export type JobKey =
   | "product_intake_delta_sync"
   | "product_intake_worker"
   | "order_fulfilment_queue"
-  | "order_tracking_sync";
+  | "order_tracking_sync"
+  | "supplier_product_refresh";
 
 export interface JobRunResult {
   jobKey: string;
@@ -232,6 +233,27 @@ async function execute(ctx: RunContext, jobKey: string): Promise<JobRunResult> {
         status: report.ok ? "succeeded" : "failed",
         message: report.message,
         details: report.detail as Record<string, string | number>,
+      };
+    }
+    case "supplier_product_refresh": {
+      // Keeps listings that are already on sale honest: refreshed supplier
+      // cost, refreshed per market shipping evidence, recalculated price, and
+      // an automatic hold when the supplier can no longer evidence stock,
+      // delivery or profitability. Read only against the supplier.
+      const { runSupplierProductRefresh } = await import("@/lib/zendrop/supplier-refresh.server");
+      const config = (job?.config ?? {}) as { batch_size?: number };
+      const report = await runSupplierProductRefresh({ batchSize: config.batch_size ?? 25 });
+      return {
+        jobKey,
+        status: "succeeded",
+        message: report.message,
+        details: {
+          inspected: report.inspected,
+          healthy: report.healthy,
+          repriced: report.repriced,
+          held: report.held,
+          errored: report.errored,
+        },
       };
     }
     case "order_tracking_sync": {
