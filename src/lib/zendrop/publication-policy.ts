@@ -34,8 +34,9 @@ export interface PublicationPolicy {
    */
   includeOnlineStore: boolean;
   /**
-   * Publish to Shop, the Shop app marketplace surface. On by default: the
-   * merchant wants the catalogue discoverable and trackable there.
+   * Publish to Shop, the Shop app marketplace surface. Off: the merchant's
+   * current production requirement is that NUR GOODS sells through the
+   * headless storefront only.
    */
   includeShopChannel: boolean;
   /** Publish to Point of Sale. There is no physical retail, so this is off. */
@@ -44,7 +45,7 @@ export interface PublicationPolicy {
 
 export const DEFAULT_PUBLICATION_POLICY: PublicationPolicy = {
   includeOnlineStore: false,
-  includeShopChannel: true,
+  includeShopChannel: false,
   allowPointOfSale: false,
 };
 
@@ -54,7 +55,7 @@ export const HEADLESS_CHANNEL_NAME = "Nur Goods Headless Store";
 export const SHOP_CHANNEL_NAME = "Shop";
 
 /** Human readable description of the approved steady state. */
-export const APPROVED_CHANNELS_LABEL = `${HEADLESS_CHANNEL_NAME} + ${SHOP_CHANNEL_NAME}`;
+export const APPROVED_CHANNELS_LABEL = HEADLESS_CHANNEL_NAME;
 
 /** Classifies a store channel by its name, which is the only stable signal. */
 export function classifyChannel(name: string | null | undefined): ChannelKind {

@@ -87,6 +87,30 @@ async function claimRun(
   return (retaken as any)?.id ?? null;
 }
 
+/**
+ * Marks run records that were left running by an interrupted invocation as
+ * failed once they are well past any plausible execution window. This only
+ * corrects bookkeeping: the work itself is idempotent and re-runs on the next
+ * schedule, so nothing is duplicated and no supplier spend is triggered.
+ */
+const ABANDONED_RUN_MS = 60 * 60_000;
+
+async function reclaimAbandonedRuns(ctx: RunContext): Promise<void> {
+  try {
+    await ctx.supabase
+      .from("automation_runs")
+      .update({
+        status: "failed",
+        message: "Recovered: the run was interrupted before it could report a result.",
+        finished_at: new Date().toISOString(),
+      } as never)
+      .eq("status", "running")
+      .lt("started_at", new Date(Date.now() - ABANDONED_RUN_MS).toISOString());
+  } catch {
+    // Bookkeeping only. It must never stop a job from doing its real work.
+  }
+}
+
 async function closeRun(
   ctx: RunContext,
   runId: string,
@@ -124,6 +148,11 @@ export async function runAutomationJob(
       details: {},
     };
   }
+
+  // Close out run records abandoned by an invocation that was cut off before
+  // it could finish. They spend no work and hold no claim once expired, but
+  // left as running they hide the true health of the schedule.
+  await reclaimAbandonedRuns(ctx);
 
   const startedAt = new Date().toISOString();
   try {
