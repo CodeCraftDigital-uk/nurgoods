@@ -136,6 +136,13 @@ export async function loadSourcingRules(): Promise<SourcingRules> {
         : Number(row.target_catalogue_size),
     daily_import_cap: Number(row.daily_import_cap ?? DEFAULT_RULES.daily_import_cap),
     batch_size: Number(row.batch_size ?? DEFAULT_RULES.batch_size),
+    scan_page: Math.max(1, Number(row.scan_page ?? 1)),
+    scan_cursor: row.scan_cursor ?? null,
+    scan_cycle: Math.max(1, Number(row.scan_cycle ?? 1)),
+    scan_pages_per_run: Math.max(1, Number(row.scan_pages_per_run ?? DEFAULT_RULES.scan_pages_per_run)),
+    scan_last_at: row.scan_last_at ?? null,
+    scan_exhausted_at: row.scan_exhausted_at ?? null,
+    discovery_market_mode: row.discovery_market_mode === "all" ? "all" : "any",
   };
 }
 
