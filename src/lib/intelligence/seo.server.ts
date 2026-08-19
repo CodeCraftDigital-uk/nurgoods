@@ -179,6 +179,21 @@ export async function optimiseProduct(
     canonicalPath: `/shop/${product.handle}`,
   });
 
+  const inputHash = seoInputHash(bundle, category?.slug ?? null);
+
+  // Loop guard. A record that keeps failing on unchanged source data is parked
+  // for a person instead of being regenerated forever by the worker.
+  const { data: previous } = await db
+    .from("product_seo_intelligence")
+    .select("input_hash, regeneration_attempts")
+    .eq("product_id", product.id)
+    .maybeSingle();
+  const sameInput = previous ? (previous as any).input_hash === inputHash : false;
+  const attempts = sameInput ? Number((previous as any).regeneration_attempts ?? 0) + 1 : 1;
+
+  const identityIssues = validation.issues.filter((issue) => issue.code.startsWith("identity_"));
+  const manualReview = validation.state === "rejected" && attempts >= MAX_REGENERATION_ATTEMPTS;
+  const state = manualReview ? "manual_review" : validation.state;
   const published = validation.state !== "rejected";
 
   const row = {
@@ -193,6 +208,8 @@ export async function optimiseProduct(
     og_title: draft.og_title || draft.seo_title,
     og_description: draft.og_description || draft.meta_description,
     faqs: draft.faqs,
+    description_sections: draft.description_sections,
+    entity_summary: draft.entity_summary || null,
     internal_links: draft.internal_links,
     collection_relevance: draft.collection_relevance,
     schema_inputs: {
@@ -201,9 +218,15 @@ export async function optimiseProduct(
       facts_fingerprint: factsFingerprint(bundle),
     },
     optimisation_score: validation.score,
-    validation_state: validation.state,
+    validation_state: state,
     issues: validation.issues,
-    input_hash: seoInputHash(bundle, category?.slug ?? null),
+    identity_findings: identityIssues,
+    identity_checked_at: new Date().toISOString(),
+    regeneration_attempts: manualReview ? attempts : sameInput ? attempts : 0,
+    manual_review_reason: manualReview
+      ? validation.issues.find((issue) => issue.severity === "error")?.label ?? "Repeated validation failure."
+      : null,
+    input_hash: inputHash,
     model: result.model ?? null,
     intelligence_version: SEO_VERSION,
     auto_published: published,
@@ -214,6 +237,7 @@ export async function optimiseProduct(
     .from("product_seo_intelligence")
     .upsert(row as never, { onConflict: "product_id" });
   if (error) throw new Error(error.message);
+
 
   // Keep the in-memory duplicate guard current inside a batch.
   if (row.seo_title) context.usedTitles.set(row.seo_title.toLowerCase(), product.id);
