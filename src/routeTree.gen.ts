@@ -16,6 +16,7 @@ import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AiConnectorsRouteImport } from './routes/ai-connectors'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ContactRouteImport } from './routes/contact'
+import { Route as FaqRouteImport } from './routes/faq'
 import { Route as LlmsDottxtRouteImport } from './routes/llms[.]txt'
 import { Route as McpRouteImport } from './routes/mcp'
 import { Route as ReviewsRouteImport } from './routes/reviews'
@@ -103,6 +104,11 @@ const AuthRoute = AuthRouteImport.update({
 const ContactRoute = ContactRouteImport.update({
   id: '/contact',
   path: '/contact',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FaqRoute = FaqRouteImport.update({
+  id: '/faq',
+  path: '/faq',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LlmsDottxtRoute = LlmsDottxtRouteImport.update({
@@ -410,6 +416,7 @@ export interface FileRoutesByFullPath {
   '/ai-connectors': typeof AiConnectorsRoute
   '/auth': typeof AuthRoute
   '/contact': typeof ContactRoute
+  '/faq': typeof FaqRoute
   '/llms.txt': typeof LlmsDottxtRoute
   '/mcp': typeof McpRoute
   '/reviews': typeof ReviewsRoute
@@ -472,6 +479,7 @@ export interface FileRoutesByTo {
   '/ai-connectors': typeof AiConnectorsRoute
   '/auth': typeof AuthRoute
   '/contact': typeof ContactRoute
+  '/faq': typeof FaqRoute
   '/llms.txt': typeof LlmsDottxtRoute
   '/mcp': typeof McpRoute
   '/reviews': typeof ReviewsRoute
@@ -533,6 +541,7 @@ export interface FileRoutesById {
   '/ai-connectors': typeof AiConnectorsRoute
   '/auth': typeof AuthRoute
   '/contact': typeof ContactRoute
+  '/faq': typeof FaqRoute
   '/llms.txt': typeof LlmsDottxtRoute
   '/mcp': typeof McpRoute
   '/reviews': typeof ReviewsRoute
@@ -597,6 +606,7 @@ export interface FileRouteTypes {
     | '/ai-connectors'
     | '/auth'
     | '/contact'
+    | '/faq'
     | '/llms.txt'
     | '/mcp'
     | '/reviews'
@@ -659,6 +669,7 @@ export interface FileRouteTypes {
     | '/ai-connectors'
     | '/auth'
     | '/contact'
+    | '/faq'
     | '/llms.txt'
     | '/mcp'
     | '/reviews'
@@ -719,6 +730,7 @@ export interface FileRouteTypes {
     | '/ai-connectors'
     | '/auth'
     | '/contact'
+    | '/faq'
     | '/llms.txt'
     | '/mcp'
     | '/reviews'
@@ -783,6 +795,7 @@ export interface RootRouteChildren {
   AiConnectorsRoute: typeof AiConnectorsRoute
   AuthRoute: typeof AuthRoute
   ContactRoute: typeof ContactRoute
+  FaqRoute: typeof FaqRoute
   LlmsDottxtRoute: typeof LlmsDottxtRoute
   McpRoute: typeof McpRoute
   ReviewsRoute: typeof ReviewsRoute
@@ -863,6 +876,13 @@ declare module '@tanstack/react-router' {
       path: '/contact'
       fullPath: '/contact'
       preLoaderRoute: typeof ContactRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/faq': {
+      id: '/faq'
+      path: '/faq'
+      fullPath: '/faq'
+      preLoaderRoute: typeof FaqRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/llms.txt': {
@@ -1376,6 +1396,7 @@ const rootRouteChildren: RootRouteChildren = {
   AiConnectorsRoute: AiConnectorsRoute,
   AuthRoute: AuthRoute,
   ContactRoute: ContactRoute,
+  FaqRoute: FaqRoute,
   LlmsDottxtRoute: LlmsDottxtRoute,
   McpRoute: McpRoute,
   ReviewsRoute: ReviewsRoute,
