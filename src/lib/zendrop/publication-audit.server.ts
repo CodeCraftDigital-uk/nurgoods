@@ -34,6 +34,10 @@ export interface PublicationAuditItem {
 
 export interface PublicationAuditRun {
   runId: string | null;
+  /** Offset this pass started at, and where a following pass should resume. */
+  offset: number;
+  nextOffset: number | null;
+  totalMatched: number | null;
   mode: "dry_run" | "live";
   inspected: number;
   drifted: number;
@@ -52,6 +56,8 @@ export interface PublicationAuditOptions {
   shopifyProductId?: string | undefined;
   /** Restrict a run to an explicit batch of products, used by the migration. */
   shopifyProductIds?: string[] | undefined;
+  /** Where to resume from when walking a catalogue larger than one batch. */
+  offset?: number | undefined;
 
   /** Recorded on the audit row so a run can be traced back to a person. */
   actorId?: string | null | undefined;
@@ -84,11 +90,14 @@ export async function runPublicationAudit(
   const headless = resolveHeadlessChannel(channels);
   const desiredChannels = [headless.name];
 
+  const offset = Math.max(0, options.offset ?? 0);
   let query = supabase
     .from("shopify_products")
-    .select("shopify_product_id, title, status")
-    .order("title", { ascending: true })
-    .limit(limit);
+    .select("shopify_product_id, title, status", { count: "exact" })
+    // Ordering by a stable unique key rather than title keeps paging correct
+    // when two products share a title.
+    .order("shopify_product_id", { ascending: true })
+    .range(offset, offset + limit - 1);
   if (options.shopifyProductId) {
     query = query.eq("shopify_product_id", options.shopifyProductId);
   } else if (options.shopifyProductIds && options.shopifyProductIds.length > 0) {
@@ -97,7 +106,7 @@ export async function runPublicationAudit(
     query = query.eq("status", "active");
   }
 
-  const { data: products } = await query;
+  const { data: products, count: matchedCount } = await query;
   const rows = (products ?? []) as Array<{
     shopify_product_id: string;
     title: string | null;
@@ -217,8 +226,17 @@ export async function runPublicationAudit(
       .eq("id", runId);
   }
 
+  const total = typeof matchedCount === "number" ? matchedCount : null;
+  const nextOffset =
+    rows.length === limit && (total === null || offset + rows.length < total)
+      ? offset + rows.length
+      : null;
+
   return {
     runId,
+    offset,
+    nextOffset,
+    totalMatched: total,
     mode: dryRun ? "dry_run" : "live",
     inspected: items.length,
     drifted,

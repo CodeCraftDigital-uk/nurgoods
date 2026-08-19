@@ -9,6 +9,7 @@ import { SectionCard } from "@/components/admin/SectionCard";
 import { EmptyState } from "@/components/admin/EmptyState";
 import { StatusPill } from "@/components/admin/StatusPill";
 import { ZendropConnectionPanel } from "@/components/admin/ZendropConnectionPanel";
+import { SupplierSyncPanel } from "@/components/admin/SupplierSyncPanel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -212,6 +213,8 @@ function SourcingPage() {
           </Button>
         }
       />
+
+      <SupplierSyncPanel snapshot={overview.data?.supplierSync} />
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Metric

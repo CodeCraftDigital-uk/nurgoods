@@ -100,7 +100,11 @@ export async function runHourlySourcing(db: Db, jobKey: string): Promise<Sourcin
 
   const target = Math.max(1, Math.min(rules.batch_size || HOURLY_TARGET, HOURLY_TARGET));
 
-  const screen = await runSourcingScreen({ target });
+  // Checkpointed traversal. Each automated run continues from the supplier
+  // page the last run finished on, so the pipeline walks the whole catalogue
+  // rather than rescreening the same first pages and rejecting them as
+  // duplicates.
+  const screen = await runSourcingScreen({ target, checkpoint: true });
   const recommended = screen.products
     .filter((product) => (product.outcome === "recommended" || product.outcome === "accepted") && product.score >= rules.min_suitability_score)
     .sort((a, b) => b.score - a.score)
@@ -119,6 +123,10 @@ export async function runHourlySourcing(db: Db, jobKey: string): Promise<Sourcin
         pricing_failed: screen.funnel.pricingFailed,
         duplicates: screen.funnel.duplicateExcluded,
         imported: 0,
+        scan_start_page: screen.startPage,
+        scan_next_page: screen.nextPage,
+        scan_pages_read: screen.pagesRead,
+        scan_cycle: screen.cycle,
         rate_limit_retries: readThrottleStats().rateLimitRetries,
         rate_limit_cooldown_seconds: Math.round(readThrottleStats().cooldownMs / 1000),
       },
@@ -247,6 +255,11 @@ export async function runHourlySourcing(db: Db, jobKey: string): Promise<Sourcin
       rate_limit_retries: throttle.rateLimitRetries,
       rate_limit_cooldown_seconds: Math.round(throttle.cooldownMs / 1000),
       supplier_server_retries: throttle.serverRetries,
+      scan_start_page: screen.startPage,
+      scan_next_page: screen.nextPage,
+      scan_pages_read: screen.pagesRead,
+      scan_cycle: screen.cycle,
+      scan_wrapped: screen.wrapped ? 1 : 0,
     },
   };
 }

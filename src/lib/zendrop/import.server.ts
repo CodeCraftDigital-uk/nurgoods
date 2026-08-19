@@ -50,6 +50,13 @@ export const DEFAULT_RULES: SourcingRules = {
   target_catalogue_size: null,
   daily_import_cap: 25,
   batch_size: 10,
+  scan_page: 1,
+  scan_cursor: null,
+  scan_cycle: 1,
+  scan_pages_per_run: 6,
+  scan_last_at: null,
+  scan_exhausted_at: null,
+  discovery_market_mode: "any",
 };
 
 export async function loadPricingSettings(): Promise<PricingSettings> {
@@ -129,6 +136,13 @@ export async function loadSourcingRules(): Promise<SourcingRules> {
         : Number(row.target_catalogue_size),
     daily_import_cap: Number(row.daily_import_cap ?? DEFAULT_RULES.daily_import_cap),
     batch_size: Number(row.batch_size ?? DEFAULT_RULES.batch_size),
+    scan_page: Math.max(1, Number(row.scan_page ?? 1)),
+    scan_cursor: row.scan_cursor ?? null,
+    scan_cycle: Math.max(1, Number(row.scan_cycle ?? 1)),
+    scan_pages_per_run: Math.max(1, Number(row.scan_pages_per_run ?? DEFAULT_RULES.scan_pages_per_run)),
+    scan_last_at: row.scan_last_at ?? null,
+    scan_exhausted_at: row.scan_exhausted_at ?? null,
+    discovery_market_mode: row.discovery_market_mode === "all" ? "all" : "any",
   };
 }
 
@@ -1057,17 +1071,29 @@ export interface SourcingScreenResult {
   pagesRead: number;
   catalogueTotal: number | null;
   message: string;
+  /** Page the traversal started on, and the page the next run will resume from. */
+  startPage: number;
+  nextPage: number;
+  cycle: number;
+  /** True when the supplier ran out of pages and the checkpoint wrapped. */
+  wrapped: boolean;
 }
 
 /**
  * Reads and pre-screens supplier catalogue pages without writing anything.
  * Catalogue cardinality is only reported when the supplier actually returns
  * it, so the funnel never states a total it cannot evidence.
+ *
+ * When `checkpoint` is set the traversal resumes from the persisted supplier
+ * page and advances it afterwards, so successive automated runs walk the whole
+ * supplier catalogue instead of resampling the same first pages. A manual
+ * screen with an explicit query or category never moves the checkpoint.
  */
 export async function runSourcingScreen(input: {
   query?: string | undefined;
   category?: string | undefined;
   target: number;
+  checkpoint?: boolean | undefined;
 }): Promise<SourcingScreenResult> {
   const { searchZendropCatalogue } = await import("./catalogue.server");
   const rules = await loadSourcingRules();
@@ -1087,16 +1113,27 @@ export async function runSourcingScreen(input: {
   const products: ScreenedProduct[] = [];
   const target = Math.max(1, Math.min(input.target, 500));
   const pageSize = 50;
-  const maxPages = Math.max(1, Math.min(Math.ceil((target * 3) / pageSize), 20));
+  const useCheckpoint = input.checkpoint === true && !input.query && !input.category;
+  const startPage = useCheckpoint ? Math.max(1, rules.scan_page) : 1;
+  const maxPages = useCheckpoint
+    ? Math.max(1, rules.scan_pages_per_run)
+    : Math.max(1, Math.min(Math.ceil((target * 3) / pageSize), 20));
+
+  // Every supported market is a legitimate destination, so a product only
+  // fails deliverability when no supported market can be quoted at all.
+  const supportedMarkets = resolveSupportedMarkets(settings.supported_markets);
+  const quoteMarkets = supportedMarkets.length > 0 ? supportedMarkets : [settings.shipping_market];
 
   let fx: FxQuote | null = null;
   let catalogueTotal: number | null = null;
   let pagesRead = 0;
   let shippingQuotes = 0;
-  const maxShippingQuotes = target * 4;
+  let wrapped = false;
+  let nextPage = startPage;
+  const maxShippingQuotes = target * 6;
 
-
-  for (let page = 1; page <= maxPages; page += 1) {
+  for (let offset = 0; offset < maxPages; offset += 1) {
+    const page = startPage + offset;
     const batch = await searchZendropCatalogue({
       query: input.query,
       category: input.category,
@@ -1104,8 +1141,18 @@ export async function runSourcingScreen(input: {
       limit: pageSize,
     });
     pagesRead += 1;
+    nextPage = page + 1;
     if (batch.total !== null) catalogueTotal = batch.total;
-    if (!batch.available || batch.items.length === 0) break;
+    if (!batch.available || batch.items.length === 0) {
+      // The supplier ran out of pages. Wrap the checkpoint so the next run
+      // starts a fresh traversal rather than stalling on an empty tail.
+      if (page > 1) {
+        wrapped = true;
+        nextPage = 1;
+      }
+      break;
+    }
+
 
     for (const raw of batch.items) {
       funnel.queried += 1;
@@ -1119,6 +1166,10 @@ export async function runSourcingScreen(input: {
             pagesRead,
             catalogueTotal,
             message: "A live currency rate could not be read, so screening stopped rather than guessing.",
+            startPage,
+            nextPage: startPage,
+            cycle: rules.scan_cycle,
+            wrapped: false,
           };
         }
       }
@@ -1146,23 +1197,36 @@ export async function runSourcingScreen(input: {
       // already survived the cheap screen, so landed cost is evidenced rather
       // than guessed and supplier traffic stays low.
       let item = raw;
-      if (item.shippingCost === null && settings.shipping_market && shippingQuotes < maxShippingQuotes) {
-        shippingQuotes += 1;
+      if (item.shippingCost === null && shippingQuotes < maxShippingQuotes) {
         const { quoteZendropShipping } = await import("./catalogue.server");
-        try {
-          const quote = await quoteZendropShipping(item.id, settings.shipping_market);
+        // Try each supported market and keep the dearest confirmed quote, so
+        // pricing is set against the worst supported destination rather than
+        // the cheapest one, while a product that only ships to one of the
+        // markets still qualifies instead of being discarded as undeliverable.
+        let worst: { cost: number; estimate: string | null; market: string } | null = null;
+        for (const market of quoteMarkets) {
+          if (shippingQuotes >= maxShippingQuotes) break;
+          shippingQuotes += 1;
+          try {
+            const quote = await quoteZendropShipping(item.id, market);
+            if (quote.cost === null || quote.cost === undefined) continue;
+            if (!worst || quote.cost > worst.cost) {
+              worst = { cost: quote.cost, estimate: quote.estimate ?? null, market };
+            }
+          } catch {
+            // A market that cannot be quoted simply does not count towards
+            // deliverability. It never invents a cost.
+          }
+        }
+        if (worst) {
           item = {
             ...item,
-            shippingCost: quote.cost,
-            deliveryEstimate: item.deliveryEstimate ?? quote.estimate,
+            shippingCost: worst.cost,
+            shippingDestination: worst.market,
+            deliveryEstimate: item.deliveryEstimate ?? worst.estimate,
           };
-        } catch {
-          // A failed quote leaves the cost unknown, which the screen treats as
-          // unconfirmed delivery and holds the product.
         }
       }
-
-
 
       const screen = screenCandidate({
         item,
@@ -1213,14 +1277,38 @@ export async function runSourcingScreen(input: {
   }
 
   products.sort((a, b) => b.score - a.score);
+
+  const cycle = wrapped ? rules.scan_cycle + 1 : rules.scan_cycle;
+  if (useCheckpoint) {
+    const supabase = await zendropAdminClient();
+    await supabase
+      .from("zendrop_sourcing_rules")
+      .update({
+        scan_page: nextPage,
+        scan_cycle: cycle,
+        scan_last_at: new Date().toISOString(),
+        ...(wrapped ? { scan_exhausted_at: new Date().toISOString() } : {}),
+      } as never)
+      .eq("id", "default");
+  }
+
+  const traversal = useCheckpoint
+    ? ` Traversal covered pages ${startPage} to ${startPage + pagesRead - 1}; the next run resumes at page ${nextPage}${wrapped ? " after wrapping to the start of the catalogue" : ""}.`
+    : "";
+
   return {
     funnel,
     products: products.slice(0, target),
     pagesRead,
     catalogueTotal,
     message:
-      catalogueTotal === null
+      (catalogueTotal === null
         ? `Screened ${funnel.queried} supplier products across ${pagesRead} page(s). The supplier does not report total catalogue size, so none is shown.`
-        : `Screened ${funnel.queried} of ${catalogueTotal} reported supplier products across ${pagesRead} page(s).`,
+        : `Screened ${funnel.queried} of ${catalogueTotal} reported supplier products across ${pagesRead} page(s).`) +
+      traversal,
+    startPage,
+    nextPage,
+    cycle,
+    wrapped,
   };
 }

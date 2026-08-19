@@ -2516,11 +2516,13 @@ export type Database = {
       }
       product_supplier_links: {
         Row: {
+          consecutive_sync_failures: number
           created_at: string
           evidence: Json
           fx_as_of: string | null
           fx_rate: number | null
           id: string
+          last_supplier_sync_at: string | null
           match_confidence: string
           match_method: string
           product_id: string | null
@@ -2534,18 +2536,25 @@ export type Database = {
           shipping_source: string | null
           shopify_product_id: string
           supplier: string
+          supplier_available: boolean | null
           supplier_import_list_id: string | null
+          supplier_inventory: number | null
           supplier_product_id: string
+          supplier_status: string | null
+          sync_reason: string | null
+          sync_state: string
           updated_at: string
           variant_map: Json
           verified_at: string
         }
         Insert: {
+          consecutive_sync_failures?: number
           created_at?: string
           evidence?: Json
           fx_as_of?: string | null
           fx_rate?: number | null
           id?: string
+          last_supplier_sync_at?: string | null
           match_confidence?: string
           match_method: string
           product_id?: string | null
@@ -2559,18 +2568,25 @@ export type Database = {
           shipping_source?: string | null
           shopify_product_id: string
           supplier?: string
+          supplier_available?: boolean | null
           supplier_import_list_id?: string | null
+          supplier_inventory?: number | null
           supplier_product_id: string
+          supplier_status?: string | null
+          sync_reason?: string | null
+          sync_state?: string
           updated_at?: string
           variant_map?: Json
           verified_at?: string
         }
         Update: {
+          consecutive_sync_failures?: number
           created_at?: string
           evidence?: Json
           fx_as_of?: string | null
           fx_rate?: number | null
           id?: string
+          last_supplier_sync_at?: string | null
           match_confidence?: string
           match_method?: string
           product_id?: string | null
@@ -2584,8 +2600,13 @@ export type Database = {
           shipping_source?: string | null
           shopify_product_id?: string
           supplier?: string
+          supplier_available?: boolean | null
           supplier_import_list_id?: string | null
+          supplier_inventory?: number | null
           supplier_product_id?: string
+          supplier_status?: string | null
+          sync_reason?: string | null
+          sync_state?: string
           updated_at?: string
           variant_map?: Json
           verified_at?: string
@@ -3664,6 +3685,7 @@ export type Database = {
           continuous_sourcing: boolean
           created_at: string
           daily_import_cap: number
+          discovery_market_mode: string
           duplicate_precheck: boolean
           enabled: boolean
           id: string
@@ -3677,6 +3699,12 @@ export type Database = {
           require_stock: boolean
           require_uk_shipping: boolean
           restricted_keywords: string[]
+          scan_cursor: string | null
+          scan_cycle: number
+          scan_exhausted_at: string | null
+          scan_last_at: string | null
+          scan_page: number
+          scan_pages_per_run: number
           target_catalogue_size: number | null
           updated_at: string
         }
@@ -3687,6 +3715,7 @@ export type Database = {
           continuous_sourcing?: boolean
           created_at?: string
           daily_import_cap?: number
+          discovery_market_mode?: string
           duplicate_precheck?: boolean
           enabled?: boolean
           id?: string
@@ -3700,6 +3729,12 @@ export type Database = {
           require_stock?: boolean
           require_uk_shipping?: boolean
           restricted_keywords?: string[]
+          scan_cursor?: string | null
+          scan_cycle?: number
+          scan_exhausted_at?: string | null
+          scan_last_at?: string | null
+          scan_page?: number
+          scan_pages_per_run?: number
           target_catalogue_size?: number | null
           updated_at?: string
         }
@@ -3710,6 +3745,7 @@ export type Database = {
           continuous_sourcing?: boolean
           created_at?: string
           daily_import_cap?: number
+          discovery_market_mode?: string
           duplicate_precheck?: boolean
           enabled?: boolean
           id?: string
@@ -3723,6 +3759,12 @@ export type Database = {
           require_stock?: boolean
           require_uk_shipping?: boolean
           restricted_keywords?: string[]
+          scan_cursor?: string | null
+          scan_cycle?: number
+          scan_exhausted_at?: string | null
+          scan_last_at?: string | null
+          scan_page?: number
+          scan_pages_per_run?: number
           target_catalogue_size?: number | null
           updated_at?: string
         }
