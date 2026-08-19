@@ -13,6 +13,7 @@ import type {
   OrderRecord,
   SupplierLine,
 } from "./types";
+import type { PreflightLink } from "./preflight";
 
 export interface LedgerPort {
   claim(states: OrchestrationState[], limit: number): Promise<OrderRecord[]>;
@@ -28,6 +29,11 @@ export interface LedgerPort {
     detail?: Record<string, unknown>;
   }): Promise<void>;
   settings(): Promise<CommerceSettings>;
+  /**
+   * Current supplier health for the products on an order, read immediately
+   * before confirmation so nothing is committed against stale facts.
+   */
+  supplierHealth(shopifyProductIds: string[]): Promise<PreflightLink[]>;
 }
 
 export interface SupplierOrderSummary {
