@@ -330,6 +330,8 @@ async function runIntelligenceJob(
       runIntelligenceWorker,
       runIdentityJob,
       runSeoSweep,
+      runIdentityRemediation,
+
     } = await import("@/lib/intelligence/jobs.server");
     const { data: job } = await ctx.supabase
       .from("automation_jobs")
