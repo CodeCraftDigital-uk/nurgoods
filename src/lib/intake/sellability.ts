@@ -10,7 +10,8 @@
  *     supplier line at order time,
  *   - the supplier facts behind it are fresh rather than indefinitely stale,
  *   - the link is not on manual hold, and
- *   - shipping to every required market has been quoted by the supplier.
+ *   - shipping to at least one of our markets (UK or USA) has been quoted by
+ *     the supplier.
  *
  * The rules are pure so they can be tested directly and so no caller can
  * quietly widen them. Missing evidence always means not sellable: this gate
