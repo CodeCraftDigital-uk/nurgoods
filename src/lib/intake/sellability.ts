@@ -18,7 +18,11 @@
  * after a customer has paid.
  */
 
-/** Markets NUR GOODS sells into. Both must be evidenced. */
+/**
+ * Markets NUR GOODS sells into. At least one of them must be evidenced as
+ * shippable: a product deliverable to only the UK, or only the USA, is still
+ * sellable. Only a product deliverable to neither is held.
+ */
 export const REQUIRED_MARKETS = ["GB", "US"] as const;
 
 /** How old supplier evidence may be before a listing is held. */
