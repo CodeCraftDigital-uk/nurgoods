@@ -42,28 +42,33 @@ export async function auditSellability(): Promise<SellabilityAudit> {
   const { data: links } = await supabase
     .from("product_supplier_links")
     .select(
-      "product_id, shopify_product_id, variant_map, manual_hold, verified_at, last_supplier_sync_at, supplier_available",
+      "product_id, shopify_product_id, supplier_product_id, variant_map, manual_hold, verified_at, last_supplier_sync_at, supplier_available",
     )
     .limit(5000);
   const linkByShopifyId = new Map(
     ((links ?? []) as any[]).map((row) => [String(row.shopify_product_id), row] as const),
   );
 
+  /**
+   * Shipping evidence is written against the supplier product, and only some
+   * rows also carry the store identifiers. Indexing every key a row exposes
+   * keeps a genuinely evidenced product from being held for lack of evidence.
+   */
   const { data: eligibility } = await supabase
     .from("product_market_eligibility")
-    .select("product_id, shopify_product_id, market, eligible, quoted_at")
+    .select("product_id, shopify_product_id, supplier_product_id, market, eligible, quoted_at")
     .limit(20000);
-  const marketsByProduct = new Map<string, MarketEvidence[]>();
+  const marketsByKey = new Map<string, MarketEvidence[]>();
   for (const row of ((eligibility ?? []) as any[])) {
-    for (const key of [row.shopify_product_id, row.product_id]) {
-      if (!key) continue;
-      const list = marketsByProduct.get(String(key)) ?? [];
+    for (const key of [row.shopify_product_id, row.product_id, row.supplier_product_id]) {
+      if (key === null || key === undefined || key === "") continue;
+      const list = marketsByKey.get(String(key)) ?? [];
       list.push({
         market: String(row.market ?? ""),
         eligible: row.eligible === true,
         quotedAt: row.quoted_at ?? null,
       });
-      marketsByProduct.set(String(key), list);
+      marketsByKey.set(String(key), list);
     }
   }
 
@@ -72,8 +77,13 @@ export async function auditSellability(): Promise<SellabilityAudit> {
   for (const product of active) {
     const shopifyProductId = String(product.shopify_product_id);
     const link = linkByShopifyId.get(shopifyProductId) ?? null;
+    const supplierKey = link?.supplier_product_id ?? null;
     const markets =
-      marketsByProduct.get(shopifyProductId) ?? marketsByProduct.get(String(product.id)) ?? [];
+      marketsByKey.get(shopifyProductId) ??
+      marketsByKey.get(String(product.id)) ??
+      (supplierKey ? marketsByKey.get(String(supplierKey)) : undefined) ??
+      [];
+
     const verdict = evaluateSellability({
       link: link
         ? {
@@ -170,20 +180,23 @@ export async function productSellability(shopifyProductId: string): Promise<Sell
   const { data: link } = await supabase
     .from("product_supplier_links")
     .select(
-      "product_id, variant_map, manual_hold, verified_at, last_supplier_sync_at, supplier_available",
+      "product_id, supplier_product_id, variant_map, manual_hold, verified_at, last_supplier_sync_at, supplier_available",
     )
     .eq("shopify_product_id", id)
     .maybeSingle();
 
   const productId = (link as any)?.product_id ?? null;
+  const supplierProductId = (link as any)?.supplier_product_id ?? null;
+  // Evidence may be recorded against the store product or the supplier
+  // product, so every identifier we hold for this listing is queried.
+  const filters = [`shopify_product_id.eq.${id}`];
+  if (productId) filters.push(`product_id.eq.${productId}`);
+  if (supplierProductId) filters.push(`supplier_product_id.eq.${supplierProductId}`);
   const { data: eligibility } = await supabase
     .from("product_market_eligibility")
-    .select("market, eligible, quoted_at, shopify_product_id, product_id")
-    .or(
-      productId
-        ? `shopify_product_id.eq.${id},product_id.eq.${productId}`
-        : `shopify_product_id.eq.${id}`,
-    );
+    .select("market, eligible, quoted_at, shopify_product_id, product_id, supplier_product_id")
+    .or(filters.join(","));
+
 
   return evaluateSellability({
     link: link
