@@ -42,8 +42,7 @@ function Art({
           <img src={light} alt={alt} {...common} className={cn(className, "dark:hidden")} />
           <img
             src={dark}
-            alt=""
-            aria-hidden
+            alt={alt}
             {...common}
             className={cn(className, "hidden dark:block")}
           />

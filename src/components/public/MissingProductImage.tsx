@@ -6,7 +6,16 @@ import { brandArt } from "@/lib/brand-assets";
  * placeholder, not product imagery: a quiet surface with a small brand mark and
  * a plain line of text. Nothing here implies what the product looks like.
  */
-export function MissingProductImage({ className }: { className?: string }) {
+export function MissingProductImage({
+  className,
+  title,
+}: {
+  className?: string;
+  title?: string;
+}) {
+  const label = title?.trim()
+    ? `Photography to follow for ${title.trim()}`
+    : "Photography to follow for this product";
   return (
     <div
       className={cn(
@@ -14,7 +23,7 @@ export function MissingProductImage({ className }: { className?: string }) {
         className,
       )}
     >
-      <img src={brandArt("square", "light")} alt="" aria-hidden className="h-10 w-10 opacity-30" />
+      <img src={brandArt("square", "light")} alt={label} className="h-10 w-10 opacity-30" />
       <span className="text-[0.65rem] uppercase tracking-[0.18em] text-muted-foreground">
         Photography to follow
       </span>
