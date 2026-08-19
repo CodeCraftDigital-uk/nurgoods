@@ -59,13 +59,29 @@ export function resolveProductBrand(input: {
     return trimmed;
   };
 
-  const explicitBrand = clean(input.brand);
+  // Only an explicit brand statement counts as evidence. A tag or metafield
+  // has to name the field outright; nothing is inferred from free text.
+  const taggedBrand = (input.tags ?? [])
+    .map((tag) => /^\s*(?:brand|manufacturer)\s*[:=]\s*(.+)$/i.exec(tag ?? "")?.[1] ?? null)
+    .find((value) => Boolean(clean(value)));
+  const metafields = input.metafields ?? {};
+  const metaBrand =
+    (metafields["brand"] as string | undefined) ??
+    (metafields["custom.brand"] as string | undefined) ??
+    null;
+  const metaManufacturer =
+    (metafields["manufacturer"] as string | undefined) ??
+    (metafields["custom.manufacturer"] as string | undefined) ??
+    null;
+
+  const explicitBrand = clean(input.brand) ?? clean(metaBrand) ?? clean(taggedBrand ?? null);
   const vendorBrand = vendorIsMarketplace ? null : clean(input.vendor);
   return {
     brand: explicitBrand ?? vendorBrand,
-    manufacturer: clean(input.manufacturer),
+    manufacturer: clean(input.manufacturer) ?? clean(metaManufacturer),
     vendorIsMarketplace,
   };
+
 }
 
 export interface IdentityFinding {
