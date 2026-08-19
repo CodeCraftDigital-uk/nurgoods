@@ -17,6 +17,38 @@ import {
   listStorefrontProductsFn,
 } from "@/lib/services/storefront.functions";
 
+/**
+ * Homepage answer block. Each answer restates a fact already published on the
+ * FAQ and policy pages, so nothing here is invented for search purposes.
+ */
+const HOME_FAQS: { question: string; answer: string }[] = [
+  {
+    question: "What is NUR GOODS?",
+    answer:
+      "NUR GOODS is an online marketplace that curates everyday goods from vetted third party suppliers. We select and resell products, we do not manufacture them.",
+  },
+  {
+    question: "Where does NUR GOODS deliver?",
+    answer:
+      "We serve the United Kingdom and the United States. A product is only listed once we hold verified supplier and shipping evidence for at least one of those markets.",
+  },
+  {
+    question: "How much is shipping?",
+    answer:
+      "Shipping is free in the UK and the USA. Delivery is included in the price shown on the product page, so there is no separate shipping charge at checkout.",
+  },
+  {
+    question: "How do I pay?",
+    answer:
+      "Payment is taken on our secure hosted checkout after you choose your items on nurgoods.com. Card details are handled by the checkout provider, never stored by us.",
+  },
+  {
+    question: "Can I return something?",
+    answer:
+      "Returns and refunds are covered by our published returns and refunds policy. Read it on the policies page, or email support and we will guide you through it.",
+  },
+];
+
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
