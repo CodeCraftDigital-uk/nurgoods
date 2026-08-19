@@ -2,6 +2,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { assessQuality, findDuplicates } from "./core.server";
 import { CLASSIFIER_VERSION, SEO_VERSION } from "./taxonomy";
 import { enqueue, loadBundles, planWork, processQueue, type ProcessResult } from "./queue.server";
+import { MAX_REGENERATION_ATTEMPTS as MAX_SEO_REGENERATIONS } from "./seo.server";
+
 
 /**
  * Scheduled intelligence jobs.
