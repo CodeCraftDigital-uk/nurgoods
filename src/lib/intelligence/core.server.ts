@@ -449,6 +449,47 @@ export function validateSeoDraft(
     });
   }
 
+  // Marketplace identity. Every generated string is corrected before anything
+  // else looks at it, so a saved record can never call the platform a maker.
+  const identityFindings: IdentityFinding[] = [];
+  let identityBlocked = false;
+  const guard = (value: string): string => {
+    const outcome = enforceMarketplaceIdentity(value);
+    identityFindings.push(...outcome.findings);
+    if (outcome.blocked) identityBlocked = true;
+    return outcome.text;
+  };
+  draft.seo_title = guard(draft.seo_title).slice(0, 60);
+  draft.meta_description = guard(draft.meta_description).slice(0, 158);
+  draft.og_title = guard(draft.og_title).slice(0, 70);
+  draft.og_description = guard(draft.og_description).slice(0, 200);
+  draft.image_alt = guard(draft.image_alt).slice(0, 125);
+  draft.primary_topic = guard(draft.primary_topic).slice(0, 90);
+  draft.entity_summary = guard(draft.entity_summary).slice(0, 900);
+  draft.faqs = draft.faqs.map((item) => ({ question: guard(item.question), answer: guard(item.answer) }));
+  draft.description_sections = draft.description_sections.map((item) => ({
+    heading: guard(item.heading),
+    body: guard(item.body),
+  }));
+  // Entities and keywords must never carry the marketplace as a brand token.
+  draft.entities = draft.entities.filter((item) => !isMarketplaceName(item));
+  draft.keywords = draft.keywords.filter((item) => !isMarketplaceName(item));
+
+  const seenIdentity = new Set<string>();
+  for (const finding of identityFindings) {
+    const key = `${finding.code}:${finding.severity}`;
+    if (seenIdentity.has(key)) continue;
+    seenIdentity.add(key);
+    issues.push({ code: finding.code, label: finding.label, severity: finding.severity });
+  }
+  if (identityBlocked) {
+    issues.push({
+      code: "marketplace_identity_violation",
+      label: "Wording still presented the marketplace as the maker of the product.",
+      severity: "error",
+    });
+  }
+
   // Unsupported claims anywhere in the generated wording.
   const combined = [
     draft.seo_title,
@@ -456,19 +497,49 @@ export function validateSeoDraft(
     draft.og_title,
     draft.og_description,
     draft.image_alt,
+    draft.entity_summary,
+    ...draft.description_sections.flatMap((item) => [item.heading, item.body]),
     ...draft.faqs.flatMap((item) => [item.question, item.answer]),
   ].join(" \n ");
   const claims = detectUnsupportedClaims(combined);
   if (claims.length > 0) {
-    for (const code of claims) {
+    // Remove the offending long form blocks rather than publishing them, then
+    // re-check what is left so a single bad FAQ does not lose the whole record.
+    draft.faqs = draft.faqs.filter(
+      (item) => detectUnsupportedClaims(`${item.question} ${item.answer}`).length === 0,
+    );
+    draft.description_sections = draft.description_sections.filter(
+      (item) => detectUnsupportedClaims(`${item.heading} ${item.body}`).length === 0,
+    );
+    if (detectUnsupportedClaims(draft.entity_summary).length > 0) draft.entity_summary = "";
+    const remaining = detectUnsupportedClaims(
+      [draft.seo_title, draft.meta_description, draft.og_title, draft.og_description, draft.image_alt].join(" \n "),
+    );
+    for (const code of remaining) {
       issues.push({ code, label: "Generated wording contained a claim the catalogue cannot support.", severity: "error" });
+    }
+    for (const code of claims.filter((item) => !remaining.includes(item))) {
+      issues.push({
+        code,
+        label: "An unsupported claim was removed from the long form content before saving.",
+        severity: "warning",
+      });
     }
   }
 
-  // Keyword stuffing.
-  if (detectKeywordStuffing(`${draft.seo_title} ${draft.meta_description} ${draft.keywords.join(" ")}`)) {
+  // Keyword stuffing. Prose only: a keyword list naturally shares a head term,
+  // so it is checked separately and never rejects an otherwise sound record.
+  if (detectKeywordStuffing(`${draft.seo_title} ${draft.meta_description}`)) {
     issues.push({ code: "keyword_stuffing", label: "The wording repeats a term unnaturally.", severity: "error" });
   }
+  if (detectKeywordListStuffing(draft.keywords)) {
+    issues.push({
+      code: "keyword_list_repetitive",
+      label: "The keyword list repeats one term in nearly every entry.",
+      severity: "warning",
+    });
+  }
+
 
   // Internal links must resolve to something real.
   draft.internal_links = draft.internal_links.filter((link) => {
