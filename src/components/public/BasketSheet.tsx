@@ -74,7 +74,7 @@ export function BasketSheet() {
                     {line.imageUrl ? (
                       <img
                         src={line.imageUrl}
-                        alt=""
+                        alt={line.productTitle}
                         width={72}
                         height={72}
                         loading="lazy"

@@ -229,7 +229,7 @@ function Index() {
                         {product.image_url ? (
                           <img
                             src={product.image_url}
-                            alt=""
+                            alt={product.title}
                             width={400}
                             height={400}
                             loading={index < 2 ? "eager" : "lazy"}

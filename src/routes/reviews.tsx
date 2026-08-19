@@ -7,7 +7,7 @@ import { BRAND } from "@/lib/brand";
 export const Route = createFileRoute("/reviews")({
   head: () => ({
     meta: [
-      { title: "Customer reviews | NUR GOODS" },
+      { title: "Customer reviews from real NUR GOODS orders" },
       {
         name: "description",
         content:

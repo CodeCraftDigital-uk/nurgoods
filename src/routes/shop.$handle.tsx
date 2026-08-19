@@ -363,7 +363,7 @@ function ProductDetail() {
                     >
                       <img
                         src={item.url}
-                        alt=""
+                        alt={`${product.title} thumbnail ${index + 1}`}
                         width={160}
                         height={160}
                         loading="lazy"
