@@ -369,7 +369,21 @@ export function validateSeoDraft(
     faqs: [],
     internal_links: [],
     collection_relevance: [],
+    description_sections: [],
+    entity_summary: text(raw.entity_summary, 900),
   };
+
+  if (Array.isArray(raw.description_sections)) {
+    draft.description_sections = raw.description_sections
+      .filter(
+        (item): item is { heading: string; body: string } =>
+          Boolean(item) && typeof (item as any).heading === "string" && typeof (item as any).body === "string",
+      )
+      .map((item) => ({ heading: text(item.heading, 90), body: text(item.body, 900) }))
+      .filter((item) => item.heading && item.body.length > 40)
+      .slice(0, 6);
+  }
+
 
   if (Array.isArray(raw.faqs)) {
     draft.faqs = raw.faqs
