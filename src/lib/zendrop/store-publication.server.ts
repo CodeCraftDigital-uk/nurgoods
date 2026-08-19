@@ -339,3 +339,52 @@ export async function readStorePublications(
     drifted: !compliance.compliant,
   };
 }
+
+export interface HoldResult {
+  removed: string[];
+  alreadyUnpublished: boolean;
+  message: string;
+}
+
+/**
+ * Takes one product off every sales channel it is currently on, so it stops
+ * being sellable anywhere while the reason for the hold is investigated.
+ *
+ * Product status, price, variants and inventory are untouched, so the listing
+ * and its history survive and a later reconciliation can put it back on the
+ * approved channels once the evidence is restored.
+ */
+export async function holdProductOffSalesChannels(
+  shopifyProductId: string,
+  options: { dryRun?: boolean } = {},
+): Promise<HoldResult> {
+  const state = await readProductPublicationState(shopifyProductId);
+  const current = state.channels.filter((channel) => state.publishedIds.includes(channel.id));
+  if (current.length === 0) {
+    return { removed: [], alreadyUnpublished: true, message: "Already off every sales channel" };
+  }
+  if (options.dryRun) {
+    return {
+      removed: current.map((channel) => channel.name),
+      alreadyUnpublished: false,
+      message: "Dry run. No change was made in the store",
+    };
+  }
+
+  const credentials = await intakeCredentials();
+  const result: any = await shopifyGraphql(credentials, UNPUBLISH_MUTATION, {
+    id: shopifyProductId,
+    input: current.map((channel) => ({ publicationId: channel.id })),
+  });
+  const errors = (result?.publishableUnpublish?.userErrors ?? []).map((error: any) =>
+    String(error?.message ?? "Unpublishing failed"),
+  );
+  if (errors.length > 0) {
+    return { removed: [], alreadyUnpublished: false, message: errors.join(" ") };
+  }
+  return {
+    removed: current.map((channel) => channel.name),
+    alreadyUnpublished: false,
+    message: `Removed from ${current.map((channel) => channel.name).join(", ")}`,
+  };
+}
