@@ -251,7 +251,7 @@ export async function optimiseProduct(
 
   return {
     productId: product.id,
-    state: validation.state,
+    state,
     score: validation.score,
     issues: validation.issues,
     published,
