@@ -100,7 +100,11 @@ export async function runHourlySourcing(db: Db, jobKey: string): Promise<Sourcin
 
   const target = Math.max(1, Math.min(rules.batch_size || HOURLY_TARGET, HOURLY_TARGET));
 
-  const screen = await runSourcingScreen({ target });
+  // Checkpointed traversal. Each automated run continues from the supplier
+  // page the last run finished on, so the pipeline walks the whole catalogue
+  // rather than rescreening the same first pages and rejecting them as
+  // duplicates.
+  const screen = await runSourcingScreen({ target, checkpoint: true });
   const recommended = screen.products
     .filter((product) => (product.outcome === "recommended" || product.outcome === "accepted") && product.score >= rules.min_suitability_score)
     .sort((a, b) => b.score - a.score)
