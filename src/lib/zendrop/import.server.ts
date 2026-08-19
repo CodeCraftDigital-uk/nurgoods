@@ -1170,6 +1170,10 @@ export async function runSourcingScreen(input: {
     }
 
 
+    // Cheap deterministic exclusions and the local duplicate read run first,
+    // so an obviously unsuitable product never costs a supplier shipping quote.
+    type CatalogueItem = (typeof batch.items)[number];
+    const survivors: CatalogueItem[] = [];
     for (const raw of batch.items) {
       funnel.queried += 1;
       if (!fx) {
@@ -1190,8 +1194,6 @@ export async function runSourcingScreen(input: {
         }
       }
 
-      // Cheap deterministic exclusions run first so an obviously unsuitable
-      // product never costs a supplier shipping quote.
       const cheap = preScreenCheap(raw, rules);
       if (cheap.blocked) {
         if (cheap.code === "prohibited_category" || cheap.code === "restricted") funnel.restricted += 1;
@@ -1200,49 +1202,66 @@ export async function runSourcingScreen(input: {
         continue;
       }
 
-      // Duplicate control is a local database read, so it also runs before any
-      // supplier call.
       const duplicateReason = rules.duplicate_precheck ? await duplicatePrecheck(raw) : null;
       if (duplicateReason) {
         funnel.duplicateExcluded += 1;
         continue;
       }
+      survivors.push(raw);
+    }
 
-      // Catalogue listings do not carry a destination shipping cost. Quote it
-      // from the supplier for the market in use, only for products that have
-      // already survived the cheap screen, so landed cost is evidenced rather
-      // than guessed and supplier traffic stays low.
-      let item = raw;
-      if (item.shippingCost === null && shippingQuotes < maxShippingQuotes) {
-        const { quoteZendropShipping } = await import("./catalogue.server");
-        // Try each supported market and keep the dearest confirmed quote, so
-        // pricing is set against the worst supported destination rather than
-        // the cheapest one, while a product that only ships to one of the
-        // markets still qualifies instead of being discarded as undeliverable.
-        let worst: { cost: number; estimate: string | null; market: string } | null = null;
-        for (const market of quoteMarkets) {
-          if (shippingQuotes >= maxShippingQuotes) break;
-          shippingQuotes += 1;
-          try {
-            const quote = await quoteZendropShipping(item.id, market);
-            if (quote.cost === null || quote.cost === undefined) continue;
-            if (!worst || quote.cost > worst.cost) {
-              worst = { cost: quote.cost, estimate: quote.estimate ?? null, market };
+    // Catalogue listings do not carry a destination shipping cost. Quote it
+    // from the supplier for each supported market, in a small parallel pool so
+    // a deep catalogue pass finishes in a sensible time without bursting the
+    // supplier. Landed cost stays evidenced rather than guessed.
+    const { quoteZendropShipping } = await import("./catalogue.server");
+    const QUOTE_CONCURRENCY = 6;
+    const quotedItems: CatalogueItem[] = new Array(survivors.length);
+    let cursor = 0;
+    const workers = Array.from({ length: Math.min(QUOTE_CONCURRENCY, survivors.length) }, async () => {
+      for (;;) {
+        const index = cursor;
+        cursor += 1;
+        if (index >= survivors.length) return;
+        const original = survivors[index]!;
+        let item = original;
+        if (item.shippingCost === null && shippingQuotes < maxShippingQuotes) {
+          // Keep the dearest confirmed quote, so pricing is set against the
+          // worst supported destination rather than the cheapest one, while a
+          // product that only ships to one market still qualifies.
+          let worst: { cost: number; estimate: string | null; market: string } | null = null;
+          for (const market of quoteMarkets) {
+            if (shippingQuotes >= maxShippingQuotes) break;
+            shippingQuotes += 1;
+            try {
+              const quote = await quoteZendropShipping(item.id, market);
+              if (quote.cost === null || quote.cost === undefined) continue;
+              if (!worst || quote.cost > worst.cost) {
+                worst = { cost: quote.cost, estimate: quote.estimate ?? null, market };
+              }
+            } catch {
+              // A market that cannot be quoted simply does not count towards
+              // deliverability. It never invents a cost.
             }
-          } catch {
-            // A market that cannot be quoted simply does not count towards
-            // deliverability. It never invents a cost.
+          }
+          if (worst) {
+            item = {
+              ...item,
+              shippingCost: worst.cost,
+              shippingDestination: worst.market,
+              deliveryEstimate: item.deliveryEstimate ?? worst.estimate,
+            };
           }
         }
-        if (worst) {
-          item = {
-            ...item,
-            shippingCost: worst.cost,
-            shippingDestination: worst.market,
-            deliveryEstimate: item.deliveryEstimate ?? worst.estimate,
-          };
-        }
+        quotedItems[index] = item;
       }
+    });
+    await Promise.all(workers);
+
+    for (const item of quotedItems) {
+      if (!item || !fx) continue;
+      const duplicateReason = null;
+
 
       const screen = screenCandidate({
         item,

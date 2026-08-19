@@ -18,11 +18,11 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 type Db = SupabaseClient<any, "public", any>;
 
-/** Maximum successful new listings per hourly run. Not a quota to fill. */
-export const HOURLY_TARGET = 25;
+/** Maximum successful new listings per run. Not a quota to fill. */
+export const HOURLY_TARGET = 200;
 
 /** Serial import chunk so one run never fires many heavy jobs at once. */
-const IMPORT_CHUNK = 5;
+const IMPORT_CHUNK = 10;
 
 /** Consecutive failed runs that trip the breaker. */
 const BREAKER_THRESHOLD = 3;
