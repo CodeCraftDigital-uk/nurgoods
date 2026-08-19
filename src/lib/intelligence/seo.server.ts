@@ -81,7 +81,7 @@ export function seoInputHash(bundle: ProductBundle, categorySlug: string | null)
 
 export interface SeoOutcome {
   productId: string;
-  state: "valid" | "needs_attention" | "rejected";
+  state: "valid" | "needs_attention" | "rejected" | "manual_review";
   score: number;
   issues: Array<{ code: string; label: string; severity: string }>;
   published: boolean;
