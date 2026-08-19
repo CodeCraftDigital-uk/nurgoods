@@ -1071,17 +1071,29 @@ export interface SourcingScreenResult {
   pagesRead: number;
   catalogueTotal: number | null;
   message: string;
+  /** Page the traversal started on, and the page the next run will resume from. */
+  startPage: number;
+  nextPage: number;
+  cycle: number;
+  /** True when the supplier ran out of pages and the checkpoint wrapped. */
+  wrapped: boolean;
 }
 
 /**
  * Reads and pre-screens supplier catalogue pages without writing anything.
  * Catalogue cardinality is only reported when the supplier actually returns
  * it, so the funnel never states a total it cannot evidence.
+ *
+ * When `checkpoint` is set the traversal resumes from the persisted supplier
+ * page and advances it afterwards, so successive automated runs walk the whole
+ * supplier catalogue instead of resampling the same first pages. A manual
+ * screen with an explicit query or category never moves the checkpoint.
  */
 export async function runSourcingScreen(input: {
   query?: string | undefined;
   category?: string | undefined;
   target: number;
+  checkpoint?: boolean | undefined;
 }): Promise<SourcingScreenResult> {
   const { searchZendropCatalogue } = await import("./catalogue.server");
   const rules = await loadSourcingRules();
@@ -1101,16 +1113,27 @@ export async function runSourcingScreen(input: {
   const products: ScreenedProduct[] = [];
   const target = Math.max(1, Math.min(input.target, 500));
   const pageSize = 50;
-  const maxPages = Math.max(1, Math.min(Math.ceil((target * 3) / pageSize), 20));
+  const useCheckpoint = input.checkpoint === true && !input.query && !input.category;
+  const startPage = useCheckpoint ? Math.max(1, rules.scan_page) : 1;
+  const maxPages = useCheckpoint
+    ? Math.max(1, rules.scan_pages_per_run)
+    : Math.max(1, Math.min(Math.ceil((target * 3) / pageSize), 20));
+
+  // Every supported market is a legitimate destination, so a product only
+  // fails deliverability when no supported market can be quoted at all.
+  const supportedMarkets = resolveSupportedMarkets(settings.supported_markets);
+  const quoteMarkets = supportedMarkets.length > 0 ? supportedMarkets : [settings.shipping_market];
 
   let fx: FxQuote | null = null;
   let catalogueTotal: number | null = null;
   let pagesRead = 0;
   let shippingQuotes = 0;
-  const maxShippingQuotes = target * 4;
+  let wrapped = false;
+  let nextPage = startPage;
+  const maxShippingQuotes = target * 6;
 
-
-  for (let page = 1; page <= maxPages; page += 1) {
+  for (let offset = 0; offset < maxPages; offset += 1) {
+    const page = startPage + offset;
     const batch = await searchZendropCatalogue({
       query: input.query,
       category: input.category,
@@ -1118,8 +1141,18 @@ export async function runSourcingScreen(input: {
       limit: pageSize,
     });
     pagesRead += 1;
+    nextPage = page + 1;
     if (batch.total !== null) catalogueTotal = batch.total;
-    if (!batch.available || batch.items.length === 0) break;
+    if (!batch.available || batch.items.length === 0) {
+      // The supplier ran out of pages. Wrap the checkpoint so the next run
+      // starts a fresh traversal rather than stalling on an empty tail.
+      if (page > 1) {
+        wrapped = true;
+        nextPage = 1;
+      }
+      break;
+    }
+
 
     for (const raw of batch.items) {
       funnel.queried += 1;
