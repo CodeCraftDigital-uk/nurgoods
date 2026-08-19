@@ -109,7 +109,7 @@ export async function restoreProductToSale(input: {
   return {
     restored: true,
     reason:
-      "The supplier evidences the product again, delivery and price both clear, so it was brought back on sale on the headless channel only.",
+      "The supplier evidences the product again, delivery and price both clear, so it was brought back on sale on the approved sales channels.",
     channels: [...publication.published, ...publication.alreadyPublished],
   };
 }

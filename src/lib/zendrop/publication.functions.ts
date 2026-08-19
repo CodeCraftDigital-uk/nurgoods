@@ -22,6 +22,8 @@ export interface PublicationConsoleView {
     drifted: boolean;
     changed: boolean;
     message: string | null;
+    /** The store's reason for refusing Shop, when it refused. Not drift. */
+    shopException: string | null;
   }>;
 }
 
@@ -55,8 +57,8 @@ export const runPublicationAuditFn = createServerFn({ method: "POST" })
 export const migratePublicationsFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { confirm: string; limit?: number; shopifyProductId?: string }) => {
-    if (input?.confirm !== "HEADLESS ONLY") {
-      throw new Error("Type HEADLESS ONLY to confirm a live channel migration.");
+    if (input?.confirm !== "HEADLESS PLUS SHOP") {
+      throw new Error("Type HEADLESS PLUS SHOP to confirm a live channel migration.");
     }
     return input;
   })

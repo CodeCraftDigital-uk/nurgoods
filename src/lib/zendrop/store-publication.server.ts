@@ -1,22 +1,26 @@
 /**
  * Sales channel publication for products in the store.
  *
- * NUR GOODS is the only shopping and browsing storefront. The store behind it
- * is the checkout, payment and order engine. Headless only publication has
- * been proven against a real product, so a product belongs on the headless
- * sales channel that issues our checkout links and on nothing else.
+ * NUR GOODS is the only browsing storefront we operate, and the store behind
+ * it is the checkout, payment and order engine. An active sellable product
+ * belongs on two approved channels: the headless channel that issues our
+ * checkout links, and Shop so it is discoverable and trackable in the Shop
+ * app. The Online Store website channel and Point of Sale stay off.
  *
  * The channel rules themselves are pure and tested in publication-policy.ts.
  * This module only talks to the store.
  */
 import { intakeCredentials, shopifyGraphql } from "../services/shopify.server";
 import {
-  assertNoShopChannel,
+  assertOnlyApprovedChannels,
+  classifyChannel,
   DEFAULT_PUBLICATION_POLICY,
+  evaluateCompliance,
   planPublicationReconciliation,
   resolveHeadlessChannel,
   selectPublicationTargets,
   type Channel,
+  type ComplianceVerdict,
   type PublicationPolicy,
 } from "./publication-policy";
 
@@ -56,9 +60,9 @@ const UNPUBLISH_MUTATION = `
 /**
  * Reads the publication policy from the store integration settings.
  *
- * Only the Online Store switch is configurable, and it defaults to off now
- * that headless only checkout is proven. The Shop and Point of Sale channels
- * are never configurable, so no setting can turn them on.
+ * Only the Online Store switch is configurable, and it defaults to off. Shop
+ * is an approved channel and is always on. Point of Sale is never
+ * configurable, so no setting can turn it on.
  */
 export async function loadPublicationPolicy(): Promise<PublicationPolicy> {
   try {
@@ -115,6 +119,11 @@ export interface PublicationResult {
   unpublished: string[];
   /** Channels deliberately skipped, so the decision is visible in the log. */
   skipped: string[];
+  /**
+   * The store's own reason for refusing Shop publication for this product, if
+   * it did. The product keeps the headless channel and is surfaced for review.
+   */
+  shopIneligible: string | null;
   message: string;
 }
 
@@ -148,8 +157,8 @@ async function readProductPublicationState(
  * Brings one product to the desired channel state.
  *
  * Publishing and unpublishing are both driven from the same idempotent plan,
- * so re-running this can never add the Shop or Online Store channel back, and
- * a product that is already correct results in no store writes at all.
+ * so re-running this can never add the Online Store or Point of Sale channel
+ * back, and a product that is already correct results in no store writes.
  *
  * Product status, price, variants and inventory are never touched here.
  */
@@ -160,8 +169,8 @@ export async function ensureStorePublications(
 ): Promise<PublicationResult> {
   const effective = policy ?? (await loadPublicationPolicy());
   // Removal is destructive, so it only happens on an explicitly authorised
-  // reconciliation path. Ordinary import activation publishes the headless
-  // channel and never widens to a forbidden one, but it also never strips a
+  // reconciliation path. Ordinary import activation publishes the approved
+  // channels and never widens to a forbidden one, but it also never strips a
   // channel a human may have set deliberately.
   const removeUnwanted = options.removeUnwanted === true;
   const state = await readProductPublicationState(shopifyProductId);
@@ -176,9 +185,9 @@ export async function ensureStorePublications(
     .filter((channel) => !plan.toPublish.some((target) => target.id === channel.id))
     .map((channel) => channel.name);
 
-  // Belt and braces: nothing classified as Shop or Point of Sale may reach the
-  // publish mutation, whatever a caller passed in as policy.
-  assertNoShopChannel(plan.toPublish);
+  // Belt and braces: only approved channels may reach the publish mutation,
+  // whatever a caller passed in as policy.
+  assertOnlyApprovedChannels(plan.toPublish, effective);
 
   const toUnpublish = removeUnwanted ? plan.toUnpublish : [];
 
@@ -188,7 +197,8 @@ export async function ensureStorePublications(
       alreadyPublished,
       unpublished: [],
       skipped,
-      message: `Already on the required sales channels only${
+      shopIneligible: null,
+      message: `Already on the approved sales channels only${
         skipped.length > 0 ? `. Left alone: ${skipped.join(", ")}` : ""
       }`,
     };
@@ -200,21 +210,45 @@ export async function ensureStorePublications(
       alreadyPublished,
       unpublished: toUnpublish.map((channel) => channel.name),
       skipped,
+      shopIneligible: null,
       message: "Dry run. No change was made in the store",
     };
   }
 
   const credentials = await intakeCredentials();
   const problems: string[] = [];
+  const published: string[] = [];
+  let shopIneligible: string | null = null;
 
-  if (plan.toPublish.length > 0) {
-    const result: any = await shopifyGraphql(credentials, PUBLISH_MUTATION, {
-      id: shopifyProductId,
-      input: plan.toPublish.map((channel) => ({ publicationId: channel.id })),
-    });
-    for (const error of result?.publishablePublish?.userErrors ?? []) {
-      problems.push(String(error?.message ?? "Publishing failed"));
+  // Each approved channel is published on its own call. Shop can refuse an
+  // individual product on eligibility grounds, and that refusal must never
+  // take the headless channel down with it, so the failures are isolated.
+  for (const channel of plan.toPublish) {
+    const isShop = classifyChannel(channel.name) === "shop";
+    let failure: string | null = null;
+    try {
+      const result: any = await shopifyGraphql(credentials, PUBLISH_MUTATION, {
+        id: shopifyProductId,
+        input: [{ publicationId: channel.id }],
+      });
+      const errors = (result?.publishablePublish?.userErrors ?? []).map((error: any) =>
+        String(error?.message ?? "Publishing failed"),
+      );
+      if (errors.length > 0) failure = errors.join(" ");
+    } catch (cause) {
+      failure = cause instanceof Error ? cause.message : "Publishing failed";
     }
+
+    if (!failure) {
+      published.push(channel.name);
+      continue;
+    }
+    if (isShop) {
+      // Recorded as an exception for admin review. nurgoods.com is unaffected.
+      shopIneligible = failure;
+      continue;
+    }
+    problems.push(failure);
   }
 
   if (problems.length === 0 && toUnpublish.length > 0) {
@@ -229,26 +263,29 @@ export async function ensureStorePublications(
 
   if (problems.length > 0) {
     return {
-      published: [],
+      published,
       alreadyPublished,
       unpublished: [],
       skipped,
+      shopIneligible,
       message: problems.join(" "),
     };
   }
 
   const parts: string[] = [];
-  if (plan.toPublish.length > 0)
-    parts.push(`Published to ${plan.toPublish.map((c) => c.name).join(", ")}`);
+  if (published.length > 0) parts.push(`Published to ${published.join(", ")}`);
   if (toUnpublish.length > 0)
     parts.push(`Removed from ${toUnpublish.map((c) => c.name).join(", ")}`);
+  if (shopIneligible)
+    parts.push(`Shop refused this product and it stays headless only: ${shopIneligible}`);
   if (skipped.length > 0) parts.push(`Left alone: ${skipped.join(", ")}`);
 
   return {
-    published: plan.toPublish.map((channel) => channel.name),
+    published,
     alreadyPublished,
     unpublished: toUnpublish.map((channel) => channel.name),
     skipped,
+    shopIneligible,
     message: parts.join(". "),
   };
 }
@@ -263,6 +300,8 @@ export interface ProductPublicationReport {
   toPublish: string[];
   toUnpublish: string[];
   drifted: boolean;
+  /** Approved channels present, unapproved channels absent, exceptions apart. */
+  compliance: ComplianceVerdict;
 }
 
 /**
@@ -272,14 +311,19 @@ export interface ProductPublicationReport {
 export async function readStorePublications(
   shopifyProductId: string,
   policy?: PublicationPolicy,
+  options: { shopIneligibleReason?: string | null } = {},
 ): Promise<ProductPublicationReport> {
   const effective = policy ?? (await loadPublicationPolicy());
   const state = await readProductPublicationState(shopifyProductId);
   const plan = planPublicationReconciliation(state.channels, state.publishedIds, effective);
   const published = new Set(state.publishedIds);
   const wanted = new Set(plan.desired.map((channel) => channel.id));
+  const compliance = evaluateCompliance(plan, {
+    shopIneligibleReason: options.shopIneligibleReason ?? null,
+  });
 
   return {
+    compliance,
     shopifyProductId,
     title: state.title,
     status: state.status,
@@ -292,6 +336,6 @@ export async function readStorePublications(
     desiredChannels: plan.desired.map((channel) => channel.name),
     toPublish: plan.toPublish.map((channel) => channel.name),
     toUnpublish: plan.toUnpublish.map((channel) => channel.name),
-    drifted: !plan.compliant,
+    drifted: !compliance.compliant,
   };
 }

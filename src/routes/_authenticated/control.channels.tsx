@@ -75,13 +75,16 @@ function ChannelsPage() {
   const checklist = view.data?.checklist;
   const lastRun = view.data?.lastRun ?? null;
   const items = view.data?.lastItems ?? [];
-  const drifted = items.filter((item) => item.drifted);
+  // A Shop refusal is the store's decision, not our drift, so it is listed on
+  // its own and the product keeps its headless availability.
+  const shopExceptions = items.filter((item) => item.shopException);
+  const drifted = items.filter((item) => item.drifted && !item.shopException);
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Sales channels"
-        description="NUR GOODS is the only shopping storefront. Products belong on the headless channel and nowhere else."
+        description="NUR GOODS is the only browsing storefront. Active products belong on the headless channel and Shop, and nowhere else."
       />
 
       <SectionCard
@@ -144,12 +147,12 @@ function ChannelsPage() {
             <Input
               value={confirm}
               onChange={(event) => setConfirm(event.target.value)}
-              placeholder="Type HEADLESS ONLY to confirm"
+              placeholder="Type HEADLESS PLUS SHOP to confirm"
               aria-label="Migration confirmation"
             />
             <Button
               onClick={() => migrate.mutate()}
-              disabled={migrate.isPending || confirm !== "HEADLESS ONLY"}
+              disabled={migrate.isPending || confirm !== "HEADLESS PLUS SHOP"}
             >
               {migrate.isPending ? "Reconciling" : "Reconcile up to 10 products"}
             </Button>
@@ -165,8 +168,42 @@ function ChannelsPage() {
       </SectionCard>
 
       <SectionCard
+        title="Shop exceptions"
+        description="Shop refused these products. They stay on the headless channel and keep selling on nurgoods.com."
+      >
+        {shopExceptions.length === 0 ? (
+          <EmptyState
+            icon={CheckCircle2}
+            title="No Shop refusals recorded"
+            description="Every audited product that reached Shop was accepted."
+          />
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Product</TableHead>
+                <TableHead>Currently on</TableHead>
+                <TableHead>Reason given by the store</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {shopExceptions.map((item) => (
+                <TableRow key={item.shopifyProductId}>
+                  <TableCell className="font-medium">
+                    {item.title ?? item.shopifyProductId}
+                  </TableCell>
+                  <TableCell>{item.currentChannels.join(", ") || "None"}</TableCell>
+                  <TableCell className="text-muted-foreground">{item.shopException}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </SectionCard>
+
+      <SectionCard
         title="Drift"
-        description="Products that are not on the headless channel only."
+        description="Products that are not on the headless channel and Shop, Shop refusals apart."
       >
         {drifted.length === 0 ? (
           <EmptyState

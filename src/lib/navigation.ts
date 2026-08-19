@@ -79,7 +79,7 @@ export const ADMIN_NAV: NavItem[] = [
   {
     to: "/control/channels",
     label: "Sales Channels",
-    description: "Headless only publication, drift audit and checkout return CTA status.",
+    description: "Headless plus Shop publication, drift audit and checkout return CTA status.",
     icon: Radio,
   },
   {

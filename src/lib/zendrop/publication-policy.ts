@@ -1,14 +1,17 @@
 /**
  * Sales channel policy for NUR GOODS.
  *
- * NUR GOODS at https://nurgoods.com is the only shopping and browsing
- * storefront. The store behind it exists to take payment and own the order, so
- * a product belongs on the headless channel that issues our checkout links and
- * nowhere a shopper could discover it as a competing storefront.
+ * NUR GOODS at https://nurgoods.com is the only browsing storefront we run
+ * ourselves, and the store behind it takes payment and owns the order. Two
+ * sales channels are approved for an active sellable product:
  *
- * Headless only checkout has been proven on a controlled product, so headless
- * only is now the default. Online Store, Shop and Point of Sale are all off
- * unless a deliberate admin opt in is recorded.
+ *   - the NUR GOODS headless channel, which serves nurgoods.com and issues our
+ *     checkout links, and
+ *   - Shop, so the catalogue is discoverable, orderable and trackable inside
+ *     the Shop app.
+ *
+ * The Shopify Online Store website channel and Point of Sale stay off, as does
+ * any channel we have not deliberately approved.
  *
  * The rules live here as pure functions with no network access so they can be
  * tested directly and so no call site can quietly widen them.
@@ -23,31 +26,35 @@ export interface Channel {
 
 export interface PublicationPolicy {
   /**
-   * Publish to the Online Store channel as well as the headless channel.
+   * Publish to the Online Store website channel.
    *
-   * Off by default. Headless only checkout has been verified against a real
-   * product, so the Online Store is not part of the selling path. It can be
-   * turned back on by an admin setting if a future checkout change needs it.
+   * Off by default. NUR GOODS is the only browsing storefront we operate, so
+   * the Online Store exists purely to carry checkout. It can be turned back on
+   * by an explicit admin setting if a future checkout change needs it.
    */
   includeOnlineStore: boolean;
   /**
-   * Publish to the Shop channel. This is the Shop app marketplace surface and
-   * is a second shopping storefront for our catalogue, so it is never enabled
-   * from automated code.
+   * Publish to Shop, the Shop app marketplace surface. On by default: the
+   * merchant wants the catalogue discoverable and trackable there.
    */
-  allowShopChannel: boolean;
+  includeShopChannel: boolean;
   /** Publish to Point of Sale. There is no physical retail, so this is off. */
   allowPointOfSale: boolean;
 }
 
 export const DEFAULT_PUBLICATION_POLICY: PublicationPolicy = {
   includeOnlineStore: false,
-  allowShopChannel: false,
+  includeShopChannel: true,
   allowPointOfSale: false,
 };
 
 /** The channel that serves the NUR GOODS storefront and issues checkout links. */
 export const HEADLESS_CHANNEL_NAME = "Nur Goods Headless Store";
+/** The Shop app marketplace channel. */
+export const SHOP_CHANNEL_NAME = "Shop";
+
+/** Human readable description of the approved steady state. */
+export const APPROVED_CHANNELS_LABEL = `${HEADLESS_CHANNEL_NAME} + ${SHOP_CHANNEL_NAME}`;
 
 /** Classifies a store channel by its name, which is the only stable signal. */
 export function classifyChannel(name: string | null | undefined): ChannelKind {
@@ -85,6 +92,31 @@ export function resolveHeadlessChannel(channels: Channel[]): Channel {
   return matches[0]!;
 }
 
+/**
+ * Resolves the Shop publication by identity. Shop is required but, unlike the
+ * headless channel, a missing or ambiguous Shop channel is not fatal: the
+ * storefront keeps working, so the caller reports it instead of refusing to
+ * publish anything at all.
+ */
+export function resolveShopChannel(channels: Channel[]): Channel | null {
+  const matches = channels.filter((channel) => classifyChannel(channel.name) === "shop");
+  if (matches.length !== 1) return null;
+  return matches[0]!;
+}
+
+/** The channels an active sellable product must end up on. */
+export function resolveRequiredChannels(
+  channels: Channel[],
+  policy: PublicationPolicy = DEFAULT_PUBLICATION_POLICY,
+): Channel[] {
+  const required = [resolveHeadlessChannel(channels)];
+  if (policy.includeShopChannel) {
+    const shop = resolveShopChannel(channels);
+    if (shop) required.push(shop);
+  }
+  return required;
+}
+
 export interface PublicationSelection {
   /** Channels the product should be published to. */
   targets: Channel[];
@@ -103,6 +135,7 @@ export function selectPublicationTargets(
 ): PublicationSelection {
   // Fails closed if the headless channel is missing or ambiguous.
   resolveHeadlessChannel(channels);
+  const shop = resolveShopChannel(channels);
 
   const targets: Channel[] = [];
   const excluded: Array<{ channel: Channel; reason: string }> = [];
@@ -123,12 +156,16 @@ export function selectPublicationTargets(
       continue;
     }
     if (kind === "shop") {
-      excluded.push({
-        channel,
-        reason: policy.allowShopChannel
-          ? "The Shop channel opt in is recorded but publishing there is still blocked in code"
-          : "The Shop channel is a separate shopping surface and is never published to automatically",
-      });
+      if (policy.includeShopChannel && shop && shop.id === channel.id) {
+        targets.push(channel);
+      } else {
+        excluded.push({
+          channel,
+          reason: shop
+            ? "Shop publication is switched off by policy"
+            : "More than one Shop channel was found, so none was selected",
+        });
+      }
       continue;
     }
     if (kind === "point_of_sale") {
@@ -167,8 +204,8 @@ export interface ReconciliationPlan {
  * where policy says it should be.
  *
  * The plan is idempotent: running it again on a compliant product produces an
- * empty plan, so a repeated import or a repeated migration pass can never add
- * the Shop or Online Store channel back.
+ * empty plan, so a repeated import or a repeated reconciliation pass makes no
+ * store writes at all.
  */
 export function planPublicationReconciliation(
   channels: Channel[],
@@ -192,20 +229,67 @@ export function planPublicationReconciliation(
   };
 }
 
+export interface ComplianceVerdict {
+  /** Approved channels the product is missing from, excluding known exceptions. */
+  missingRequired: string[];
+  /** Channels it is on that policy does not approve. */
+  disallowedPresent: string[];
+  /**
+   * Set when Shop is the only missing channel and the store itself refused the
+   * publication. This is an exception for review, not accidental drift.
+   */
+  shopException: string | null;
+  /** True when both required channels are on and nothing disallowed is. */
+  compliant: boolean;
+}
+
 /**
- * Hard guard used by the publishing call. Even with an opt in recorded
- * somewhere, the Shop and Point of Sale channels never reach a publish
- * mutation from automated code. Removing this guard should require a
- * deliberate, reviewed change.
+ * The single definition of compliance for an active sellable product: every
+ * approved channel present, nothing unapproved present. A Shop refusal from
+ * the store is reported separately so it is never mistaken for drift we caused
+ * and never triggers a pointless retry loop.
  */
-export function assertNoShopChannel(channels: Channel[]): void {
+export function evaluateCompliance(
+  plan: ReconciliationPlan,
+  options: { shopIneligibleReason?: string | null } = {},
+): ComplianceVerdict {
+  const reason = options.shopIneligibleReason ?? null;
+  const missing = plan.toPublish.filter(
+    (channel) => !(reason && classifyChannel(channel.name) === "shop"),
+  );
+  const shopException =
+    reason && plan.toPublish.some((channel) => classifyChannel(channel.name) === "shop")
+      ? reason
+      : null;
+
+  return {
+    missingRequired: missing.map((channel) => channel.name),
+    disallowedPresent: plan.toUnpublish.map((channel) => channel.name),
+    shopException,
+    compliant: missing.length === 0 && plan.toUnpublish.length === 0,
+  };
+}
+
+/**
+ * Hard guard used by the publishing call. Whatever a caller passes in as
+ * policy, only approved channels may reach a publish mutation. Point of Sale
+ * and unrecognised channels are always refused, and the Online Store is
+ * refused unless the deliberate opt in is in force.
+ */
+export function assertOnlyApprovedChannels(
+  channels: Channel[],
+  policy: PublicationPolicy = DEFAULT_PUBLICATION_POLICY,
+): void {
   const offender = channels.find((channel) => {
     const kind = classifyChannel(channel.name);
-    return kind === "shop" || kind === "point_of_sale";
+    if (kind === "headless") return false;
+    if (kind === "shop") return !policy.includeShopChannel;
+    if (kind === "online_store") return !policy.includeOnlineStore;
+    return true;
   });
   if (offender) {
     throw new Error(
-      `Refusing to publish to the ${offender.name} channel. NUR GOODS does not sell through the Shop channel.`,
+      `Refusing to publish to the ${offender.name} channel. NUR GOODS only sells through ${APPROVED_CHANNELS_LABEL}.`,
     );
   }
 }

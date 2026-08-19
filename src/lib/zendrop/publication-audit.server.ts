@@ -3,8 +3,13 @@
  *
  * The audit is read only and is the default. It walks the active catalogue,
  * reads the real channel state of each product from the store, and compares it
- * with the desired state, which is the headless channel only. Nothing is
- * changed unless a caller deliberately asks for a live run.
+ * with the approved state: the NUR GOODS headless channel and Shop on, the
+ * Online Store, Point of Sale and anything unapproved off. Nothing is changed
+ * unless a caller deliberately asks for a live run.
+ *
+ * Shop can refuse an individual product on its own eligibility rules. That is
+ * recorded as an exception against the product, the headless channel is left
+ * untouched, and the exception is counted separately from accidental drift.
  *
  * The live run reconciles in small batches, writes an audit row per product,
  * and is idempotent, so a compliant product produces no store write at all.
@@ -17,7 +22,11 @@ import {
   readStoreChannels,
   readStorePublications,
 } from "./store-publication.server";
-import { resolveHeadlessChannel, type PublicationPolicy } from "./publication-policy";
+import {
+  resolveHeadlessChannel,
+  resolveRequiredChannels,
+  type PublicationPolicy,
+} from "./publication-policy";
 
 export interface PublicationAuditItem {
   shopifyProductId: string;
@@ -29,6 +38,14 @@ export interface PublicationAuditItem {
   toUnpublish: string[];
   drifted: boolean;
   changed: boolean;
+  /** Approved channels still missing after this pass, exceptions apart. */
+  missingRequired: string[];
+  /** Unapproved channels found on the product. */
+  disallowedPresent: string[];
+  /** The store's reason for refusing Shop, when it did. Not drift. */
+  shopIneligible: string | null;
+  /** True when both approved channels are on and nothing unapproved is. */
+  compliant: boolean;
   message: string;
 }
 
@@ -42,6 +59,14 @@ export interface PublicationAuditRun {
   inspected: number;
   drifted: number;
   changed: number;
+  /** Products already on Shop before this pass. */
+  shopAlready: number;
+  /** Products newly published to Shop by this pass. */
+  shopPublished: number;
+  /** Products Shop itself refused, left on the headless channel. */
+  shopIneligible: number;
+  /** Products fully compliant at the end of this pass. */
+  compliant: number;
   desiredChannels: string[];
   items: PublicationAuditItem[];
   note: string;
@@ -87,8 +112,9 @@ export async function runPublicationAudit(
   // Fail closed before anything else if the headless channel is not uniquely
   // identifiable in this store.
   const channels = await readStoreChannels();
-  const headless = resolveHeadlessChannel(channels);
-  const desiredChannels = [headless.name];
+  resolveHeadlessChannel(channels);
+  const required = resolveRequiredChannels(channels, policy);
+  const desiredChannels = required.map((channel) => channel.name);
 
   const offset = Math.max(0, options.offset ?? 0);
   let query = supabase
@@ -128,6 +154,14 @@ export async function runPublicationAudit(
   const items: PublicationAuditItem[] = [];
   let drifted = 0;
   let changed = 0;
+  let shopAlready = 0;
+  let shopPublished = 0;
+  let shopIneligibleCount = 0;
+  let compliantCount = 0;
+  const isShopName = (name: string) => {
+    const value = name.trim().toLowerCase();
+    return value === "shop" || value === "shop app";
+  };
 
   for (const row of rows) {
     const productId = String(row.shopify_product_id);
@@ -146,24 +180,40 @@ export async function runPublicationAudit(
           toUnpublish: [],
           drifted: report.drifted,
           changed: false,
+          missingRequired: report.compliance.missingRequired,
+          disallowedPresent: report.compliance.disallowedPresent,
+          shopIneligible: null,
+          compliant: report.compliance.compliant,
           message: "Skipped. The product is not active in the store",
         });
         continue;
       }
       let message = report.drifted
-        ? "Drifted from the desired channel state"
-        : "Already on the desired channels only";
+        ? "Drifted from the approved channel state"
+        : "Already on the approved channels only";
       let didChange = false;
+      let shopIneligible: string | null = null;
+      let compliance = report.compliance;
 
       if (report.drifted) drifted += 1;
-
+      if (report.currentChannels.some(isShopName)) shopAlready += 1;
 
       if (!dryRun && report.drifted) {
         const result = await ensureStorePublications(productId, policy, { removeUnwanted: true });
         message = result.message;
         didChange = result.published.length > 0 || result.unpublished.length > 0;
         if (didChange) changed += 1;
+        if (result.published.some(isShopName)) shopPublished += 1;
+        shopIneligible = result.shopIneligible;
+        // Re-read so compliance reflects the store, not our intent.
+        const after = await readStorePublications(productId, policy, {
+          shopIneligibleReason: shopIneligible,
+        });
+        compliance = after.compliance;
       }
+
+      if (shopIneligible) shopIneligibleCount += 1;
+      if (compliance.compliant) compliantCount += 1;
 
       items.push({
         shopifyProductId: productId,
@@ -175,6 +225,10 @@ export async function runPublicationAudit(
         toUnpublish: report.toUnpublish,
         drifted: report.drifted,
         changed: didChange,
+        missingRequired: compliance.missingRequired,
+        disallowedPresent: compliance.disallowedPresent,
+        shopIneligible,
+        compliant: compliance.compliant,
         message,
       });
     } catch (cause) {
@@ -188,6 +242,10 @@ export async function runPublicationAudit(
         toUnpublish: [],
         drifted: false,
         changed: false,
+        missingRequired: [],
+        disallowedPresent: [],
+        shopIneligible: null,
+        compliant: false,
         message: cause instanceof Error ? cause.message : "The channel state could not be read",
       });
     }
@@ -206,7 +264,9 @@ export async function runPublicationAudit(
         to_unpublish: item.toUnpublish,
         drifted: item.drifted,
         changed: item.changed,
-        message: item.message,
+        message: item.shopIneligible
+          ? `${item.message} | Shop exception: ${item.shopIneligible}`
+          : item.message,
       })),
     );
   }
@@ -221,7 +281,7 @@ export async function runPublicationAudit(
         products_changed: changed,
         note: dryRun
           ? "Dry run. Nothing was changed in the store"
-          : "Live reconciliation to the headless channel only",
+          : `Live reconciliation to ${desiredChannels.join(" + ")}`,
       })
       .eq("id", runId);
   }
@@ -241,11 +301,15 @@ export async function runPublicationAudit(
     inspected: items.length,
     drifted,
     changed,
+    shopAlready,
+    shopPublished,
+    shopIneligible: shopIneligibleCount,
+    compliant: compliantCount,
     desiredChannels,
     items,
     note: dryRun
       ? "Dry run. Nothing was changed in the store"
-      : "Live reconciliation to the headless channel only",
+      : `Live reconciliation to ${desiredChannels.join(" + ")}`,
   };
 }
 
@@ -281,11 +345,17 @@ export async function readChannelChecklist(): Promise<ChannelChecklist> {
             desired: policy.includeOnlineStore,
             note: policy.includeOnlineStore
               ? "Opt in recorded, so it is still published to"
-              : "Off. Headless only checkout is proven",
+              : "Off. NUR GOODS is the only browsing storefront",
           };
         }
         if (lower === "shop" || lower === "shop app") {
-          return { name: channel.name, desired: false, note: "Blocked in code. Never published to" };
+          return {
+            name: channel.name,
+            desired: policy.includeShopChannel,
+            note: policy.includeShopChannel
+              ? "Approved. Active products are discoverable and trackable in the Shop app"
+              : "Off by policy",
+          };
         }
         if (lower.includes("point of sale")) {
           return { name: channel.name, desired: false, note: "Off. No physical retail" };
