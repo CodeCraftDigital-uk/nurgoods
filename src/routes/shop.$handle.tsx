@@ -336,7 +336,7 @@ function ProductDetail() {
               {activeImage ? (
                 <img
                   src={activeImage.url}
-                  alt={activeImage.alt ?? product.title}
+                  alt={activeImage.alt?.trim() || `${product.title} product photo`}
                   width={activeImage.width ?? 1200}
                   height={activeImage.height ?? 1200}
                   decoding="async"
@@ -344,7 +344,7 @@ function ProductDetail() {
                 />
               ) : (
                 <div className="aspect-square w-full">
-                  <MissingProductImage />
+                  <MissingProductImage title={product.title} />
                 </div>
               )}
             </div>

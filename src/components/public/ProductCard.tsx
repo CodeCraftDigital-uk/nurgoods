@@ -48,7 +48,7 @@ export function ProductCard({
         {product.image_url ? (
           <img
             src={product.image_url}
-            alt={product.title}
+            alt={product.title?.trim() || "NUR GOODS product"}
             width={600}
             height={600}
             loading={eager ? "eager" : "lazy"}
@@ -56,7 +56,7 @@ export function ProductCard({
             className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
           />
         ) : (
-          <MissingProductImage />
+          <MissingProductImage title={product.title} />
         )}
         {reduced ? (
           <span className="absolute left-3 top-3 rounded-full bg-gold px-2.5 py-1 text-[0.62rem] font-semibold uppercase tracking-[0.12em] text-gold-foreground shadow-sm">
