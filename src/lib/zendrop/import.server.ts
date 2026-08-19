@@ -57,6 +57,13 @@ export const DEFAULT_RULES: SourcingRules = {
   scan_last_at: null,
   scan_exhausted_at: null,
   discovery_market_mode: "any",
+  freshness_target_hours: 48,
+  refresh_min_batch: 10,
+  refresh_max_batch: 60,
+  refresh_headroom_pct: 0.3,
+  refresh_runs_per_hour: 4,
+  auto_recovery_enabled: true,
+  inventory_policy_override: false,
 };
 
 export async function loadPricingSettings(): Promise<PricingSettings> {
