@@ -220,12 +220,15 @@ interface ClaimedRow {
 }
 
 async function claimBatch(db: Db, limit: number): Promise<ClaimedRow[]> {
-  // Release locks left behind by an interrupted worker.
+  // Release locks left behind by an interrupted worker. A row can be left
+  // running with no lock stamp at all when the worker died between the claim
+  // and the stamp, so those are reclaimed too rather than stranded forever.
+  const staleBefore = new Date(Date.now() - LOCK_TIMEOUT_MS).toISOString();
   await db
     .from("intelligence_queue")
     .update({ status: "queued", locked_at: null, lock_token: null } as never)
     .eq("status", "running")
-    .lt("locked_at", new Date(Date.now() - LOCK_TIMEOUT_MS).toISOString());
+    .or(`locked_at.is.null,locked_at.lt.${staleBefore}`);
 
   const { data: candidates } = await db
     .from("intelligence_queue")
