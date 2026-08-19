@@ -1,7 +1,14 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { contentFingerprint, factsFingerprint, type ProductBundle, type ProductRow } from "./core.server";
 import { classifyProduct, loadCategories } from "./classify.server";
-import { loadSeoContext, optimiseProduct, refreshProductFacts, seoInputHash } from "./seo.server";
+import {
+  MAX_REGENERATION_ATTEMPTS as MAX_SEO_REGENERATIONS,
+  loadSeoContext,
+  optimiseProduct,
+  refreshProductFacts,
+  seoInputHash,
+} from "./seo.server";
+
 import type { CategoryNode } from "./taxonomy";
 
 /**
