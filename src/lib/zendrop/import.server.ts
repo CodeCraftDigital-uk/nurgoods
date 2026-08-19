@@ -1277,14 +1277,38 @@ export async function runSourcingScreen(input: {
   }
 
   products.sort((a, b) => b.score - a.score);
+
+  const cycle = wrapped ? rules.scan_cycle + 1 : rules.scan_cycle;
+  if (useCheckpoint) {
+    const supabase = await zendropAdminClient();
+    await supabase
+      .from("zendrop_sourcing_rules")
+      .update({
+        scan_page: nextPage,
+        scan_cycle: cycle,
+        scan_last_at: new Date().toISOString(),
+        ...(wrapped ? { scan_exhausted_at: new Date().toISOString() } : {}),
+      } as never)
+      .eq("id", "default");
+  }
+
+  const traversal = useCheckpoint
+    ? ` Traversal covered pages ${startPage} to ${startPage + pagesRead - 1}; the next run resumes at page ${nextPage}${wrapped ? " after wrapping to the start of the catalogue" : ""}.`
+    : "";
+
   return {
     funnel,
     products: products.slice(0, target),
     pagesRead,
     catalogueTotal,
     message:
-      catalogueTotal === null
+      (catalogueTotal === null
         ? `Screened ${funnel.queried} supplier products across ${pagesRead} page(s). The supplier does not report total catalogue size, so none is shown.`
-        : `Screened ${funnel.queried} of ${catalogueTotal} reported supplier products across ${pagesRead} page(s).`,
+        : `Screened ${funnel.queried} of ${catalogueTotal} reported supplier products across ${pagesRead} page(s).`) +
+      traversal,
+    startPage,
+    nextPage,
+    cycle,
+    wrapped,
   };
 }
