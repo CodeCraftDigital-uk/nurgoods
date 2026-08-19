@@ -50,6 +50,13 @@ export const DEFAULT_RULES: SourcingRules = {
   target_catalogue_size: null,
   daily_import_cap: 25,
   batch_size: 10,
+  scan_page: 1,
+  scan_cursor: null,
+  scan_cycle: 1,
+  scan_pages_per_run: 6,
+  scan_last_at: null,
+  scan_exhausted_at: null,
+  discovery_market_mode: "any",
 };
 
 export async function loadPricingSettings(): Promise<PricingSettings> {
