@@ -10,6 +10,19 @@ import {
 } from "@/lib/services/public-content.functions";
 
 export const Route = createFileRoute("/legal/")({
+  // Server rendered so every policy link is present in the crawlable HTML.
+  loader: async () => {
+    try {
+      const [sources, documents, references] = await Promise.all([
+        listPublicLegalSources({}),
+        listPublicLegalDocuments({}),
+        listPublicLegalReferences({}),
+      ]);
+      return { sources, documents, references };
+    } catch {
+      return null;
+    }
+  },
   head: () => ({
     meta: [
       { title: "Policies and trust | NUR GOODS" },
@@ -24,6 +37,7 @@ export const Route = createFileRoute("/legal/")({
         content: "Read the published NUR GOODS policies covering privacy, returns, delivery and more.",
       },
       { property: "og:type", content: "website" },
+      { property: "og:url", content: `${BRAND.siteUrl}/legal` },
       { name: "twitter:card", content: "summary" },
     ],
     links: [{ rel: "canonical", href: `${BRAND.siteUrl}/legal` }],
@@ -32,6 +46,7 @@ export const Route = createFileRoute("/legal/")({
 });
 
 function LegalIndex() {
+  const initial = Route.useLoaderData();
   const fetchSources = useServerFn(listPublicLegalSources);
   const fetchDocs = useServerFn(listPublicLegalDocuments);
   const fetchReferences = useServerFn(listPublicLegalReferences);
@@ -39,18 +54,22 @@ function LegalIndex() {
   const sources = useQuery({
     queryKey: ["public-legal-sources"],
     queryFn: () => fetchSources({}),
+    ...(initial ? { initialData: initial.sources } : {}),
     retry: false,
   });
   const documents = useQuery({
     queryKey: ["public-legal"],
     queryFn: () => fetchDocs({}),
+    ...(initial ? { initialData: initial.documents } : {}),
     retry: false,
   });
   const references = useQuery({
     queryKey: ["public-legal-references"],
     queryFn: () => fetchReferences({}),
+    ...(initial ? { initialData: initial.references } : {}),
     retry: false,
   });
+
 
   const imported = sources.data ?? [];
   const local = (documents.data ?? []).filter(
