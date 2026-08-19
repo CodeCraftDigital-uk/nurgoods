@@ -67,10 +67,9 @@ export async function restoreProductToSale(input: {
     return { restored: false, reason: "The store product could not be read back.", channels: [] };
   }
 
-  const screening = isProhibited({
+  const screening = screenProhibited({
     title: String(product.title ?? ""),
-    description: null,
-    category: product.productType ? String(product.productType) : null,
+    productType: product.productType ? String(product.productType) : null,
     tags: Array.isArray(product.tags) ? product.tags.map((tag: unknown) => String(tag)) : [],
   });
   if (screening.prohibited) {
