@@ -102,7 +102,49 @@ function ReviewsPage() {
             </div>
           </div>
         )}
+
+        <section className="mt-16 pb-8" aria-labelledby="review-faq">
+          <h2 id="review-faq" className="font-display text-2xl text-foreground">
+            About these reviews
+          </h2>
+          <dl className="mt-6 grid gap-4 sm:grid-cols-2">
+            {REVIEW_FAQS.map((item) => (
+              <div key={item.question} className="glass-card rounded-2xl p-6">
+                <dt className="font-display text-base font-semibold text-foreground">
+                  {item.question}
+                </dt>
+                <dd className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                  {item.answer}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </section>
       </div>
+
+      <JsonLd
+        data={[
+          {
+            "@context": "https://schema.org",
+            "@type": "FAQPage",
+            name: `${BRAND.name} review questions`,
+            url: `${BRAND.siteUrl}/reviews`,
+            mainEntity: REVIEW_FAQS.map((item) => ({
+              "@type": "Question",
+              name: item.question,
+              acceptedAnswer: { "@type": "Answer", text: item.answer },
+            })),
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            itemListElement: [
+              { "@type": "ListItem", position: 1, name: "Home", item: `${BRAND.siteUrl}/` },
+              { "@type": "ListItem", position: 2, name: "Reviews", item: `${BRAND.siteUrl}/reviews` },
+            ],
+          },
+        ]}
+      />
     </PublicShell>
   );
 }
