@@ -44,7 +44,12 @@ export function resolveProductBrand(input: {
   vendor?: string | null;
   brand?: string | null;
   manufacturer?: string | null;
+  /** Optional catalogue tags, scanned only for an explicit brand: prefix. */
+  tags?: string[] | null;
+  /** Optional metafield map, scanned only for explicit brand keys. */
+  metafields?: Record<string, unknown> | null;
 }): ResolvedBrand {
+
   const vendorIsMarketplace = isMarketplaceName(input.vendor);
   const clean = (value: string | null | undefined): string | null => {
     const trimmed = (value ?? "").replace(/\s+/g, " ").trim();
