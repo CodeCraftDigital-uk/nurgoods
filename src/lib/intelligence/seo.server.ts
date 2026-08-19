@@ -78,8 +78,11 @@ const SEO_RULES = [
 export function seoInputHash(bundle: ProductBundle, categorySlug: string | null): string {
   return sha(`${contentFingerprint(bundle)}|${categorySlug ?? ""}|${SEO_VERSION}`);
 }
+
 /** Failures on unchanged source data park the record after this many tries. */
 export const MAX_REGENERATION_ATTEMPTS = 3;
+
+
 
 
 export interface SeoOutcome {
