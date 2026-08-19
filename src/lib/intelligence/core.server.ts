@@ -1,4 +1,12 @@
 import { createHash } from "crypto";
+import {
+  MARKETPLACE_NAME,
+  enforceMarketplaceIdentity,
+  isMarketplaceName,
+  resolveProductBrand,
+  type IdentityFinding,
+} from "./marketplace-identity";
+
 
 /**
  * Deterministic half of the intelligence layer.
