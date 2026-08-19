@@ -474,6 +474,32 @@ function Index() {
         <ReviewPlacementSlot surface="homepage" className="mt-16 sm:mt-24" />
       </div>
 
+      {/* Answers */}
+      <section
+        className="mx-auto mt-16 w-full max-w-7xl px-5 sm:mt-24 sm:px-8"
+        aria-labelledby="home-faq"
+      >
+        <h2 id="home-faq" className="font-display text-2xl text-foreground">
+          Common questions
+        </h2>
+        <dl className="mt-6 grid gap-4 sm:grid-cols-2">
+          {HOME_FAQS.map((item) => (
+            <div key={item.question} className="glass-card rounded-2xl p-6">
+              <dt className="font-display text-base font-semibold text-foreground">
+                {item.question}
+              </dt>
+              <dd className="mt-2 text-sm leading-relaxed text-muted-foreground">{item.answer}</dd>
+            </div>
+          ))}
+        </dl>
+        <Link
+          to="/faq"
+          className="mt-6 inline-flex min-h-11 items-center rounded-lg border border-input px-5 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+        >
+          Read all FAQs
+        </Link>
+      </section>
+
       {/* Support */}
       <section className="mx-auto mt-16 w-full max-w-7xl px-5 sm:mt-24 sm:px-8" aria-labelledby="support">
         <div className="glass-card rounded-3xl p-8 sm:p-10">
