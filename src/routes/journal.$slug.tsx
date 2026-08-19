@@ -172,7 +172,7 @@ function ArticlePage() {
         {article.hero_image_url ? (
           <img
             src={article.hero_image_url}
-            alt={article.hero_image_alt ?? article.title}
+            alt={article.hero_image_alt?.trim() || article.title}
             loading="lazy"
             className="mt-8 w-full glass-card rounded-2xl object-cover"
           />

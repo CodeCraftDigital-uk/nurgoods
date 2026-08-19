@@ -2,7 +2,27 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { PublicShell } from "@/components/public/PublicShell";
 import { PublikoEmbed } from "@/components/public/PublikoEmbed";
 import { useReviewPlacement } from "@/components/public/ReviewPlacementSlot";
+import { JsonLd } from "@/components/public/JsonLd";
 import { BRAND } from "@/lib/brand";
+
+/** Review specific answers. Every statement restates published policy. */
+const REVIEW_FAQS: { question: string; answer: string }[] = [
+  {
+    question: "Are NUR GOODS reviews genuine?",
+    answer:
+      "Yes. Reviews come from real orders placed through the NUR GOODS store and are published by our review provider exactly as written. We do not write or edit them.",
+  },
+  {
+    question: "Who can leave a review?",
+    answer:
+      "Reviews are collected from customers who have completed an order with NUR GOODS. Reviews are not accepted from people who have not bought from us.",
+  },
+  {
+    question: "Are negative reviews removed?",
+    answer:
+      "No. Reviews are published as submitted by the customer, positive or negative. We would rather show nothing than show reviews that are not genuine.",
+  },
+];
 
 export const Route = createFileRoute("/reviews")({
   head: () => ({
@@ -82,7 +102,49 @@ function ReviewsPage() {
             </div>
           </div>
         )}
+
+        <section className="mt-16 pb-8" aria-labelledby="review-faq">
+          <h2 id="review-faq" className="font-display text-2xl text-foreground">
+            About these reviews
+          </h2>
+          <dl className="mt-6 grid gap-4 sm:grid-cols-2">
+            {REVIEW_FAQS.map((item) => (
+              <div key={item.question} className="glass-card rounded-2xl p-6">
+                <dt className="font-display text-base font-semibold text-foreground">
+                  {item.question}
+                </dt>
+                <dd className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                  {item.answer}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </section>
       </div>
+
+      <JsonLd
+        data={[
+          {
+            "@context": "https://schema.org",
+            "@type": "FAQPage",
+            name: `${BRAND.name} review questions`,
+            url: `${BRAND.siteUrl}/reviews`,
+            mainEntity: REVIEW_FAQS.map((item) => ({
+              "@type": "Question",
+              name: item.question,
+              acceptedAnswer: { "@type": "Answer", text: item.answer },
+            })),
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            itemListElement: [
+              { "@type": "ListItem", position: 1, name: "Home", item: `${BRAND.siteUrl}/` },
+              { "@type": "ListItem", position: 2, name: "Reviews", item: `${BRAND.siteUrl}/reviews` },
+            ],
+          },
+        ]}
+      />
     </PublicShell>
   );
 }

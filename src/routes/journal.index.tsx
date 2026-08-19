@@ -138,7 +138,7 @@ function JournalIndex() {
                   {article.hero_image_url ? (
                     <img
                       src={article.hero_image_url}
-                      alt={article.hero_image_alt ?? ""}
+                      alt={article.hero_image_alt?.trim() || `${article.title} article image`}
                       width={800}
                       height={450}
                       loading="lazy"
