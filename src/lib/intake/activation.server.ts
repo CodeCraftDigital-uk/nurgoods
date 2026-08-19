@@ -49,6 +49,12 @@ export interface ActivationPort {
   readStatus(shopifyProductId: string): Promise<string | null>;
   activate(shopifyProductId: string): Promise<{ ok: boolean; status: string | null; message: string }>;
   publishChannels(shopifyProductId: string): Promise<{ ok: boolean; channels: string[]; message: string }>;
+  /**
+   * Proves the listing can actually be fulfilled before it is allowed to go
+   * live: stable supplier mapping, fresh supplier facts and quoted shipping to
+   * every required market. Fails closed.
+   */
+  checkSellable(shopifyProductId: string): Promise<{ sellable: boolean; message: string }>;
 }
 
 /** The real store adapter. */
@@ -83,6 +89,11 @@ export const shopifyActivationPort: ActivationPort = {
     const ok = channels.length > 0 && !/error|could not|failed/i.test(result.message);
     return { ok, channels, message: result.message };
   },
+  async checkSellable(shopifyProductId) {
+    const { productSellability } = await import("./sellability.server");
+    const verdict = await productSellability(shopifyProductId);
+    return { sellable: verdict.sellable, message: verdict.message };
+  },
 };
 
 /**
@@ -107,6 +118,21 @@ export async function activateForStorefront(
       channels: [],
       message: "The store product is archived, so it will not be made live automatically",
     };
+  }
+
+  // Fail closed: a supplier origin listing may only go live once its supplier
+  // mapping and required market shipping evidence are proven.
+  if (origin === "supplier") {
+    const gate = await port.checkSellable(shopifyProductId);
+    if (!gate.sellable) {
+      return {
+        ok: false,
+        activated: false,
+        status,
+        channels: [],
+        message: `Not made live. ${gate.message}`,
+      };
+    }
   }
 
   if (status !== "active") {

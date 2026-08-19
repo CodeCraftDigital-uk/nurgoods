@@ -84,6 +84,9 @@ function makePort(overrides: Partial<ActivationPort> & { status?: string | null 
     async publishChannels() {
       return { ok: true, channels: ["Nur Goods Headless Store"], message: "" };
     },
+    async checkSellable() {
+      return { sellable: true, message: "" };
+    },
     ...overrides,
   } as ActivationPort;
 }
@@ -121,6 +124,18 @@ describe("store activation", () => {
     });
     const result = await activateForStorefront("gid://shopify/Product/1", "supplier", port);
     expect(result.ok).toBe(false);
+  });
+
+  it("refuses to make a supplier product live without proven supplier mapping", async () => {
+    const port = makePort({
+      async checkSellable() {
+        return { sellable: false, message: "Held because no supplier link" };
+      },
+    });
+    const result = await activateForStorefront("gid://shopify/Product/1", "supplier", port);
+    expect(result.ok).toBe(false);
+    expect(result.activated).toBe(false);
+    expect(result.message).toContain("no supplier link");
   });
 });
 
