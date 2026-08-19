@@ -47,10 +47,13 @@ function supplierLines(raw: any): SupplierLine[] | undefined {
   if (!Array.isArray(source)) return undefined;
   return source.map((line: any) => ({
     id: text(line?.id ?? line?.line_item_id ?? line?.order_item_id),
+    // The supplier echoes the store line item id, which is the strongest
+    // identity available on a supplier order created by the store sync.
+    storeLineItemId: text(line?.store_line_item_id ?? line?.storeLineItemId ?? line?.external_line_item_id),
     productId: text(line?.product_id ?? line?.productId ?? line?.product?.id),
     variantId: text(line?.variant_id ?? line?.variantId ?? line?.variant?.id),
     sku: text(line?.sku ?? line?.variant_sku ?? line?.variant?.sku),
-    quantity: toNumber(line?.quantity ?? line?.qty),
+    quantity: toNumber(line?.quantity ?? line?.qty ?? line?.store_product_quantity),
   }));
 }
 
@@ -155,7 +158,9 @@ export const zendropSupplierPort: SupplierPort = {
     const payload = unwrapContent(
       await callAction(roles.order_fulfil, {
         store_id: storeId,
-        order_id: orderId,
+        // Scope is mandatory. Without order_ids the supplier targets every
+        // unfulfilled order in the store, so one order could commit many.
+        order_ids: [Number(orderId)],
         is_credit_redeem: useCredit,
         confirmed: false,
       }),
@@ -169,7 +174,7 @@ export const zendropSupplierPort: SupplierPort = {
         unwrapContent(
           await callAction(roles.order_fulfilment_cost, {
             store_id: storeId,
-            order_id: orderId,
+            order_ids: [Number(orderId)],
             is_credit_redeem: useCredit,
           }),
         ),
@@ -191,7 +196,7 @@ export const zendropSupplierPort: SupplierPort = {
       unwrapContent(
         await callAction(roles.order_fulfilment_cost, {
           store_id: storeId,
-          order_id: orderId,
+          order_ids: [Number(orderId)],
           is_credit_redeem: useCredit,
         }),
       ),
@@ -205,7 +210,9 @@ export const zendropSupplierPort: SupplierPort = {
     return operationOf(
       await callAction(roles.order_fulfil, {
         store_id: storeId,
-        order_id: orderId,
+        // Same mandatory scope as the quote, so confirmation can only ever
+        // commit the single order this dispatch is for.
+        order_ids: [Number(orderId)],
         is_credit_redeem: useCredit,
         confirmed: true,
       }),
@@ -213,13 +220,13 @@ export const zendropSupplierPort: SupplierPort = {
   },
 
 
-  async getOperation({ storeId, operationId }) {
+  async getOperation({ operationId }) {
     const roles = await loadCapabilityMap();
     if (!roles.order_fulfilment_operation) {
       return { id: operationId, status: "unknown", terminal: true, succeeded: true, message: null };
     }
     return operationOf(
-      await callAction(roles.order_fulfilment_operation, { store_id: storeId, operation_id: operationId }),
+      await callAction(roles.order_fulfilment_operation, { operation_id: operationId }),
     );
   },
 

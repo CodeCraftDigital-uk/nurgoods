@@ -50,6 +50,17 @@ function ageHours(iso: string | null, now: number): number | null {
   return (now - parsed) / 3_600_000;
 }
 
+/**
+ * Store identifiers arrive in two shapes: the full store reference and the
+ * bare numeric id. They mean the same product or variant, so both are reduced
+ * to the same key before anything is compared.
+ */
+function idKey(value: unknown): string {
+  const raw = String(value ?? "").trim();
+  if (raw === "") return "";
+  return (raw.split("/").pop() ?? raw).toLowerCase();
+}
+
 function describe(line: PreflightLine): string {
   return line.title ?? line.shopifyVariantId ?? line.shopifyProductId ?? "an order line";
 }
@@ -81,7 +92,8 @@ export function supplierPreflightDecision(input: {
 
   const byProduct = new Map<string, PreflightLink>();
   for (const link of input.links) {
-    if (link.shopifyProductId) byProduct.set(String(link.shopifyProductId), link);
+    const key = idKey(link.shopifyProductId);
+    if (key !== "") byProduct.set(key, link);
   }
 
   const unmapped: string[] = [];
@@ -96,16 +108,16 @@ export function supplierPreflightDecision(input: {
       badQuantity.push(describe(line));
       continue;
     }
-    const link = line.shopifyProductId ? byProduct.get(String(line.shopifyProductId)) : undefined;
+    const link = idKey(line.shopifyProductId) === "" ? undefined : byProduct.get(idKey(line.shopifyProductId));
     if (!link) {
       unmapped.push(describe(line));
       continue;
     }
     const mapping = link.variantMap.find(
       (entry) =>
-        entry?.store_variant_id &&
-        line.shopifyVariantId &&
-        String(entry.store_variant_id) === String(line.shopifyVariantId),
+        idKey(entry?.store_variant_id) !== "" &&
+        idKey(line.shopifyVariantId) !== "" &&
+        idKey(entry?.store_variant_id) === idKey(line.shopifyVariantId),
     );
     if (!mapping) {
       unmapped.push(describe(line));

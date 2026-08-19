@@ -206,11 +206,19 @@ export function linkageDecision(input: {
   }
 
   const match = matches[0]!;
-  const status = String(match.status ?? "").toLowerCase();
-  if (status.includes("cancel")) {
+  const kind = classifySupplierStatus(match.status);
+  if (kind === "cancelled") {
     return { ok: false, supplierOrderId: match.id, state: "cancelled", reason: "The supplier order is cancelled" };
   }
-  if (status.includes("shipped") || status.includes("delivered") || status.includes("fulfilled")) {
+  if (kind === "rejected") {
+    return {
+      ok: false,
+      supplierOrderId: match.id,
+      state: "supplier_rejected",
+      reason: "The supplier rejected this order",
+    };
+  }
+  if (kind === "fulfilled" || kind === "shipped" || kind === "delivered") {
     return {
       ok: false,
       supplierOrderId: match.id,
@@ -218,25 +226,91 @@ export function linkageDecision(input: {
       reason: "The supplier order has already been fulfilled",
     };
   }
+  if (kind === "partially_fulfilled") {
+    return {
+      ok: false,
+      supplierOrderId: match.id,
+      state: "manual_review",
+      reason: "The supplier order is only partly fulfilled and needs a person to check it",
+    };
+  }
   return { ok: true, supplierOrderId: match.id, state: "awaiting_fulfilment_preview", reason: "Supplier order linked" };
+}
+
+/* ---------------------------- supplier statuses --------------------------- */
+
+/**
+ * The set of supplier order states this system understands.
+ *
+ * Supplier status strings are free text, and several of them contain each
+ * other as substrings: "Unfulfilled" contains "fulfilled", "Unshipped"
+ * contains "shipped". Matching by substring therefore reads a brand new
+ * order as an already shipped one and silently skips fulfilment, so every
+ * status is classified word by word with negations handled first.
+ */
+export type SupplierStatusKind =
+  | "unknown"
+  | "pending"
+  | "processing"
+  | "partially_fulfilled"
+  | "fulfilled"
+  | "shipped"
+  | "delivered"
+  | "cancelled"
+  | "rejected"
+  | "out_of_stock";
+
+export function classifySupplierStatus(status: string | null | undefined): SupplierStatusKind {
+  const words = String(status ?? "")
+    .toLowerCase()
+    .split(/[^a-z]+/)
+    .filter(Boolean);
+  if (words.length === 0) return "unknown";
+  const has = (...candidates: string[]) => candidates.some((candidate) => words.includes(candidate));
+  const phrase = words.join(" ");
+
+  // Negations first. These are the states that look positive by substring but
+  // mean the exact opposite.
+  if (has("unfulfilled", "unshipped", "unpaid")) {
+    return has("processing") ? "processing" : "pending";
+  }
+  if (/\bnot (yet )?(fulfilled|shipped|delivered)\b/.test(phrase)) return "pending";
+
+  if (has("cancelled", "canceled", "cancel", "voided", "refunded")) return "cancelled";
+  if (has("rejected", "declined", "failed", "error")) return "rejected";
+  if (has("backorder", "backordered", "oos") || /\bout of stock\b/.test(phrase)) return "out_of_stock";
+  if (has("partial", "partially")) return "partially_fulfilled";
+  if (has("delivered", "delivery", "completed")) return "delivered";
+  if (has("shipped", "shipping", "transit", "dispatched")) return "shipped";
+  if (has("fulfilled")) return "fulfilled";
+  if (has("processing", "process", "preparing", "packing", "confirmed")) return "processing";
+  if (has("pending", "awaiting", "unpaid")) return "pending";
+  return "unknown";
 }
 
 /** Maps a supplier order status onto the NUR GOODS orchestration state. */
 export function supplierStatusToState(status: string | null | undefined): OrchestrationState | null {
-  const value = (status ?? "").toLowerCase();
-  if (!value) return null;
-  if (value.includes("cancel")) return "cancelled";
-  if (value.includes("reject") || value.includes("declin")) return "supplier_rejected";
-  if (value.includes("out of stock") || value.includes("out_of_stock") || value.includes("backorder")) {
-    return "out_of_stock";
+  switch (classifySupplierStatus(status)) {
+    case "cancelled":
+      return "cancelled";
+    case "rejected":
+      return "supplier_rejected";
+    case "out_of_stock":
+      return "out_of_stock";
+    case "delivered":
+      return "delivered";
+    case "shipped":
+      return "shipped";
+    case "fulfilled":
+    case "partially_fulfilled":
+    case "processing":
+    case "pending":
+      return "supplier_processing";
+    default:
+      return null;
   }
-  if (value.includes("deliver")) return "delivered";
-  if (value.includes("ship") || value.includes("transit")) return "shipped";
-  if (value.includes("process") || value.includes("unfulfilled") || value.includes("pending")) {
-    return "supplier_processing";
-  }
-  return null;
 }
+
 
 /** Stable dispatch key so a repeated run can never place a second order. */
 export function dispatchKey(shopifyOrderId: string, supplierOrderId: number | string): string {
@@ -284,6 +358,8 @@ export function previewValidity(input: {
 
 export interface SupplierLine {
   id: string | null;
+  /** The store line the supplier itself says this line came from. */
+  storeLineItemId: string | null;
   productId: string | null;
   variantId: string | null;
   sku: string | null;
@@ -313,18 +389,20 @@ function normaliseId(value: unknown): string {
   return tail.toLowerCase();
 }
 
-type IdentifierClass = "sku" | "variant" | "product";
+type IdentifierClass = "store line" | "sku" | "variant" | "product";
 
 /** Identifier classes are never pooled, so a SKU can only ever match a SKU. */
-const IDENTIFIER_ORDER: IdentifierClass[] = ["sku", "variant", "product"];
+const IDENTIFIER_ORDER: IdentifierClass[] = ["store line", "sku", "variant", "product"];
 
 function storeKey(line: StoreLine, kind: IdentifierClass): string {
+  if (kind === "store line") return normaliseId(line.shopify_line_item_id);
   if (kind === "sku") return (line.sku ?? "").trim().toLowerCase();
   if (kind === "variant") return normaliseId(line.shopify_variant_id);
   return normaliseId(line.shopify_product_id);
 }
 
 function supplierKey(line: SupplierLine, kind: IdentifierClass): string {
+  if (kind === "store line") return normaliseId(line.storeLineItemId);
   if (kind === "sku") return (line.sku ?? "").trim().toLowerCase();
   if (kind === "variant") return normaliseId(line.variantId);
   return normaliseId(line.productId);
@@ -411,9 +489,21 @@ export function lineLinkageDecision(input: {
     });
   }
 
-  if (used.size !== supplierLines.length) {
+  // The supplier adds its own lines to an order, such as a packaging insert.
+  // Those carry no catalogue identity and no store line reference of their own,
+  // so they are allowed through. Any other leftover supplier line is a real
+  // sale line the store order does not contain and still stops the order.
+  const leftover = supplierLines.filter((_, index) => !used.has(index));
+  const isSupplierInsert = (line: SupplierLine) =>
+    !/^\d+$/.test(String(line.storeLineItemId ?? "").trim()) &&
+    !line.productId &&
+    !line.variantId &&
+    !line.sku;
+  if (leftover.some((line) => !isSupplierInsert(line))) {
     return stop("The supplier order contains lines the store order does not");
   }
+
+
 
   return { ok: true, state: "awaiting_fulfilment_preview", reason: "Every line matched the supplier order", mappings };
 }

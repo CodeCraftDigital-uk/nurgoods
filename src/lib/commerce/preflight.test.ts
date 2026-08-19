@@ -116,4 +116,19 @@ describe("supplierPreflightDecision", () => {
     expect(decision.ok).toBe(false);
     expect(decision.code).toBe("preflight_quantity");
   });
+
+  it("matches a bare stored variant reference against a full store reference", () => {
+    const decision = supplierPreflightDecision({
+      lines: [line()],
+      links: [
+        link({
+          shopifyProductId: "1",
+          variantMap: [{ store_variant_id: "1", sku: "SKU-1" }],
+        }),
+      ],
+      now: NOW,
+    });
+    expect(decision.ok).toBe(true);
+    expect(decision.code).toBe("preflight_clear");
+  });
 });
