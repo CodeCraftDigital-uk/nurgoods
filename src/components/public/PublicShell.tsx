@@ -335,6 +335,14 @@ export function PublicShell({ children }: { children: ReactNode }) {
                   Customer reviews
                 </Link>
               </li>
+              <li>
+                <Link
+                  to="/faq"
+                  className="inline-flex min-h-8 items-center text-muted-foreground hover:text-brand"
+                >
+                  Frequently asked questions
+                </Link>
+              </li>
 
               <li>
                 <a
