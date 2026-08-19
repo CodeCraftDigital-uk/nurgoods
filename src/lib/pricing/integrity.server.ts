@@ -425,6 +425,15 @@ export async function auditLivePricingIntegrity(): Promise<{
   return { settings, products, verdicts, byProduct };
 }
 
+/**
+ * Takes a product off sale: unpublished from every live channel and set to
+ * draft. Used by the pricing integrity pass and by supplier reconciliation
+ * when a listing can no longer be evidenced as sellable.
+ */
+export async function holdProductFromSale(shopifyProductId: string): Promise<string[]> {
+  return holdProduct(shopifyProductId);
+}
+
 async function holdProduct(shopifyProductId: string): Promise<string[]> {
   const credentials = await intakeCredentials();
   const data: any = await shopifyGraphql(credentials, CHANNELS_QUERY, { id: shopifyProductId });
