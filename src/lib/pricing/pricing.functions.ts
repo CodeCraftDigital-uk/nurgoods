@@ -147,4 +147,38 @@ export const applyPricingAuditFn = createServerFn({ method: "POST" })
     });
   });
 
+/**
+ * Read only view of who owns the advertised price for each variant, how the
+ * store compares, and whether any correction is outstanding.
+ */
+export const getPriceAuthorityStatusFn = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context);
+    const { zendropAdminClient } = await import("../zendrop/client.server");
+    const supabase = await zendropAdminClient();
+    const { data } = await supabase
+      .from("product_price_authority")
+      .select(
+        "shopify_variant_id, variant_title, expected_price, observed_shopify_price, push_state, hold_reason, last_pushed_at, last_push_status, last_push_error, push_attempts, next_attempt_at, formula_version, landed_cost_verified_at",
+      )
+      .order("push_state", { ascending: true })
+      .limit(500);
+    const rows = (data ?? []) as any[];
+    const counts: Record<string, number> = {};
+    for (const row of rows) counts[row.push_state] = (counts[row.push_state] ?? 0) + 1;
+    const { verifyPriceParity } = await import("./authority.server");
+    const parity = await verifyPriceParity();
+    return { rows, counts, parity };
+  });
+
+/** Recalculates the NUR GOODS price and corrects the store in one bounded pass. */
+export const runPriceAuthorityCycleFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context);
+    const { runPriceAuthorityCycle } = await import("./authority.server");
+    return runPriceAuthorityCycle({ pushLimit: 60 });
+  });
+
 export type { AuditStatus };
