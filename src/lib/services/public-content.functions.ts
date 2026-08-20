@@ -365,24 +365,15 @@ export interface PublicLegalReference {
  */
 export const listPublicLegalReferences = createServerFn({ method: "GET" }).handler(
   async (): Promise<PublicLegalReference[]> => {
-    const supabaseAdmin = await adminClient();
-    const { data, error } = await supabaseAdmin
-      .from("shopify_legal_sources")
-      .select("id, title, source_url, has_liquid, has_placeholders, is_published, public_visible")
-      .eq("is_published", true)
-      .eq("public_visible", false)
-      .eq("has_liquid", true)
-      .eq("has_placeholders", false);
+    // A definer view returns only the policy name and its store link, so the
+    // unrendered wording itself is never exposed to a public read.
+    const supabase = await publicClient();
+    const { data, error } = await supabase.rpc("public_legal_references" as never);
     if (error) return [];
-    const { data: overrides } = await supabaseAdmin
-      .from("legal_source_overrides")
-      .select("source_id")
-      .not("published_body_html", "is", null);
-    const overridden = new Set((overrides ?? []).map((row: any) => row.source_id));
-    return (data ?? [])
-      .filter((row: any) => !overridden.has(row.id))
-      .filter((row: any) => typeof row.source_url === "string" && row.source_url.length > 0)
-      .map((row: any) => ({ title: row.title as string, source_url: row.source_url as string }));
+    return ((data ?? []) as any[]).map((row) => ({
+      title: row.title as string,
+      source_url: row.source_url as string,
+    }));
   },
 );
 
@@ -393,16 +384,9 @@ export const listPublicLegalReferences = createServerFn({ method: "GET" }).handl
 export const getPublicLegalReference = createServerFn({ method: "GET" })
   .inputValidator((input: { slug: string }) => ({ slug: String(input.slug) }))
   .handler(async ({ data }): Promise<PublicLegalReference | null> => {
-    const supabaseAdmin = await adminClient();
-    const { data: row, error } = await supabaseAdmin
-      .from("shopify_legal_sources")
-      .select("title, source_url, has_liquid, has_placeholders, is_published, public_visible")
-      .eq("slug", data.slug)
-      .eq("is_published", true)
-      .eq("public_visible", false)
-      .eq("has_liquid", true)
-      .eq("has_placeholders", false)
-      .maybeSingle();
+    const supabase = await publicClient();
+    const { data: rows, error } = await supabase.rpc("public_legal_references" as never);
+    const row = ((rows ?? []) as any[]).find((item) => item.slug === data.slug) ?? null;
     if (error || !row) return null;
     const url = (row as any).source_url;
     if (typeof url !== "string" || url.length === 0) return null;
