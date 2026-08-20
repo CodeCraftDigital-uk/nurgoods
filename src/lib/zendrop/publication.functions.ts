@@ -37,6 +37,20 @@ export const getPublicationConsole = createServerFn({ method: "GET" })
     return loadPublicationConsole();
   });
 
+/**
+ * Bounded read only check that sampled sellable products are live on all three
+ * selling surfaces at the NUR GOODS price. Nothing is changed.
+ */
+export const verifySurfaceParityFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { limit?: number } | undefined) => input ?? {})
+  .handler(async ({ data, context }) => {
+    const { assertPublicationAdmin } = await import("./publication-console.server");
+    await assertPublicationAdmin(context as never);
+    const { verifySurfaceParity } = await import("./publication-audit.server");
+    return verifySurfaceParity({ limit: data.limit ?? 25 });
+  });
+
 export const runPublicationAuditFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(

@@ -3,9 +3,9 @@
  *
  * The audit is read only and is the default. It walks the active catalogue,
  * reads the real channel state of each product from the store, and compares it
- * with the approved state: the NUR GOODS headless channel and Shop on, the
- * Online Store, Point of Sale and anything unapproved off. Nothing is changed
- * unless a caller deliberately asks for a live run.
+ * with the approved state: the NUR GOODS headless channel, the Online Store
+ * and Shop all on, Point of Sale and anything unapproved off. Nothing is
+ * changed unless a caller deliberately asks for a live run.
  *
  * Shop can refuse an individual product on its own eligibility rules. That is
  * recorded as an exception against the product, the headless channel is left
@@ -344,8 +344,8 @@ export async function readChannelChecklist(): Promise<ChannelChecklist> {
             name: channel.name,
             desired: policy.includeOnlineStore,
             note: policy.includeOnlineStore
-              ? "Opt in recorded, so it is still published to"
-              : "Off. NUR GOODS is the only browsing storefront",
+              ? "Approved. One of the three live selling surfaces"
+              : "Switched off by an explicit admin setting",
           };
         }
         if (lower === "shop" || lower === "shop app") {
@@ -371,4 +371,127 @@ export async function readChannelChecklist(): Promise<ChannelChecklist> {
       problem: cause instanceof Error ? cause.message : "The store channels could not be read",
     };
   }
+}
+
+export interface SurfaceParityReport {
+  /** True when every sampled product is live on all three surfaces at one price. */
+  ok: boolean;
+  /** Products inspected in this pass. */
+  sampled: number;
+  /** Products live on the headless channel, the Online Store and Shop. */
+  onAllThree: number;
+  /** Products missing at least one approved surface. */
+  missingSurface: number;
+  /** Products present on a channel policy does not approve. */
+  disallowedSurface: number;
+  /** Products where the store price does not match the NUR GOODS price. */
+  priceMismatches: number;
+  /** Products Shop itself refused. Reviewed, not treated as drift. */
+  shopExceptions: number;
+  examples: string[];
+  message: string;
+}
+
+const PENCE = 0.005;
+
+/**
+ * Verifies the exact three surface promise for the GREEN audit: every sampled
+ * sellable product is published to the NUR GOODS headless channel, the Shopify
+ * Online Store and Shop, and every one of those surfaces is showing the price
+ * the NUR GOODS pricing engine calculated.
+ *
+ * Read only, bounded, and it samples rather than walking the whole catalogue so
+ * it can be run as part of a routine audit without exhausting the store's API
+ * budget. Held or unverified products are out of scope by construction: they
+ * are not active, so they never enter the sample.
+ */
+export async function verifySurfaceParity(
+  options: { limit?: number } = {},
+): Promise<SurfaceParityReport> {
+  const limit = Math.max(1, Math.min(options.limit ?? 25, 60));
+  const policy = await loadPublicationPolicy();
+  const supabase = await zendropAdminClient();
+
+  const report: SurfaceParityReport = {
+    ok: true,
+    sampled: 0,
+    onAllThree: 0,
+    missingSurface: 0,
+    disallowedSurface: 0,
+    priceMismatches: 0,
+    shopExceptions: 0,
+    examples: [],
+    message: "",
+  };
+
+  const { data: products } = await supabase
+    .from("shopify_products")
+    .select("id, shopify_product_id, title")
+    .eq("status", "active")
+    .order("shopify_product_id", { ascending: true })
+    .limit(limit);
+
+  for (const row of ((products ?? []) as any[])) {
+    report.sampled += 1;
+    try {
+      const state = await readStorePublications(String(row.shopify_product_id), policy);
+      if (state.compliance.shopException) report.shopExceptions += 1;
+      if (state.compliance.missingRequired.length > 0) {
+        report.missingSurface += 1;
+        if (report.examples.length < 10)
+          report.examples.push(
+            `${row.title ?? row.shopify_product_id} is not on ${state.compliance.missingRequired.join(", ")}`,
+          );
+      }
+      if (state.compliance.disallowedPresent.length > 0) {
+        report.disallowedSurface += 1;
+        if (report.examples.length < 10)
+          report.examples.push(
+            `${row.title ?? row.shopify_product_id} is still on ${state.compliance.disallowedPresent.join(", ")}`,
+          );
+      }
+      if (
+        state.compliance.missingRequired.length === 0 &&
+        state.compliance.disallowedPresent.length === 0
+      ) {
+        report.onAllThree += 1;
+      }
+
+      // Shopify holds one price per variant, so a single variant price is what
+      // the Online Store, Shop and checkout all quote. Confirming the variant
+      // matches the authority record therefore confirms all three surfaces.
+      const { data: authority } = await supabase
+        .from("product_price_authority")
+        .select("shopify_variant_id, expected_price, observed_shopify_price, hold_reason")
+        .eq("product_id", row.id);
+      for (const record of ((authority ?? []) as any[])) {
+        if (record.hold_reason) continue;
+        const expected = record.expected_price === null ? null : Number(record.expected_price);
+        const observed =
+          record.observed_shopify_price === null ? null : Number(record.observed_shopify_price);
+        if (expected === null) continue;
+        if (observed === null || Math.abs(observed - expected) >= PENCE) {
+          report.priceMismatches += 1;
+          if (report.examples.length < 10)
+            report.examples.push(
+              `${row.title ?? row.shopify_product_id}: store quotes ${observed ?? "nothing"}, NUR GOODS price ${expected.toFixed(2)}`,
+            );
+          break;
+        }
+      }
+    } catch (cause) {
+      report.missingSurface += 1;
+      if (report.examples.length < 10)
+        report.examples.push(
+          `${row.title ?? row.shopify_product_id}: ${cause instanceof Error ? cause.message : "channel state unreadable"}`,
+        );
+    }
+  }
+
+  report.ok =
+    report.missingSurface === 0 && report.disallowedSurface === 0 && report.priceMismatches === 0;
+  report.message = report.ok
+    ? `All ${report.sampled} sampled product(s) are live on the headless storefront, the Online Store and Shop at the NUR GOODS price. ${report.shopExceptions} Shop exception(s) recorded.`
+    : `${report.missingSurface} product(s) missing a selling surface, ${report.disallowedSurface} on an unapproved channel and ${report.priceMismatches} price mismatch(es) across ${report.sampled} sampled product(s).`;
+  return report;
 }

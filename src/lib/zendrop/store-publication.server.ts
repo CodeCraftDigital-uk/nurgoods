@@ -1,11 +1,11 @@
 /**
  * Sales channel publication for products in the store.
  *
- * NUR GOODS is the only browsing storefront we operate, and the store behind
- * it is the checkout, payment and order engine. An active sellable product
- * belongs on two approved channels: the headless channel that issues our
- * checkout links, and Shop so it is discoverable and trackable in the Shop
- * app. The Online Store website channel and Point of Sale stay off.
+ * NUR GOODS sells on three live surfaces and the store is the checkout,
+ * payment and order engine behind all of them. A verified sellable product
+ * belongs on three approved channels: the headless channel that issues our
+ * checkout links, the Shopify Online Store website channel, and Shop so it is
+ * discoverable and trackable in the Shop app. Point of Sale stays off.
  *
  * The channel rules themselves are pure and tested in publication-policy.ts.
  * This module only talks to the store.
@@ -60,9 +60,11 @@ const UNPUBLISH_MUTATION = `
 /**
  * Reads the publication policy from the store integration settings.
  *
- * Only the Online Store switch is configurable, and it defaults to off. Shop
- * is an approved channel and is always on. Point of Sale is never
- * configurable, so no setting can turn it on.
+ * The three live selling surfaces, headless, Online Store and Shop, are all on
+ * by default. Only the Online Store can be switched off, and only by an
+ * explicit admin setting, because narrowing the selling path is a deliberate
+ * commercial decision. Point of Sale is never configurable, so no setting can
+ * turn it on.
  */
 export async function loadPublicationPolicy(): Promise<PublicationPolicy> {
   try {
@@ -79,22 +81,23 @@ export async function loadPublicationPolicy(): Promise<PublicationPolicy> {
       .eq("integration_id", integration.id)
       .eq("key", "publication_include_online_store")
       .maybeSingle();
-    const value = (data?.value ?? "").toString().trim().toLowerCase();
-    if (value === "true" || value === "on" || value === "1") {
-      // A per channel override is a deliberate widening of the selling path,
-      // so it is recorded every time it takes effect.
+    const raw = data?.value;
+    const value = (raw === null || raw === undefined ? "" : String(raw)).trim().toLowerCase();
+    if (value === "false" || value === "off" || value === "0") {
+      // Turning a live selling surface off narrows the selling path, so it is
+      // recorded every time it takes effect.
       await (supabaseAdmin as any).from("integration_events").insert({
         integration_id: integration.id,
         event_type: "publication_channel_override",
         status: "warning",
-        message: "Online Store publication re-enabled by an explicit admin setting",
+        message: "Online Store publication switched off by an explicit admin setting",
         payload: {
           channel: "Online Store",
-          enabled: true,
-          note: "Online Store publication re-enabled by an explicit admin setting",
+          enabled: false,
+          note: "Online Store publication switched off by an explicit admin setting",
         },
       });
-      return { ...DEFAULT_PUBLICATION_POLICY, includeOnlineStore: true };
+      return { ...DEFAULT_PUBLICATION_POLICY, includeOnlineStore: false };
     }
     return DEFAULT_PUBLICATION_POLICY;
   } catch {
@@ -157,8 +160,9 @@ async function readProductPublicationState(
  * Brings one product to the desired channel state.
  *
  * Publishing and unpublishing are both driven from the same idempotent plan,
- * so re-running this can never add the Online Store or Point of Sale channel
- * back, and a product that is already correct results in no store writes.
+ * so re-running this can never add the Point of Sale channel or any
+ * unapproved channel, and a product that is already correct results in no
+ * store writes.
  *
  * Product status, price, variants and inventory are never touched here.
  */

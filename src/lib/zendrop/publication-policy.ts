@@ -1,17 +1,18 @@
 /**
  * Sales channel policy for NUR GOODS.
  *
- * NUR GOODS at https://nurgoods.com is the only browsing storefront we run
- * ourselves, and the store behind it takes payment and owns the order. Two
- * sales channels are approved for an active sellable product:
+ * NUR GOODS sells on three live customer facing surfaces, and a verified
+ * sellable product must be present on all three:
  *
  *   - the NUR GOODS headless channel, which serves nurgoods.com and issues our
- *     checkout links, and
+ *     checkout links,
+ *   - the Shopify Online Store website channel, and
  *   - Shop, so the catalogue is discoverable, orderable and trackable inside
  *     the Shop app.
  *
- * The Shopify Online Store website channel and Point of Sale stay off, as does
- * any channel we have not deliberately approved.
+ * Point of Sale stays off, as does any channel we have not deliberately
+ * approved. Held or unverified products are never published to any of the
+ * three: the sellability gate runs before this policy is applied.
  *
  * The rules live here as pure functions with no network access so they can be
  * tested directly and so no call site can quietly widen them.
@@ -26,11 +27,9 @@ export interface Channel {
 
 export interface PublicationPolicy {
   /**
-   * Publish to the Online Store website channel.
-   *
-   * Off by default. NUR GOODS is the only browsing storefront we operate, so
-   * the Online Store exists purely to carry checkout. It can be turned back on
-   * by an explicit admin setting if a future checkout change needs it.
+   * Publish to the Online Store website channel. On: the Online Store is one
+   * of the three live selling surfaces, alongside the headless storefront and
+   * Shop.
    */
   includeOnlineStore: boolean;
   /**
@@ -44,7 +43,7 @@ export interface PublicationPolicy {
 }
 
 export const DEFAULT_PUBLICATION_POLICY: PublicationPolicy = {
-  includeOnlineStore: false,
+  includeOnlineStore: true,
   includeShopChannel: true,
   allowPointOfSale: false,
 };
@@ -53,9 +52,11 @@ export const DEFAULT_PUBLICATION_POLICY: PublicationPolicy = {
 export const HEADLESS_CHANNEL_NAME = "Nur Goods Headless Store";
 /** The Shop app marketplace channel. */
 export const SHOP_CHANNEL_NAME = "Shop";
+/** The Shopify hosted website channel. */
+export const ONLINE_STORE_CHANNEL_NAME = "Online Store";
 
 /** Human readable description of the approved steady state. */
-export const APPROVED_CHANNELS_LABEL = `${HEADLESS_CHANNEL_NAME} and ${SHOP_CHANNEL_NAME}`;
+export const APPROVED_CHANNELS_LABEL = `${HEADLESS_CHANNEL_NAME}, ${ONLINE_STORE_CHANNEL_NAME} and ${SHOP_CHANNEL_NAME}`;
 
 /** Classifies a store channel by its name, which is the only stable signal. */
 export function classifyChannel(name: string | null | undefined): ChannelKind {
@@ -105,12 +106,27 @@ export function resolveShopChannel(channels: Channel[]): Channel | null {
   return matches[0]!;
 }
 
+/**
+ * Resolves the Online Store publication by identity. Treated the same way as
+ * Shop: required, but a missing or ambiguous channel is reported rather than
+ * being allowed to block the other two surfaces.
+ */
+export function resolveOnlineStoreChannel(channels: Channel[]): Channel | null {
+  const matches = channels.filter((channel) => classifyChannel(channel.name) === "online_store");
+  if (matches.length !== 1) return null;
+  return matches[0]!;
+}
+
 /** The channels an active sellable product must end up on. */
 export function resolveRequiredChannels(
   channels: Channel[],
   policy: PublicationPolicy = DEFAULT_PUBLICATION_POLICY,
 ): Channel[] {
   const required = [resolveHeadlessChannel(channels)];
+  if (policy.includeOnlineStore) {
+    const onlineStore = resolveOnlineStoreChannel(channels);
+    if (onlineStore) required.push(onlineStore);
+  }
   if (policy.includeShopChannel) {
     const shop = resolveShopChannel(channels);
     if (shop) required.push(shop);
@@ -137,6 +153,7 @@ export function selectPublicationTargets(
   // Fails closed if the headless channel is missing or ambiguous.
   resolveHeadlessChannel(channels);
   const shop = resolveShopChannel(channels);
+  const onlineStore = resolveOnlineStoreChannel(channels);
 
   const targets: Channel[] = [];
   const excluded: Array<{ channel: Channel; reason: string }> = [];
@@ -148,12 +165,16 @@ export function selectPublicationTargets(
       continue;
     }
     if (kind === "online_store") {
-      if (policy.includeOnlineStore) targets.push(channel);
-      else
+      if (policy.includeOnlineStore && onlineStore && onlineStore.id === channel.id) {
+        targets.push(channel);
+      } else {
         excluded.push({
           channel,
-          reason: "NUR GOODS is the only browsing storefront, so the Online Store is not used",
+          reason: !policy.includeOnlineStore
+            ? "Online Store publication is switched off by policy"
+            : "More than one Online Store channel was found, so none was selected",
         });
+      }
       continue;
     }
     if (kind === "shop") {
@@ -274,8 +295,7 @@ export function evaluateCompliance(
 /**
  * Hard guard used by the publishing call. Whatever a caller passes in as
  * policy, only approved channels may reach a publish mutation. Point of Sale
- * and unrecognised channels are always refused, and the Online Store is
- * refused unless the deliberate opt in is in force.
+ * and unrecognised channels are always refused.
  */
 export function assertOnlyApprovedChannels(
   channels: Channel[],
