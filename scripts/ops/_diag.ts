@@ -1,8 +1,9 @@
-const m = await import("@/lib/public-api/storefront.server");
-try { const f = await m.listStorefrontFacets(); console.log("facets cats", f.categories.length); } catch(e){ console.log("facets ERR", e); }
-try { const c = await m.listStorefrontCollections(); console.log("collections", c.length); } catch(e){ console.log("coll ERR", e); }
-try { const p = await m.listStorefrontProducts({ limit: 50, offset: 0 }); console.log("products", p.items.length, p.hasMore); } catch(e){ console.log("prod ERR", e); }
-const pc = await import("@/lib/services/public-content.functions");
-for (const k of ["listPublicArticles","listPublicLegalDocuments","listPublicLegalSources"]) {
-  try { const r = await (pc as any)[k]({}); console.log(k, Array.isArray(r)? r.length : typeof r); } catch(e){ console.log(k, "ERR", String(e).slice(0,200)); }
-}
+const { createClient } = await import("@supabase/supabase-js");
+const url = process.env["SUPABASE_URL"]!;
+const key = process.env["SUPABASE_PUBLISHABLE_KEY"];
+console.log("has url", Boolean(url), "has pub", Boolean(key), "has service", Boolean(process.env["SUPABASE_SERVICE_ROLE_KEY"]));
+const c = createClient(url, key!, { auth: { persistSession: false } });
+const r = await c.from("legal_documents").select("slug,status,is_placeholder").limit(5);
+console.log("legal_documents", JSON.stringify(r.data ?? r.error));
+const s = await c.from("shopify_legal_sources").select("slug,is_published,public_visible").limit(5);
+console.log("legal_sources", JSON.stringify(s.data ?? s.error));
