@@ -72,8 +72,44 @@ export async function runIntakeDeltaSync(db: Db, lookbackHours = 26): Promise<In
   };
 }
 
+/**
+ * Webhook deliveries record the product without calling the store, so a newly
+ * detected product can be waiting without a mirrored row. This pulls a small
+ * bounded batch of those from the store before the queue is drained.
+ */
+async function mirrorPendingIntake(db: Db, limit: number): Promise<number> {
+  const { data: rows } = await db
+    .from("product_intake_records")
+    .select("shopify_product_id")
+    .is("product_id", null)
+    .in("state", ["detected", "queued", "processing"])
+    .order("detected_at", { ascending: true })
+    .limit(limit);
+
+  const ids = [...new Set(((rows ?? []) as any[]).map((row) => row.shopify_product_id as string))];
+  if (ids.length === 0) return 0;
+
+  const { fetchShopifyProductById, mirrorShopifyProducts } = await import(
+    "@/lib/services/shopify.server"
+  );
+
+  let mirrored = 0;
+  for (const id of ids) {
+    try {
+      const product = await fetchShopifyProductById(id);
+      if (!product) continue;
+      await mirrorShopifyProducts(db, [product], "Product intake catch up");
+      mirrored += 1;
+    } catch {
+      // Left for the next pass. The delta sync also mirrors this product.
+    }
+  }
+  return mirrored;
+}
+
 /** Drains the intake queue in bounded batches. */
 export async function runIntakeWorker(db: Db, batchSize = 6): Promise<IntakeJobSummary> {
+  const mirrored = await mirrorPendingIntake(db, batchSize);
   // Quarantines are re-examined first. Pricing integrity, the supplier
   // refresh and the catalogue mirror all correct data intake has already
   // judged, so a product held for a condition that has since been fixed is
