@@ -1154,9 +1154,16 @@ export async function runSourcingScreen(input: {
   let wrapped = false;
   let nextPage = startPage;
   const maxShippingQuotes = target * 6;
+  const deadlineAt = Date.now() + Math.max(10_000, input.budgetMs ?? 15 * 60_000);
+  let budgetSpent = false;
 
   for (let offset = 0; offset < maxPages; offset += 1) {
+    if (Date.now() >= deadlineAt) {
+      budgetSpent = true;
+      break;
+    }
     const page = startPage + offset;
+
     const batch = await searchZendropCatalogue({
       query: input.query,
       category: input.category,
