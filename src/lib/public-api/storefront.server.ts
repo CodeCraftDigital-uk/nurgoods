@@ -319,8 +319,10 @@ export async function listStorefrontProducts(input: {
   if (error) throw new Error(error.message);
   const items = ((data ?? []) as any[]).map(mapSnapshotCard);
   const total = count ?? items.length;
-  return { items, total, hasMore: offset + items.length < total };
+    return { items, total, hasMore: offset + items.length < total };
+  });
 }
+
 
 export async function listStorefrontFacets(): Promise<StorefrontFacets> {
   const supabase = await publicClient();
