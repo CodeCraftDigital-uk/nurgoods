@@ -1,11 +1,11 @@
 /**
  * Sales channel publication for products in the store.
  *
- * NUR GOODS is the only browsing storefront we operate, and the store behind
- * it is the checkout, payment and order engine. An active sellable product
- * belongs on two approved channels: the headless channel that issues our
- * checkout links, and Shop so it is discoverable and trackable in the Shop
- * app, and the Shopify Online Store website channel. Point of Sale stays off.
+ * NUR GOODS sells on three live surfaces and the store is the checkout,
+ * payment and order engine behind all of them. A verified sellable product
+ * belongs on three approved channels: the headless channel that issues our
+ * checkout links, the Shopify Online Store website channel, and Shop so it is
+ * discoverable and trackable in the Shop app. Point of Sale stays off.
  *
  * The channel rules themselves are pure and tested in publication-policy.ts.
  * This module only talks to the store.

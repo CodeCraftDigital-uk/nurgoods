@@ -84,7 +84,7 @@ function ChannelsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Sales channels"
-        description="NUR GOODS is the only browsing storefront. Active products belong on the headless channel and Shop, and nowhere else."
+        description="NUR GOODS sells on three live surfaces. Verified sellable products belong on the headless channel, the Online Store and Shop, and nowhere else. Point of Sale stays off."
       />
 
       <SectionCard
