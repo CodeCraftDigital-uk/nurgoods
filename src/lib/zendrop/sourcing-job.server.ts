@@ -58,12 +58,27 @@ async function tripBreaker(db: Db, jobKey: string, reason: string): Promise<void
     .eq("job_key", jobKey);
 }
 
+/** Wall clock budget for one scheduled pass, well inside the HTTP timeout. */
+const DEFAULT_BUDGET_MS = 110_000;
+
 /**
- * Runs one hourly sourcing pass. Safe to call repeatedly: candidate selection
+ * Runs one bounded sourcing pass. Safe to call repeatedly: candidate selection
  * is keyed by a stable idempotency key, queueing respects the import cap and
  * the queue drain locks each row before any supplier write.
+ *
+ * The pass is time boxed. Existing backlog is always drained before new
+ * discovery, every phase checks the remaining budget before starting, and the
+ * supplier traversal checkpoint is persisted by the screen itself, so a pass
+ * that runs out of time still leaves durable progress for the next one.
  */
-export async function runHourlySourcing(db: Db, jobKey: string): Promise<SourcingRunSummary> {
+export async function runHourlySourcing(
+  db: Db,
+  jobKey: string,
+  options?: { budgetMs?: number },
+): Promise<SourcingRunSummary> {
+  const deadlineAt = Date.now() + Math.max(20_000, options?.budgetMs ?? DEFAULT_BUDGET_MS);
+  const remainingMs = () => deadlineAt - Date.now();
+
   const failures = await consecutiveFailures(db, jobKey);
   if (failures >= BREAKER_THRESHOLD) {
     await tripBreaker(db, jobKey, `${failures} consecutive failed runs were recorded.`);
@@ -88,8 +103,15 @@ export async function runHourlySourcing(db: Db, jobKey: string): Promise<Sourcin
     };
   }
 
-  const { loadSourcingRules, runSourcingScreen, selectCandidates, queueCandidates, runImportQueue, reconcileImportedCandidates } =
-    await import("./import.server");
+  const {
+    loadSourcingRules,
+    runSourcingScreen,
+    selectCandidates,
+    queueCandidates,
+    runImportQueue,
+    reconcileImportedCandidates,
+    retryHeldCandidates,
+  } = await import("./import.server");
   const rules = await loadSourcingRules();
   if (!rules.enabled || !rules.continuous_sourcing) {
     return {
@@ -98,117 +120,109 @@ export async function runHourlySourcing(db: Db, jobKey: string): Promise<Sourcin
     };
   }
 
-  const target = Math.max(1, Math.min(rules.batch_size || HOURLY_TARGET, HOURLY_TARGET));
+  // Target is the genuine remaining gap to the catalogue goal, never a quota
+  // to fill beyond it. Only verified active listings count towards it.
+  const { count: activeCount } = await db
+    .from("shopify_products")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "active");
+  const goal = Number(rules.target_catalogue_size ?? 0);
+  const gap = goal > 0 ? Math.max(0, goal - Number(activeCount ?? 0)) : HOURLY_TARGET;
+  const target = Math.max(1, Math.min(rules.batch_size || HOURLY_TARGET, HOURLY_TARGET, gap || 1));
+  const atGoal = goal > 0 && gap === 0;
 
-  // Checkpointed traversal. Each automated run continues from the supplier
-  // page the last run finished on, so the pipeline walks the whole catalogue
-  // rather than rescreening the same first pages and rejecting them as
-  // duplicates.
-  const screen = await runSourcingScreen({ target, checkpoint: true });
-  const recommended = screen.products
-    .filter((product) => (product.outcome === "recommended" || product.outcome === "accepted") && product.score >= rules.min_suitability_score)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, target);
-
-  if (recommended.length === 0) {
-    return {
-      message: `Screened ${screen.funnel.queried} supplier products and none met the sourcing controls this hour.`,
-      details: {
-        candidates_found: screen.funnel.queried,
-        eligible: screen.funnel.eligible,
-        restricted: screen.funnel.restricted,
-        category_excluded: screen.funnel.categoryExcluded,
-        quality_failed: screen.funnel.qualityFailed,
-        uk_unsuitable: screen.funnel.ukUnsuitable,
-        pricing_failed: screen.funnel.pricingFailed,
-        duplicates: screen.funnel.duplicateExcluded,
-        imported: 0,
-        scan_start_page: screen.startPage,
-        scan_next_page: screen.nextPage,
-        scan_pages_read: screen.pagesRead,
-        scan_cycle: screen.cycle,
-        rate_limit_retries: readThrottleStats().rateLimitRetries,
-        rate_limit_cooldown_seconds: Math.round(readThrottleStats().cooldownMs / 1000),
-      },
-    };
-  }
-
-  const selection = await selectCandidates({
-    productIds: recommended.map((product) => product.productId),
-    userId: null as unknown as string,
-  });
-
-  const queued = await queueCandidates(selection.candidateIds);
-
-  // Sequential drain in small chunks. Each chunk waits for the previous one,
-  // so the supplier never sees a burst of concurrent heavy operations.
   let processed = 0;
   let imported = 0;
   let failed = 0;
+  let queued = 0;
   const messages: string[] = [];
-  let remaining = queued;
-  while (remaining > 0) {
-    const outcome = await runImportQueue(Math.min(IMPORT_CHUNK, remaining));
-    processed += outcome.processed;
-    imported += outcome.imported;
-    failed += outcome.failed;
-    messages.push(...outcome.messages);
-    if (outcome.processed === 0) break;
-    remaining -= outcome.processed;
-    if (outcome.processed > 0 && outcome.imported === 0 && outcome.failed >= outcome.processed) {
-      // Everything in this chunk failed. Stop early rather than continuing to
-      // push into a supplier that is clearly refusing work.
-      break;
+
+  const drainQueue = async () => {
+    for (;;) {
+      if (remainingMs() < 20_000) break;
+      const outcome = await runImportQueue(IMPORT_CHUNK);
+      processed += outcome.processed;
+      imported += outcome.imported;
+      failed += outcome.failed;
+      messages.push(...outcome.messages);
+      if (outcome.processed === 0) break;
+      if (outcome.imported === 0 && outcome.failed >= outcome.processed) break;
+      await new Promise((resolve) => setTimeout(resolve, 500));
     }
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+  };
+
+  // Phase 1. Anything already priced and duplicate checked from an earlier
+  // pass is queued and imported before a single new supplier page is read.
+  const { data: backlog } = await db
+    .from("zendrop_import_candidates")
+    .select("id")
+    .in("state", ["duplicate_checked", "priced"])
+    .limit(200);
+  const backlogIds = ((backlog ?? []) as any[]).map((row) => row.id as string);
+  let backlogQueued = 0;
+  if (backlogIds.length > 0 && !atGoal) {
+    backlogQueued = await queueCandidates(backlogIds);
+    queued += backlogQueued;
+  }
+  await drainQueue();
+
+  // Phase 2. Holds that can genuinely change are re-evidenced and released.
+  let heldReleased = 0;
+  let heldInspected = 0;
+  if (remainingMs() > 40_000 && !atGoal) {
+    const retry = await retryHeldCandidates({
+      limit: 25,
+      budgetMs: Math.min(30_000, Math.max(5_000, remainingMs() - 30_000)),
+    });
+    heldInspected = retry.inspected;
+    heldReleased = retry.released;
+    if (retry.candidateIds.length > 0) {
+      queued += await queueCandidates(retry.candidateIds);
+      await drainQueue();
+    }
   }
 
-  // The supplier pushes into the store asynchronously, so the catalogue mirror
-  // is refreshed first. Without this, a freshly pushed product cannot be
-  // matched and would sit in the store at the raw supplier price until the
-  // next manual sync, which is exactly how unrounded prices reached shoppers.
-  try {
-    const { syncCatalogue } = await import("@/lib/services/shopify.server");
-    await syncCatalogue(db as never);
-  } catch {
-    // A sync failure must not stop the rest of the pass; the next run retries.
+  // Phase 3. New discovery, only with real time left and only up to the gap.
+  let screen: Awaited<ReturnType<typeof runSourcingScreen>> | null = null;
+  let recommendedCount = 0;
+  let held = 0;
+  let alreadyKnown = 0;
+  if (!atGoal && remainingMs() > 45_000) {
+    screen = await runSourcingScreen({
+      target,
+      checkpoint: true,
+      budgetMs: Math.max(15_000, remainingMs() - 35_000),
+    });
+    const recommended = screen.products
+      .filter(
+        (product) =>
+          (product.outcome === "recommended" || product.outcome === "accepted") &&
+          product.score >= rules.min_suitability_score,
+      )
+      .sort((a, b) => b.score - a.score)
+      .slice(0, target);
+    recommendedCount = recommended.length;
+
+    if (recommended.length > 0 && remainingMs() > 20_000) {
+      const selection = await selectCandidates({
+        productIds: recommended.map((product) => product.productId),
+        userId: null as unknown as string,
+      });
+      held = selection.held;
+      alreadyKnown = selection.skipped;
+      queued += await queueCandidates(selection.candidateIds);
+      await drainQueue();
+    }
   }
+
+  // Phase 4. Linkage reconciliation for whatever the supplier has pushed. This
+  // is what turns an imported candidate into a live listing, so it runs even
+  // when the pass found nothing new.
   const reconciled = await reconcileImportedCandidates();
   const linked = reconciled.matched;
 
-  // Prohibited category safety net. If anything adult or sexual reached the
-  // store through the supplier push, it is unpublished and quarantined in the
-  // same pass rather than waiting for a person to notice it.
-  let quarantined = 0;
-  try {
-    const { quarantineProhibitedCatalogue } = await import("@/lib/policy/quarantine.server");
-    quarantined = (await quarantineProhibitedCatalogue()).quarantined;
-  } catch {
-    // Reported by the next run; never blocks the rest of the pass.
-  }
-
-
-  // Pricing integrity safety net. The supplier pushes products into the store
-  // itself, at its own raw price, so a listing can be live and mispriced
-  // before this pass ever sees it. Every active price is therefore checked
-  // against the formula in the same pass: anything evidenced is corrected and
-  // anything that cannot be evidenced is taken off sale rather than left at a
-  // price nobody can justify.
-  let repriced = 0;
-  let heldForPricing = 0;
-  let nonCharmAfter = -1;
-  try {
-    const { enforceLivePricingIntegrity } = await import("@/lib/pricing/integrity.server");
-    const integrity = await enforceLivePricingIntegrity({ userId: null });
-    repriced = integrity.variantsRepriced;
-    heldForPricing = integrity.productsHeld;
-    nonCharmAfter = integrity.nonCharmAfter;
-  } catch {
-    // Reported by the dedicated integrity job; never blocks the rest of the pass.
-  }
-
-  // Book search intelligence for the listings that reached the store mirror,
-  // so a new listing is optimised as part of the same pipeline.
+  // Search intelligence is booked for newly linked listings and trails
+  // asynchronously. It never gates activation.
   let seoQueued = 0;
   const { data: newlyLinked } = await db
     .from("zendrop_import_candidates")
@@ -224,22 +238,32 @@ export async function runHourlySourcing(db: Db, jobKey: string): Promise<Sourcin
 
   const throttle = readThrottleStats();
 
+  const message = atGoal
+    ? `The catalogue is at its target of ${goal} active listings, so accelerated sourcing stood down and only reconciliation ran. ${reconciled.intakeMessage}`
+    : `Queued ${queued} candidate(s) (${backlogQueued} from backlog, ${heldReleased} released holds), imported ${imported} of ${processed} processed and booked ${seoQueued} intelligence items. ${reconciled.intakeMessage}${
+        messages.length > 0 ? ` Issues: ${messages.slice(0, 3).join("; ")}` : ""
+      }`;
+
   return {
-    message: `Screened ${screen.funnel.queried} supplier products, imported ${imported} of ${queued} queued and booked ${seoQueued} intelligence items. ${reconciled.intakeMessage} Pricing integrity corrected ${repriced} variant price(s) and held ${heldForPricing} product(s).${
-      messages.length > 0 ? ` Issues: ${messages.slice(0, 3).join("; ")}` : ""
-    }`,
+    message,
     details: {
-      candidates_found: screen.funnel.queried,
-      eligible: screen.funnel.eligible,
-      recommended: recommended.length,
-      restricted: screen.funnel.restricted,
-      category_excluded: screen.funnel.categoryExcluded,
-      quality_failed: screen.funnel.qualityFailed,
-      uk_unsuitable: screen.funnel.ukUnsuitable,
-      pricing_failed: screen.funnel.pricingFailed,
-      duplicates: screen.funnel.duplicateExcluded,
-      held: selection.held,
-      already_known: selection.skipped,
+      active_products: Number(activeCount ?? 0),
+      target_catalogue_size: goal,
+      remaining_gap: gap,
+      candidates_found: screen?.funnel.queried ?? 0,
+      eligible: screen?.funnel.eligible ?? 0,
+      recommended: recommendedCount,
+      restricted: screen?.funnel.restricted ?? 0,
+      category_excluded: screen?.funnel.categoryExcluded ?? 0,
+      quality_failed: screen?.funnel.qualityFailed ?? 0,
+      uk_unsuitable: screen?.funnel.ukUnsuitable ?? 0,
+      pricing_failed: screen?.funnel.pricingFailed ?? 0,
+      duplicates: screen?.funnel.duplicateExcluded ?? 0,
+      held,
+      held_inspected: heldInspected,
+      held_released: heldReleased,
+      already_known: alreadyKnown,
+      backlog_queued: backlogQueued,
       queued,
       processed,
       imported,
@@ -248,18 +272,16 @@ export async function runHourlySourcing(db: Db, jobKey: string): Promise<Sourcin
       intake_enqueued: reconciled.intakeEnqueued,
       intake_failed: reconciled.intakeFailed,
       seo_queued: seoQueued,
-      prohibited_quarantined: quarantined,
-      pricing_variants_repriced: repriced,
-      pricing_products_held: heldForPricing,
-      pricing_non_charm_remaining: nonCharmAfter,
+      budget_ms_remaining: Math.max(0, remainingMs()),
       rate_limit_retries: throttle.rateLimitRetries,
       rate_limit_cooldown_seconds: Math.round(throttle.cooldownMs / 1000),
       supplier_server_retries: throttle.serverRetries,
-      scan_start_page: screen.startPage,
-      scan_next_page: screen.nextPage,
-      scan_pages_read: screen.pagesRead,
-      scan_cycle: screen.cycle,
-      scan_wrapped: screen.wrapped ? 1 : 0,
+      scan_start_page: screen?.startPage ?? rules.scan_page,
+      scan_next_page: screen?.nextPage ?? rules.scan_page,
+      scan_pages_read: screen?.pagesRead ?? 0,
+      scan_cycle: screen?.cycle ?? rules.scan_cycle,
+      scan_wrapped: screen?.wrapped ? 1 : 0,
     },
   };
 }
+

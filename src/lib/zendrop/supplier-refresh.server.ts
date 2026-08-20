@@ -175,7 +175,16 @@ export async function runSupplierProductRefresh(options?: {
   supplierProductId?: string;
   /** Read only: report what would change without writing to the store. */
   dryRun?: boolean;
+  /**
+   * Wall clock budget. The pass stops cleanly once it is spent and releases
+   * the lease on anything it did not reach, so the scheduled HTTP trigger
+   * always gets an answer well inside its timeout and the next run continues
+   * from the same rolling position rather than starting over.
+   */
+  budgetMs?: number;
 }): Promise<SupplierRefreshResult> {
+  const deadlineAt = Date.now() + Math.max(10_000, options?.budgetMs ?? 90_000);
+
   const dryRun = options?.dryRun === true;
   const supabase = await zendropAdminClient();
   const settings = await loadPricingSettings();
@@ -235,9 +244,15 @@ export async function runSupplierProductRefresh(options?: {
   let recovered = 0;
   let held = 0;
   let errored = 0;
+  const unreached: string[] = [];
 
   for (const link of links) {
+    if (Date.now() >= deadlineAt) {
+      unreached.push(link.id);
+      continue;
+    }
     const supplierProductId = String(link.supplier_product_id);
+
     const failures = Number(link.consecutive_sync_failures ?? 0);
     const wasHeld = String(link.sync_state ?? "").startsWith("held");
     const manualHold = link.manual_hold === true;
@@ -462,6 +477,16 @@ export async function runSupplierProductRefresh(options?: {
     items.push(item);
   }
 
+  // Anything the budget did not reach releases its lease immediately, so the
+  // next scheduled pass picks it up rather than waiting out the lease.
+  if (unreached.length > 0 && !dryRun) {
+    await supabase
+      .from("product_supplier_links")
+      .update({ lease_owner: null, lease_expires_at: null } as never)
+      .in("id", unreached);
+  }
+
+
   // Supplier refreshes can move title, description or variant wording. The
   // planner compares fingerprints, so a price or stock only change books no
   // model run and this stays cheap at catalogue scale.
@@ -490,8 +515,11 @@ export async function runSupplierProductRefresh(options?: {
       items.length === 0 && staleSwept === 0
         ? "There are no supplier backed listings due for reconciliation right now."
         : `Reconciled ${items.length} supplier backed listing(s) at a batch size of ${batchSize}: ${healthy} confirmed, ${repriced} repriced, ${recovered} brought back on sale, ${held} taken off sale, ${errored} left for retry, ${staleSwept} held for breaching the freshness target.${
-            dryRun ? " Dry run, nothing was changed." : ""
-          }`,
+            unreached.length > 0
+              ? ` ${unreached.length} listing(s) were released untouched when the time budget was spent and continue on the next pass.`
+              : ""
+          }${dryRun ? " Dry run, nothing was changed." : ""}`,
+
   };
 }
 

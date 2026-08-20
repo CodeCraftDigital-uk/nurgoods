@@ -425,6 +425,112 @@ export async function selectCandidates(input: {
   return result;
 }
 
+/* ----------------------------- held reconciliation ------------------------ */
+
+export interface HeldRetryResult {
+  inspected: number;
+  released: number;
+  stillHeld: number;
+  candidateIds: string[];
+  byReason: Record<string, number>;
+}
+
+/**
+ * Re-examines candidates that were held for a reason that can genuinely change
+ * between passes: destination shipping that could not be quoted at the time, a
+ * supplier read that failed, or a market eligibility check that could not be
+ * completed. A candidate is only released when the supplier now evidences
+ * delivery into at least one supported market. Genuine policy failures, such
+ * as a prohibited category or an unworkable margin, stay held.
+ */
+export async function retryHeldCandidates(input?: {
+  limit?: number;
+  budgetMs?: number;
+}): Promise<HeldRetryResult> {
+  const supabase = await zendropAdminClient();
+  const settings = await loadPricingSettings();
+  const limit = Math.max(1, Math.min(input?.limit ?? 25, 200));
+  const deadlineAt = Date.now() + Math.max(5_000, input?.budgetMs ?? 60_000);
+
+  const { data } = await supabase
+    .from("zendrop_import_candidates")
+    .select("id, zendrop_product_id, hold_reason, title")
+    .eq("state", "held")
+    .order("updated_at", { ascending: true })
+    .limit(limit * 4);
+
+  const retryable = /shipping|market|could not be read|could not be established|timed out|timeout|rate limit|temporar/i;
+  const rows = ((data ?? []) as any[]).filter((row) => retryable.test(String(row.hold_reason ?? "")));
+
+  const result: HeldRetryResult = {
+    inspected: 0,
+    released: 0,
+    stillHeld: 0,
+    candidateIds: [],
+    byReason: {},
+  };
+
+  const { quoteAndRecordMarkets } = await import("../pricing/market-eligibility.server");
+  const { quoteZendropShipping } = await import("./catalogue.server");
+
+  for (const row of rows.slice(0, limit)) {
+    if (Date.now() >= deadlineAt) break;
+    result.inspected += 1;
+    const supplierProductId = String(row.zendrop_product_id);
+    let qualifies = false;
+    let reason = "Market eligibility could not be established on this pass.";
+    try {
+      const eligibility = await quoteAndRecordMarkets({
+        supplierProductId,
+        supported: resolveSupportedMarkets(settings.supported_markets),
+        maxAgeDays: settings.shipping_quote_max_age_days,
+        supplierCurrency: settings.currency,
+        quote: async (productId, market) => {
+          const quote = await quoteZendropShipping(productId, market);
+          return { cost: quote.cost, service: quote.service };
+        },
+      });
+      qualifies = eligibility.qualifies;
+      reason = eligibility.reason ?? reason;
+    } catch (cause) {
+      reason = cause instanceof Error ? cause.message : reason;
+    }
+
+    if (!qualifies) {
+      result.stillHeld += 1;
+      result.byReason[reason] = (result.byReason[reason] ?? 0) + 1;
+      await supabase
+        .from("zendrop_import_candidates")
+        .update({ hold_reason: reason } as never)
+        .eq("id", row.id);
+      continue;
+    }
+
+    await supabase
+      .from("zendrop_import_candidates")
+      .update({
+        state: "duplicate_checked",
+        previous_state: "held",
+        hold_reason: null,
+      } as never)
+      .eq("id", row.id)
+      .eq("state", "held");
+    result.released += 1;
+    result.candidateIds.push(row.id as string);
+    await logEvent(
+      row.id as string,
+      supplierProductId,
+      "held",
+      "duplicate_checked",
+      "hold_released",
+      "Supplier delivery into a supported market is now evidenced, so the hold was released.",
+    );
+  }
+
+  return result;
+}
+
+
 /* --------------------------------- queueing ------------------------------- */
 
 export async function queueCandidates(candidateIds: string[]): Promise<number> {
@@ -1110,6 +1216,13 @@ export async function runSourcingScreen(input: {
   category?: string | undefined;
   target: number;
   checkpoint?: boolean | undefined;
+  /**
+   * Wall clock budget for the traversal. The pass stops at a page boundary
+   * once it is spent, persists the checkpoint it genuinely reached and
+   * returns, so the scheduled trigger never waits past its HTTP timeout.
+   */
+  budgetMs?: number | undefined;
+
 }): Promise<SourcingScreenResult> {
   const { searchZendropCatalogue } = await import("./catalogue.server");
   const rules = await loadSourcingRules();
@@ -1147,9 +1260,16 @@ export async function runSourcingScreen(input: {
   let wrapped = false;
   let nextPage = startPage;
   const maxShippingQuotes = target * 6;
+  const deadlineAt = Date.now() + Math.max(10_000, input.budgetMs ?? 15 * 60_000);
+  let budgetSpent = false;
 
   for (let offset = 0; offset < maxPages; offset += 1) {
+    if (Date.now() >= deadlineAt) {
+      budgetSpent = true;
+      break;
+    }
     const page = startPage + offset;
+
     const batch = await searchZendropCatalogue({
       query: input.query,
       category: input.category,
@@ -1328,8 +1448,11 @@ export async function runSourcingScreen(input: {
   }
 
   const traversal = useCheckpoint
-    ? ` Traversal covered pages ${startPage} to ${startPage + pagesRead - 1}; the next run resumes at page ${nextPage}${wrapped ? " after wrapping to the start of the catalogue" : ""}.`
+    ? ` Traversal covered pages ${startPage} to ${startPage + pagesRead - 1}; the next run resumes at page ${nextPage}${wrapped ? " after wrapping to the start of the catalogue" : ""}.${
+        budgetSpent ? " The pass stopped at a page boundary when its time budget was spent." : ""
+      }`
     : "";
+
 
   return {
     funnel,
