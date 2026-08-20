@@ -1342,8 +1342,11 @@ export async function runSourcingScreen(input: {
   }
 
   const traversal = useCheckpoint
-    ? ` Traversal covered pages ${startPage} to ${startPage + pagesRead - 1}; the next run resumes at page ${nextPage}${wrapped ? " after wrapping to the start of the catalogue" : ""}.`
+    ? ` Traversal covered pages ${startPage} to ${startPage + pagesRead - 1}; the next run resumes at page ${nextPage}${wrapped ? " after wrapping to the start of the catalogue" : ""}.${
+        budgetSpent ? " The pass stopped at a page boundary when its time budget was spent." : ""
+      }`
     : "";
+
 
   return {
     funnel,
