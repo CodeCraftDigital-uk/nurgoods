@@ -2,7 +2,7 @@ import { createStart, createCsrfMiddleware, createMiddleware } from "@tanstack/r
 import { getRequest } from "@tanstack/react-start/server";
 
 import { renderErrorPage } from "./lib/error-page";
-import { attachSupabaseAuth } from "@/integrations/supabase/auth-attacher";
+import { attachFreshSupabaseAuth } from "@/lib/auth/attach-fresh-auth";
 import { isAdminPath } from "./lib/hosts";
 import { connectorGuard, isConnectorPath } from "./lib/mcp/guard.server";
 
