@@ -1,5 +1,6 @@
 import { supabaseAdmin as db } from "@/integrations/supabase/client.server";
-const u = await db.auth.admin.listUsers();
-console.log(JSON.stringify(u.data?.users.map(x => ({ id: x.id, email: x.email, last: x.last_sign_in_at })) ?? u.error));
-const r = await db.rpc("has_role", { _user_id: "235b555f-0303-4dcb-8fa6-3db546fdae1e", _role: "admin" as never });
-console.log("has_role", JSON.stringify(r.data ?? r.error));
+const q = `select p.proname, coalesce(array_to_string(p.proacl,','),'(default)') acl
+from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+where n.nspname='public' and p.proname='has_role'`;
+const r = await db.rpc("exec_sql" as never, { sql: q } as never);
+console.log(JSON.stringify(r.data ?? r.error));
