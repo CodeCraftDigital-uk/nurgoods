@@ -164,7 +164,21 @@ export async function runAutomationJob(
   await reclaimAbandonedRuns(ctx);
 
   const startedAt = new Date().toISOString();
+
+  // Stamped before the work starts, so an invocation that is cut off by its
+  // caller still shows honestly as attempted rather than leaving the console
+  // reporting the last completed run as though nothing had been tried since.
+  await ctx.supabase
+    .from("automation_jobs")
+    .update({
+      last_run_at: startedAt,
+      last_status: "running",
+      last_result: { message: "The run started." },
+    })
+    .eq("id", job.id);
+
   try {
+
     const result = await execute(ctx, jobKey);
     await ctx.supabase
       .from("automation_jobs")
