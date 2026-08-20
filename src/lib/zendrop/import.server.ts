@@ -1110,6 +1110,13 @@ export async function runSourcingScreen(input: {
   category?: string | undefined;
   target: number;
   checkpoint?: boolean | undefined;
+  /**
+   * Wall clock budget for the traversal. The pass stops at a page boundary
+   * once it is spent, persists the checkpoint it genuinely reached and
+   * returns, so the scheduled trigger never waits past its HTTP timeout.
+   */
+  budgetMs?: number | undefined;
+
 }): Promise<SourcingScreenResult> {
   const { searchZendropCatalogue } = await import("./catalogue.server");
   const rules = await loadSourcingRules();
