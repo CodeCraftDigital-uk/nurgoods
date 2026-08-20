@@ -196,6 +196,67 @@ function applySort(builder: any, sort: StorefrontSort) {
   }
 }
 
+/**
+ * Storefront read model.
+ *
+ * `storefront_snapshot` is a locally maintained projection of validated,
+ * publishable listings. It already excludes suppressed duplicates and listings
+ * still held by intake, and it carries the canonical category, summary and
+ * collection membership inline. Public pages therefore never fan out across
+ * classifications, enrichment and suppression helpers on a customer request.
+ */
+const SNAPSHOT_CARD_COLUMNS =
+  "product_id, handle, title, product_type, vendor, tags, category_slug, category_name, image_url, price_min, price_max, currency, compare_at_price_min, available_for_sale, variant_count, summary, updated_at";
+
+function mapSnapshotCard(row: any): StorefrontProductCard {
+  return {
+    id: row.product_id,
+    handle: row.handle,
+    title: row.title,
+    product_type: row.product_type ?? null,
+    category_slug: row.category_slug ?? null,
+    category_name: row.category_name ?? null,
+    vendor: row.vendor ?? null,
+    tags: Array.isArray(row.tags) ? row.tags : [],
+    image_url: row.image_url ?? null,
+    price_min: row.price_min ?? null,
+    price_max: row.price_max ?? null,
+    currency: row.currency ?? null,
+    variant_count: row.variant_count ?? 0,
+    compare_at_price_min: row.compare_at_price_min ?? null,
+    available_for_sale: row.available_for_sale ?? null,
+    summary: typeof row.summary === "string" && row.summary.trim() ? row.summary : null,
+    updated_at: row.updated_at ?? null,
+  };
+}
+
+function applySnapshotSort(builder: any, sort: StorefrontSort) {
+  switch (sort) {
+    case "price_asc":
+      return builder.order("price_min", { ascending: true, nullsFirst: false });
+    case "price_desc":
+      return builder.order("price_max", { ascending: false, nullsFirst: false });
+    case "newest":
+      return builder.order("updated_at", { ascending: false, nullsFirst: false });
+    case "title_desc":
+      return builder.order("title", { ascending: false });
+    default:
+      return builder.order("title", { ascending: true });
+  }
+}
+
+/** Short lived process cache. Snapshot data changes only when a job rebuilds it. */
+const memo = new Map<string, { at: number; value: unknown }>();
+const MEMO_MS = 60_000;
+
+async function cached<T>(key: string, load: () => Promise<T>): Promise<T> {
+  const hit = memo.get(key);
+  if (hit && Date.now() - hit.at < MEMO_MS) return hit.value as T;
+  const value = await load();
+  memo.set(key, { at: Date.now(), value });
+  return value;
+}
+
 export async function listStorefrontProducts(input: {
   query?: string | undefined;
   productType?: string | undefined;
@@ -209,159 +270,89 @@ export async function listStorefrontProducts(input: {
   const supabase = await publicClient();
   const { limit, offset } = normalisePage(input);
 
-  let productIds: string[] | null = null;
-  if (input.collectionHandle) {
-    const { data: collection } = await supabase
-      .from("shopify_collections")
-      .select("id")
-      .eq("handle", input.collectionHandle)
-      .maybeSingle();
-    if (!collection) return { items: [], total: 0, hasMore: false };
-    const { data: joins } = await supabase
-      .from("shopify_product_collections")
-      .select("product_id")
-      .eq("collection_id", (collection as any).id);
-    productIds = ((joins ?? []) as any[]).map((row) => row.product_id);
-    if (productIds.length === 0) return { items: [], total: 0, hasMore: false };
-  }
-
-  // Canonical category filtering. The supplier product_type is never trusted
-  // for navigation, only the NUR GOODS taxonomy.
-  if (input.category) {
-    const { childrenOf, bySlug } = await loadTaxonomy(supabase);
-    if (!bySlug.has(input.category)) return { items: [], total: 0, hasMore: false };
-    const branch = categoryBranch(input.category, childrenOf);
-    const { data: classified } = await supabase
-      .rpc("public_product_categories")
-      .in("category_slug", branch);
-    const categoryIds = ((classified ?? []) as any[]).map((row) => row.product_id as string);
-    if (categoryIds.length === 0) return { items: [], total: 0, hasMore: false };
-    productIds = productIds
-      ? productIds.filter((id) => categoryIds.includes(id))
-      : categoryIds;
-    if (productIds.length === 0) return { items: [], total: 0, hasMore: false };
-  }
-
-  const suppressed = await loadSuppressedProductIds(supabase);
-  if (suppressed.length > 0 && productIds) {
-    const hidden = new Set(suppressed);
-    productIds = productIds.filter((id) => !hidden.has(id));
-    if (productIds.length === 0) return { items: [], total: 0, hasMore: false };
-  }
-
   let builder = supabase
-    .from("shopify_products")
-    .select(CARD_COLUMNS, { count: "exact" })
+    .from("storefront_snapshot")
+    .select(SNAPSHOT_CARD_COLUMNS, { count: "exact" })
     .range(offset, offset + limit - 1);
-  builder = applySort(builder, input.sort ?? "featured");
+  builder = applySnapshotSort(builder, input.sort ?? "featured");
 
-  const term = input.query ? safeTerm(input.query) : "";
-  if (term) {
-    builder = builder.or(
-      `title.ilike.%${term}%,product_type.ilike.%${term}%,vendor.ilike.%${term}%,description.ilike.%${term}%`,
-    );
+  if (input.category) {
+    const { childrenOf, bySlug } = await cached("taxonomy", () => loadTaxonomy(supabase));
+    if (!bySlug.has(input.category)) return { items: [], total: 0, hasMore: false };
+    builder = builder.in("category_slug", categoryBranch(input.category, childrenOf));
   }
+  if (input.collectionHandle) builder = builder.contains("collection_handles", [input.collectionHandle]);
   if (input.productType) builder = builder.eq("product_type", input.productType);
   if (input.tag) builder = builder.contains("tags", [input.tag]);
-  if (productIds) builder = builder.in("id", productIds);
-  if (!productIds && suppressed.length > 0) {
-    builder = builder.not("id", "in", `(${suppressed.join(",")})`);
-  }
+
+  const term = input.query ? safeTerm(input.query) : "";
+  if (term) builder = builder.ilike("search_text", `%${term.toLowerCase()}%`);
 
   const { data, error, count } = await builder;
   if (error) throw new Error(error.message);
-  const rows = (data ?? []) as any[];
-
-  let summaries = new Map<string, string>();
-  let categories = new Map<string, { slug: string; name: string }>();
-  if (rows.length > 0) {
-    const ids = rows.map((row) => row.id as string);
-    const [{ data: enrichment }, resolved] = await Promise.all([
-      supabase.from("product_enrichment").select("product_id, summary").in("product_id", ids),
-      loadProductCategories(supabase, ids),
-    ]);
-    summaries = new Map(
-      ((enrichment ?? []) as any[])
-        .filter((row) => typeof row.summary === "string" && row.summary.trim())
-        .map((row) => [row.product_id as string, row.summary as string]),
-    );
-    categories = resolved;
-  }
-
-  const items = rows.map((row) =>
-    mapCard(row, summaries.get(row.id) ?? null, categories.get(row.id) ?? null),
-  );
+  const items = ((data ?? []) as any[]).map(mapSnapshotCard);
   const total = count ?? items.length;
   return { items, total, hasMore: offset + items.length < total };
 }
 
 export async function listStorefrontFacets(): Promise<StorefrontFacets> {
   const supabase = await publicClient();
-  // Suppressed duplicates must not inflate facet counts or the catalogue total.
-  const hiddenFacetIds = new Set(await loadSuppressedProductIds(supabase));
-  const { data, error } = await supabase
-    .from("shopify_products")
-    .select("id, product_type, tags")
-    .limit(1000);
-  if (error) throw new Error(error.message);
-  const visibleRows = ((data ?? []) as any[]).filter((row) => !hiddenFacetIds.has(row.id));
-  const count = visibleRows.length;
+  return cached("facets", async () => {
+    const [{ data, error }, taxonomy] = await Promise.all([
+      supabase.from("storefront_snapshot").select("product_type, tags, category_slug").limit(5000),
+      loadTaxonomy(supabase),
+    ]);
+    if (error) throw new Error(error.message);
+    const rows = (data ?? []) as any[];
 
-  const types = new Set<string>();
-  const tagCounts = new Map<string, number>();
-  for (const row of visibleRows) {
-    if (typeof row.product_type === "string" && row.product_type.trim()) {
-      types.add(row.product_type.trim());
+    const types = new Set<string>();
+    const tagCounts = new Map<string, number>();
+    const direct = new Map<string, number>();
+    for (const row of rows) {
+      if (typeof row.product_type === "string" && row.product_type.trim()) {
+        types.add(row.product_type.trim());
+      }
+      for (const tag of Array.isArray(row.tags) ? row.tags : []) {
+        if (typeof tag !== "string" || !tag.trim()) continue;
+        const key = tag.trim();
+        tagCounts.set(key, (tagCounts.get(key) ?? 0) + 1);
+      }
+      if (row.category_slug) direct.set(row.category_slug, (direct.get(row.category_slug) ?? 0) + 1);
     }
-    for (const tag of Array.isArray(row.tags) ? row.tags : []) {
-      if (typeof tag !== "string" || !tag.trim()) continue;
-      const key = tag.trim();
-      tagCounts.set(key, (tagCounts.get(key) ?? 0) + 1);
+    // Only tags that group more than one product are useful as a filter.
+    const tags = [...tagCounts.entries()]
+      .filter(([, hits]) => hits > 1)
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .slice(0, 24)
+      .map(([tag]) => tag);
+
+    const { bySlug, childrenOf } = taxonomy;
+    const parentBySlug = new Map<string, string | null>();
+    for (const [parent, children] of childrenOf) {
+      for (const child of children) parentBySlug.set(child, parent);
     }
-  }
-  // Only tags that group more than one product are useful as a filter.
-  const tags = [...tagCounts.entries()]
-    .filter(([, hits]) => hits > 1)
-    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-    .slice(0, 24)
-    .map(([tag]) => tag);
+    const categories: StorefrontCategoryFacet[] = [...bySlug.values()]
+      .map((node) => ({
+        slug: node.slug,
+        name: node.name,
+        parent_slug: parentBySlug.get(node.slug) ?? null,
+        products: categoryBranch(node.slug, childrenOf).reduce(
+          (sum, slug) => sum + (direct.get(slug) ?? 0),
+          0,
+        ),
+      }))
+      .filter((node) => node.products > 0)
+      .sort((a, b) => b.products - a.products || a.name.localeCompare(b.name));
 
-  // Canonical categories drive navigation. Only categories that actually hold
-  // products are offered, so the customer never lands on an empty filter.
-  const [{ bySlug, childrenOf }, { data: classified }] = await Promise.all([
-    loadTaxonomy(supabase),
-    supabase.rpc("public_product_categories").limit(3000),
-  ]);
-  const hiddenIds = hiddenFacetIds;
-  const direct = new Map<string, number>();
-  for (const row of ((classified ?? []) as any[])) {
-    if (!row.category_slug || hiddenIds.has(row.product_id)) continue;
-    direct.set(row.category_slug, (direct.get(row.category_slug) ?? 0) + 1);
-  }
-  const parentBySlug = new Map<string, string | null>();
-  for (const [parent, children] of childrenOf) {
-    for (const child of children) parentBySlug.set(child, parent);
-  }
-  const categories: StorefrontCategoryFacet[] = [...bySlug.values()]
-    .map((node) => ({
-      slug: node.slug,
-      name: node.name,
-      parent_slug: parentBySlug.get(node.slug) ?? null,
-      products: categoryBranch(node.slug, childrenOf).reduce(
-        (sum, slug) => sum + (direct.get(slug) ?? 0),
-        0,
-      ),
-    }))
-    .filter((node) => node.products > 0)
-    .sort((a, b) => b.products - a.products || a.name.localeCompare(b.name));
-
-  return {
-    categories,
-    product_types: [...types].sort((a, b) => a.localeCompare(b)),
-    tags,
-    total: count ?? 0,
-  };
+    return {
+      categories,
+      product_types: [...types].sort((a, b) => a.localeCompare(b)),
+      tags,
+      total: rows.length,
+    };
+  });
 }
+
 
 export interface StorefrontCollection {
   id: string;
