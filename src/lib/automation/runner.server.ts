@@ -279,7 +279,9 @@ async function execute(ctx: RunContext, jobKey: string): Promise<JobRunResult> {
         .eq("job_key", jobKey)
         .maybeSingle();
       const batchSize = Number((refreshJob as any)?.config?.batch_size) || 25;
-      const report = await runSupplierProductRefresh({ batchSize });
+      const budgetMs = Number((refreshJob as any)?.config?.budget_ms) || 110_000;
+      const report = await runSupplierProductRefresh({ batchSize, budgetMs });
+
       return {
         jobKey,
         status: "succeeded",
