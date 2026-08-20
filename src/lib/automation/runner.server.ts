@@ -35,7 +35,8 @@ export type JobKey =
   | "product_intake_worker"
   | "order_fulfilment_queue"
   | "order_tracking_sync"
-  | "supplier_product_refresh";
+  | "supplier_product_refresh"
+  | "price_authority_sync";
 
 export interface JobRunResult {
   jobKey: string;
@@ -178,6 +179,19 @@ const SNAPSHOT_AFFECTING_JOBS = new Set([
   "supplier_sourcing_hourly",
   "supplier_link_recovery",
   "sellability_hold_sweep",
+  "price_authority_sync",
+]);
+
+/**
+ * Jobs that bring catalogue data inward from the store or the supplier. An
+ * incoming price is only ever an observation, so once one of these lands the
+ * authority is re measured and any drift is corrected outward again.
+ */
+const PRICE_AUTHORITY_TRIGGERS = new Set([
+  "shopify_catalogue_sync",
+  "product_intake_worker",
+  "product_intake_delta_sync",
+  "supplier_product_refresh",
 ]);
 
 export async function runAutomationJob(
@@ -222,6 +236,13 @@ export async function runAutomationJob(
   try {
 
     const result = await execute(ctx, jobKey);
+    if (result.status === "succeeded" && PRICE_AUTHORITY_TRIGGERS.has(jobKey)) {
+      // Incoming catalogue data may carry a supplier or store originated price.
+      // It is never accepted as authoritative: drift is detected and a bounded
+      // correction is pushed straight back out.
+      const { runPriceAuthorityCycle } = await import("@/lib/pricing/authority.server");
+      await runPriceAuthorityCycle({ pushLimit: 30 }).catch(() => undefined);
+    }
     if (result.status === "succeeded" && SNAPSHOT_AFFECTING_JOBS.has(jobKey)) {
       // Customer facing pages read a projection, so it is rebuilt as soon as
       // the catalogue behind it changes rather than only on its own schedule.
@@ -410,6 +431,29 @@ async function execute(ctx: RunContext, jobKey: string): Promise<JobRunResult> {
           held_off: result.heldOff,
           already_off: result.alreadyOff,
           failed: result.failed.length,
+        },
+      };
+    }
+
+    case "price_authority_sync": {
+      // NUR GOODS owns the advertised price. This recalculates it from verified
+      // landed cost, then writes it back to the store variants so the Shop
+      // channel, checkout, headless and the website all show one price.
+      const { runPriceAuthorityCycle } = await import("@/lib/pricing/authority.server");
+      const cycle = await runPriceAuthorityCycle({ pushLimit: 60 });
+      return {
+        jobKey,
+        status: cycle.push.failed > 0 ? "failed" : "succeeded",
+        message: `${cycle.reconcile.message} ${cycle.push.message}`,
+        details: {
+          variants: cycle.reconcile.variants,
+          in_sync: cycle.reconcile.inSync,
+          drifted: cycle.reconcile.drifted,
+          held: cycle.reconcile.held,
+          pushed: cycle.push.pushed,
+          push_failed: cycle.push.failed,
+          parity_mirror_mismatches: cycle.parity.mirrorMismatches,
+          parity_non_charm: cycle.parity.nonCharm,
         },
       };
     }
