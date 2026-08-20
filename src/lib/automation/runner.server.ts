@@ -84,7 +84,7 @@ async function claimRun(
   const status = (existing as any)?.status;
   const stale =
     status === "running" &&
-    Date.now() - new Date((existing as any)?.started_at ?? 0).getTime() > 30 * 60_000;
+    Date.now() - new Date((existing as any)?.started_at ?? 0).getTime() > staleAfterMs;
   if (!existing || (status !== "failed" && status !== "cancelled" && !stale)) return null;
 
   const { data: retaken } = await ctx.supabase
