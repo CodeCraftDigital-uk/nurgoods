@@ -1,0 +1,3 @@
+REVOKE SELECT ON public.shopify_product_variants FROM anon, authenticated;
+GRANT SELECT (id, product_id, shopify_variant_id, title, position, price, compare_at_price, currency, sku, image_url, selected_options, available_for_sale, inventory_quantity, shopify_updated_at, last_synced_at, created_at, barcode) ON public.shopify_product_variants TO anon, authenticated;
+GRANT ALL ON public.shopify_product_variants TO service_role;
