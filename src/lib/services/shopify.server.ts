@@ -1212,12 +1212,40 @@ export async function mirrorShopifyProducts(
   return result.productIdByShopifyId;
 }
 
-/** The signing secret Shopify uses for webhook payloads. */
+/**
+ * The signing secret Shopify uses for webhook payloads.
+ *
+ * The value is held in memory for a short window. A webhook delivery must be
+ * acknowledged in seconds, so a transient database problem must never be able
+ * to make a well formed delivery fail verification.
+ */
+let webhookSecretCache: { value: string; expiresAt: number } | null = null;
+
 export async function getWebhookSigningSecret(): Promise<string | null> {
   const explicit = process.env["SHOPIFY_WEBHOOK_SECRET"]?.trim();
   if (explicit) return explicit;
-  const resolved = await resolveShopifyCredentials();
-  return resolved.clientSecret ?? null;
+
+  if (webhookSecretCache && webhookSecretCache.expiresAt > Date.now()) {
+    return webhookSecretCache.value;
+  }
+
+  try {
+    const resolved = await resolveShopifyCredentials();
+    if (resolved.clientSecret) {
+      webhookSecretCache = { value: resolved.clientSecret, expiresAt: Date.now() + 10 * 60_000 };
+      return resolved.clientSecret;
+    }
+  } catch {
+    // fall through to the stale cached value below
+  }
+  // A stale value still verifies correctly: the signing secret only changes
+  // when the app credentials are rotated, which clears this cache.
+  return webhookSecretCache?.value ?? null;
+}
+
+/** Called whenever credentials change so the next delivery re-reads them. */
+export function clearWebhookSigningSecretCache(): void {
+  webhookSecretCache = null;
 }
 
 export const INTAKE_WEBHOOK_TOPICS = ["PRODUCTS_CREATE", "PRODUCTS_UPDATE"] as const;
