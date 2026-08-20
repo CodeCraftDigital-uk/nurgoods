@@ -615,6 +615,7 @@ export async function disconnectShopify(): Promise<void> {
   await supabase.rpc("delete_integration_secret", { _name: SHOPIFY_VAULT_SECRET });
   await supabase.rpc("delete_integration_secret", { _name: SHOPIFY_CLIENT_SECRET_VAULT });
   tokenCache.clear();
+  clearWebhookSigningSecretCache();
   const id = await integrationId(supabase);
   if (id) {
     await supabase
