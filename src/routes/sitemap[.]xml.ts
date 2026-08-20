@@ -25,12 +25,29 @@ export const Route = createFileRoute("/sitemap.xml")({
         try {
           const { listStorefrontCollections, listStorefrontProducts, listStorefrontFacets } =
             await import("@/lib/public-api/storefront.server");
+          // Each source is read independently. One unavailable content area
+          // must never strip the rest of the site out of the sitemap.
+          const safe = async <T>(read: () => Promise<T>, fallback: T): Promise<T> => {
+            try {
+              return await read();
+            } catch {
+              return fallback;
+            }
+          };
           const [articles, documents, importedPolicies, collections, facets] = await Promise.all([
-            listPublicArticles({}),
-            listPublicLegalDocuments({}),
-            listPublicLegalSources({}),
-            listStorefrontCollections(),
-            listStorefrontFacets(),
+            safe(() => listPublicArticles({}), [] as Awaited<ReturnType<typeof listPublicArticles>>),
+            safe(
+              () => listPublicLegalDocuments({}),
+              [] as Awaited<ReturnType<typeof listPublicLegalDocuments>>,
+            ),
+            safe(
+              () => listPublicLegalSources({}),
+              [] as Awaited<ReturnType<typeof listPublicLegalSources>>,
+            ),
+            safe(() => listStorefrontCollections(), [] as Awaited<ReturnType<typeof listStorefrontCollections>>),
+            safe(() => listStorefrontFacets(), { categories: [], product_types: [], tags: [], total: 0 } as Awaited<
+                ReturnType<typeof listStorefrontFacets>
+              >),
           ]);
           // Canonical category pages are the topical entry points into the
           // catalogue, so every category that actually holds products is listed.

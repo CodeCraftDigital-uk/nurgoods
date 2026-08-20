@@ -104,7 +104,28 @@ async function claimRun(
  */
 const ABANDONED_RUN_MS = 60 * 60_000;
 
+/**
+ * How long a job may report itself as running before the record is treated as
+ * the leftover of an invocation that was cut off. Every job is time boxed well
+ * below this, so nothing legitimate is ever marked failed while still working.
+ */
+const ABANDONED_JOB_MS = 15 * 60_000;
+
 async function reclaimAbandonedRuns(ctx: RunContext): Promise<void> {
+  try {
+    await ctx.supabase
+      .from("automation_jobs")
+      .update({
+        last_status: "failed",
+        last_result: {
+          message: "Recovered: the run was interrupted before it could report a result.",
+        },
+      } as never)
+      .eq("last_status", "running")
+      .lt("last_run_at", new Date(Date.now() - ABANDONED_JOB_MS).toISOString());
+  } catch {
+    // Bookkeeping only.
+  }
   try {
     await ctx.supabase
       .from("automation_runs")
@@ -137,6 +158,27 @@ async function closeRun(
     })
     .eq("id", runId);
 }
+
+/**
+ * Jobs whose work changes what customers may see. Each one rebuilds the
+ * storefront projection when it finishes so the shop is never stale.
+ */
+const SNAPSHOT_AFFECTING_JOBS = new Set([
+  "shopify_catalogue_sync",
+  "product_intake_worker",
+  "product_intake_delta_sync",
+  "catalogue_duplicate_identity",
+  "catalogue_identity_remediation",
+  "catalogue_intelligence_worker",
+  "catalogue_intelligence_backfill",
+  "catalogue_seo_sweep",
+  "live_pricing_integrity",
+  "prohibited_category_sweep",
+  "supplier_product_refresh",
+  "supplier_sourcing_hourly",
+  "supplier_link_recovery",
+  "sellability_hold_sweep",
+]);
 
 export async function runAutomationJob(
   ctx: RunContext,
@@ -180,6 +222,14 @@ export async function runAutomationJob(
   try {
 
     const result = await execute(ctx, jobKey);
+    if (result.status === "succeeded" && SNAPSHOT_AFFECTING_JOBS.has(jobKey)) {
+      // Customer facing pages read a projection, so it is rebuilt as soon as
+      // the catalogue behind it changes rather than only on its own schedule.
+      const { refreshStorefrontSnapshot } = await import("./snapshot.server");
+      await refreshStorefrontSnapshot(ctx.supabase as any, "storefront_snapshot_refresh").catch(
+        () => undefined,
+      );
+    }
     await ctx.supabase
       .from("automation_jobs")
       .update({
@@ -327,6 +377,46 @@ async function execute(ctx: RunContext, jobKey: string): Promise<JobRunResult> {
         message: report.message,
         details: report.detail as Record<string, string | number>,
       };
+    }
+
+    case "supplier_link_recovery": {
+      // Rebuilds supplier mappings from supplier reported store ids only.
+      // Nothing is inferred from titles and no order is ever placed.
+      const { recoverSupplierLinkage } = await import("@/lib/pricing/linkage.server");
+      const result = await recoverSupplierLinkage();
+      return {
+        jobKey,
+        status: "succeeded",
+        message: result.message,
+        details: {
+          linked: result.linkedProducts,
+          unmatched: result.unmatchedSupplierProducts,
+          shipping_quoted: result.shippingQuoted,
+        },
+      };
+    }
+
+    case "sellability_hold_sweep": {
+      // Any listing without proven supplier linkage and market shipping
+      // evidence is taken off every sales channel. It only ever removes.
+      const { enforceSellabilityHold } = await import("@/lib/intake/sellability.server");
+      const result = await enforceSellabilityHold({ apply: true, limit: 50 });
+      return {
+        jobKey,
+        status: result.failed.length > 0 ? "failed" : "succeeded",
+        message: result.message,
+        details: {
+          attempted: result.attempted,
+          held_off: result.heldOff,
+          already_off: result.alreadyOff,
+          failed: result.failed.length,
+        },
+      };
+    }
+
+    case "storefront_snapshot_refresh": {
+      const { refreshStorefrontSnapshot } = await import("./snapshot.server");
+      return refreshStorefrontSnapshot(ctx.supabase as any, jobKey);
     }
 
     case "article_drafting":
