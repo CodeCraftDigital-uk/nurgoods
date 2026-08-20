@@ -259,17 +259,27 @@ function applySnapshotSort(builder: any, sort: StorefrontSort) {
   }
 }
 
-/** Short lived process cache. Snapshot data changes only when a job rebuilds it. */
+/**
+ * Short lived process cache. Snapshot data changes only when a job rebuilds it.
+ * Entries are kept after they expire so that a slow or timing out database read
+ * can serve the previous answer instead of blanking a customer facing page.
+ */
 const memo = new Map<string, { at: number; value: unknown }>();
 const MEMO_MS = 60_000;
 
 async function cached<T>(key: string, load: () => Promise<T>): Promise<T> {
   const hit = memo.get(key);
   if (hit && Date.now() - hit.at < MEMO_MS) return hit.value as T;
-  const value = await load();
-  memo.set(key, { at: Date.now(), value });
-  return value;
+  try {
+    const value = await load();
+    memo.set(key, { at: Date.now(), value });
+    return value;
+  } catch (error) {
+    if (hit) return hit.value as T;
+    throw error;
+  }
 }
+
 
 export async function listStorefrontProducts(input: {
   query?: string | undefined;
