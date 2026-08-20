@@ -569,6 +569,7 @@ export async function saveShopifyCredentials(input: {
       _secret: input.clientSecret,
     });
     if (error) throw new Error("The client secret could not be stored securely");
+    clearWebhookSigningSecretCache();
   }
   await writeSetting(supabase, SETTING_KEYS.shopDomain, "Store domain", input.shopDomain);
   await writeSetting(supabase, SETTING_KEYS.apiVersion, "Admin API version", input.apiVersion);
