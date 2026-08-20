@@ -539,6 +539,122 @@ export async function processIntake(db: Db, limit = 6): Promise<IntakeProcessRes
   return result;
 }
 
+/**
+ * Reason codes that describe a condition a later deterministic correction can
+ * genuinely resolve: a price that has since been rounded to the approved
+ * charm ending, a mirror row that had not landed yet, a store status that has
+ * since become active, or thin content that has since been filled in.
+ *
+ * Prohibited category and any deliberate rejection are absent on purpose. A
+ * policy decision is never undone by a background pass.
+ */
+const REVALIDATABLE_REASON_CODES = new Set([
+  "retail_rounding",
+  "eligible_status",
+  "price",
+  "not_mirrored",
+  "image",
+  "description",
+  "validation_failed",
+  "purchasable_variant",
+]);
+
+export interface RevalidationResult {
+  inspected: number;
+  released: number;
+  stillHeld: number;
+  byReason: Record<string, number>;
+}
+
+/**
+ * Re-runs the current intake validation against quarantined records whose
+ * hold reason can change on its own, and releases only the ones that now pass
+ * every gate. Nothing is exposed directly: a released record re-enters intake
+ * at the start and must still clear identity, classification, pricing and
+ * activation before it can reach the storefront.
+ *
+ * This exists because pricing integrity, the supplier refresh and the
+ * catalogue mirror all correct data that intake had already judged. Without
+ * this pass a product quarantined for an unrounded price stays hidden forever
+ * even after the price is corrected, because price movement deliberately does
+ * not count as a material content change.
+ */
+export async function revalidateQuarantined(db: Db, limit = 60): Promise<RevalidationResult> {
+  const result: RevalidationResult = { inspected: 0, released: 0, stillHeld: 0, byReason: {} };
+  const policy = await getIntakePolicy(db);
+
+  const { data } = await db
+    .from("product_intake_records")
+    .select("id, product_id, shopify_product_id, state, reason_code, origin, version_fingerprint")
+    .eq("state", "quarantined")
+    .order("last_transition_at", { ascending: true })
+    .limit(Math.max(1, Math.min(limit, 300)));
+
+  const rows = ((data ?? []) as any[]).filter((row) =>
+    REVALIDATABLE_REASON_CODES.has(String(row.reason_code ?? "")),
+  );
+  if (rows.length === 0) return result;
+
+  const productIds = rows.map((row) => row.product_id).filter(Boolean) as string[];
+  const bundles = await loadBundles(db, productIds);
+  const bundleById = new Map(bundles.map((bundle) => [bundle.product.id, bundle]));
+
+  for (const row of rows) {
+    result.inspected += 1;
+    const bundle = row.product_id ? bundleById.get(row.product_id) : undefined;
+    if (!bundle) {
+      result.stillHeld += 1;
+      result.byReason["not_mirrored"] = (result.byReason["not_mirrored"] ?? 0) + 1;
+      continue;
+    }
+    const outcome = validateIntake(bundle, policy, { origin: originOf(row) });
+    await db
+      .from("product_intake_records")
+      .update({ validation: { checks: outcome.checks } as never })
+      .eq("id", row.id);
+
+    if (!outcome.passed) {
+      result.stillHeld += 1;
+      const code = outcome.failedCodes[0] ?? "validation_failed";
+      result.byReason[code] = (result.byReason[code] ?? 0) + 1;
+      // The record keeps its hold, but the reason is refreshed so the console
+      // reports why it is held today rather than why it was held originally.
+      await db
+        .from("product_intake_records")
+        .update({ reason_code: code, reason: outcome.summary } as never)
+        .eq("id", row.id);
+      continue;
+    }
+
+    await db
+      .from("product_intake_records")
+      .update({
+        state: "detected",
+        previous_state: "quarantined",
+        reason_code: "revalidated",
+        reason: "The condition that held this product back has been corrected",
+        attempts: 0,
+        processed_fingerprint: null,
+        locked_at: null,
+        lock_token: null,
+        last_transition_at: new Date().toISOString(),
+      } as never)
+      .eq("id", row.id);
+    await logEvent(
+      db,
+      row.id,
+      row.shopify_product_id,
+      "quarantined",
+      "detected",
+      "revalidated",
+      "Automatic revalidation found every intake check now passing",
+    );
+    result.released += 1;
+  }
+
+  return result;
+}
+
 /** Puts a quarantined or failed product back at the start of intake. */
 export async function retryIntake(db: Db, intakeId: string): Promise<void> {
   const { data } = await db

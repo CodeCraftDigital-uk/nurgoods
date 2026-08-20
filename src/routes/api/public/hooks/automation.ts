@@ -32,6 +32,8 @@ export const Route = createFileRoute("/api/public/hooks/automation")({
           jobKey = "";
         }
         const allowed = new Set([
+          "shopify_catalogue_sync",
+          "publish_scheduler",
           "monthly_editorial_plan",
           "daily_article_publish",
           "catalogue_intelligence_backfill",
