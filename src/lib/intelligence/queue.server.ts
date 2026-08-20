@@ -230,16 +230,41 @@ async function claimBatch(db: Db, limit: number): Promise<ClaimedRow[]> {
     .eq("status", "running")
     .or(`locked_at.is.null,locked_at.lt.${staleBefore}`);
 
+  // A wider pool than the batch, because search and fact items whose category
+  // has not landed yet are not workable and must not be allowed to occupy the
+  // whole batch. Claiming strictly oldest first is what stalled the queue: the
+  // oldest rows were all blocked search items, so every pass claimed them,
+  // released them untouched and reported nothing processed.
   const { data: candidates } = await db
     .from("intelligence_queue")
     .select("id, product_id, stage, attempts, reason")
     .eq("status", "queued")
     .order("priority", { ascending: true })
     .order("created_at", { ascending: true })
-    .limit(limit);
+    .limit(Math.max(limit * 10, 100));
 
-  const rows = (candidates ?? []) as ClaimedRow[];
-  if (rows.length === 0) return [];
+  const pool = (candidates ?? []) as ClaimedRow[];
+  if (pool.length === 0) return [];
+
+  const dependent = pool.filter((row) => row.stage === "seo" || row.stage === "facts");
+  const blocked = new Set<string>();
+  if (dependent.length > 0) {
+    const { data: pendingClassify } = await db
+      .from("intelligence_queue")
+      .select("product_id")
+      .eq("stage", "classify")
+      .in("status", ["queued", "running"])
+      .in("product_id", [...new Set(dependent.map((row) => row.product_id))]);
+    for (const row of ((pendingClassify ?? []) as any[])) blocked.add(row.product_id as string);
+  }
+
+  const stageOrder: Record<string, number> = { classify: 0, dedupe: 1, seo: 2, facts: 3, elect: 4 };
+  const workable = pool
+    .filter((row) => !((row.stage === "seo" || row.stage === "facts") && blocked.has(row.product_id)))
+    .sort((a, b) => (stageOrder[a.stage] ?? 9) - (stageOrder[b.stage] ?? 9));
+
+  const rows = workable.slice(0, limit);
+
 
   const token = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
   const { data: claimed } = await db
