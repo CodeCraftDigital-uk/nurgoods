@@ -264,6 +264,9 @@ async function claimBatch(db: Db, limit: number): Promise<ClaimedRow[]> {
     .sort((a, b) => (stageOrder[a.stage] ?? 9) - (stageOrder[b.stage] ?? 9));
 
   const rows = workable.slice(0, limit);
+  if (rows.length === 0) return [];
+
+
 
 
   const token = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
