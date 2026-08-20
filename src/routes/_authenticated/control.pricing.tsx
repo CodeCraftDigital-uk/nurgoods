@@ -199,7 +199,7 @@ function CataloguePricingPage() {
       <SectionCard
         title="Price authority"
         description="NUR GOODS sets the advertised price. A supplier or store price is only ever an input. Where the store has drifted, the calculated price is written back to the variant so the Shop channel, checkout, headless and the website all show the same figure."
-        action={
+        actions={
           <Button
             variant="outline"
             size="sm"
