@@ -274,7 +274,9 @@ function toSummary(row: any): PublicLegalSourceSummary {
  */
 export const listPublicLegalSources = createServerFn({ method: "GET" }).handler(
   async (): Promise<PublicLegalSourceSummary[]> => {
-    const supabaseAdmin = await adminClient();
+    // Read with the publishable key so the published policy row set is
+    // resolved by the same rules customers are subject to.
+    const supabaseAdmin = await publicClient();
     const [sourcesResult, overridesResult] = await Promise.all([
       supabaseAdmin
         .from("shopify_legal_sources")
@@ -313,7 +315,7 @@ export const listPublicLegalSources = createServerFn({ method: "GET" }).handler(
 export const getPublicLegalSource = createServerFn({ method: "GET" })
   .inputValidator((input: { slug: string }) => ({ slug: String(input.slug) }))
   .handler(async ({ data }): Promise<PublicLegalSource | null> => {
-    const supabaseAdmin = await adminClient();
+    const supabaseAdmin = await publicClient();
     const { data: row, error } = await supabaseAdmin
       .from("shopify_legal_sources")
       .select(`id, ${LEGAL_SOURCE_COLUMNS}, body_html, public_visible`)
