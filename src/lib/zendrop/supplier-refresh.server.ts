@@ -515,8 +515,11 @@ export async function runSupplierProductRefresh(options?: {
       items.length === 0 && staleSwept === 0
         ? "There are no supplier backed listings due for reconciliation right now."
         : `Reconciled ${items.length} supplier backed listing(s) at a batch size of ${batchSize}: ${healthy} confirmed, ${repriced} repriced, ${recovered} brought back on sale, ${held} taken off sale, ${errored} left for retry, ${staleSwept} held for breaching the freshness target.${
-            dryRun ? " Dry run, nothing was changed." : ""
-          }`,
+            unreached.length > 0
+              ? ` ${unreached.length} listing(s) were released untouched when the time budget was spent and continue on the next pass.`
+              : ""
+          }${dryRun ? " Dry run, nothing was changed." : ""}`,
+
   };
 }
 
