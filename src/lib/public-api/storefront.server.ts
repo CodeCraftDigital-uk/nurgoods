@@ -259,17 +259,27 @@ function applySnapshotSort(builder: any, sort: StorefrontSort) {
   }
 }
 
-/** Short lived process cache. Snapshot data changes only when a job rebuilds it. */
+/**
+ * Short lived process cache. Snapshot data changes only when a job rebuilds it.
+ * Entries are kept after they expire so that a slow or timing out database read
+ * can serve the previous answer instead of blanking a customer facing page.
+ */
 const memo = new Map<string, { at: number; value: unknown }>();
 const MEMO_MS = 60_000;
 
 async function cached<T>(key: string, load: () => Promise<T>): Promise<T> {
   const hit = memo.get(key);
   if (hit && Date.now() - hit.at < MEMO_MS) return hit.value as T;
-  const value = await load();
-  memo.set(key, { at: Date.now(), value });
-  return value;
+  try {
+    const value = await load();
+    memo.set(key, { at: Date.now(), value });
+    return value;
+  } catch (error) {
+    if (hit) return hit.value as T;
+    throw error;
+  }
 }
+
 
 export async function listStorefrontProducts(input: {
   query?: string | undefined;
@@ -283,6 +293,9 @@ export async function listStorefrontProducts(input: {
 }): Promise<{ items: StorefrontProductCard[]; total: number; hasMore: boolean }> {
   const supabase = await publicClient();
   const { limit, offset } = normalisePage(input);
+  const memoKey = `products:${JSON.stringify({ ...input, limit, offset })}`;
+  return cached(memoKey, async () => {
+
 
   let builder = supabase
     .from("storefront_snapshot")
@@ -306,8 +319,10 @@ export async function listStorefrontProducts(input: {
   if (error) throw new Error(error.message);
   const items = ((data ?? []) as any[]).map(mapSnapshotCard);
   const total = count ?? items.length;
-  return { items, total, hasMore: offset + items.length < total };
+    return { items, total, hasMore: offset + items.length < total };
+  });
 }
+
 
 export async function listStorefrontFacets(): Promise<StorefrontFacets> {
   const supabase = await publicClient();
