@@ -19,7 +19,9 @@ import {
 } from "@/components/ui/table";
 import {
   applyPricingAuditFn,
+  getPriceAuthorityStatusFn,
   getPricingAudit,
+  runPriceAuthorityCycleFn,
   recoverSupplierLinkageFn,
   refreshShippingQuotesFn,
   runPricingAuditFn,
@@ -123,6 +125,22 @@ function CataloguePricingPage() {
     onError: (error: Error) => toast.error(error.message),
   });
 
+  const authorityFn = useServerFn(getPriceAuthorityStatusFn);
+  const authority = useQuery({
+    queryKey: ["price-authority"],
+    queryFn: () => authorityFn({}),
+    retry: false,
+  });
+  const cycleFn = useServerFn(runPriceAuthorityCycleFn);
+  const authorityCycle = useMutation({
+    mutationFn: () => cycleFn({}),
+    onSuccess: (result: any) => {
+      toast.success(`${result.reconcile.message} ${result.push.message}`);
+      void queryClient.invalidateQueries({ queryKey: ["price-authority"] });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
   const run = audit.data?.run ?? null;
   const totals = run?.totals;
   const items = audit.data?.items ?? [];
@@ -177,6 +195,32 @@ function CataloguePricingPage() {
           </div>
         }
       />
+
+      <SectionCard
+        title="Price authority"
+        description="NUR GOODS sets the advertised price. A supplier or store price is only ever an input. Where the store has drifted, the calculated price is written back to the variant so the Shop channel, checkout, headless and the website all show the same figure."
+        actions={
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => authorityCycle.mutate()}
+            disabled={authorityCycle.isPending}
+          >
+            <ShieldCheck className="mr-2 h-4 w-4" />
+            {authorityCycle.isPending ? "Reconciling" : "Reconcile and push"}
+          </Button>
+        }
+      >
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <Metric label="In sync" value={String(authority.data?.counts?.["in_sync"] ?? 0)} hint="Store matches the NUR GOODS price" />
+          <Metric label="Drifted" value={String(authority.data?.counts?.["drifted"] ?? 0)} hint="Queued for outward correction" />
+          <Metric label="Held" value={String(authority.data?.counts?.["held"] ?? 0)} hint="Unverified landed cost or variant mapping" />
+          <Metric label="Push failures" value={String(authority.data?.counts?.["failed"] ?? 0)} hint="Retried with backoff" />
+        </div>
+        {authority.data?.parity ? (
+          <p className="mt-3 text-xs text-muted-foreground">{authority.data.parity.message}</p>
+        ) : null}
+      </SectionCard>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Metric
