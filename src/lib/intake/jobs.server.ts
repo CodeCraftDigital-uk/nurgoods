@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { detectProducts, processIntake } from "./intake.server";
+import { detectProducts, processIntake, revalidateQuarantined } from "./intake.server";
 import { materialIntakeFingerprint } from "./fingerprint";
 
 /** Scheduled intake jobs: the delta sync fallback and the intake worker. */
@@ -74,12 +74,21 @@ export async function runIntakeDeltaSync(db: Db, lookbackHours = 26): Promise<In
 
 /** Drains the intake queue in bounded batches. */
 export async function runIntakeWorker(db: Db, batchSize = 6): Promise<IntakeJobSummary> {
+  // Quarantines are re-examined first. Pricing integrity, the supplier
+  // refresh and the catalogue mirror all correct data intake has already
+  // judged, so a product held for a condition that has since been fixed is
+  // put back through the normal pipeline rather than left hidden for good.
+  const revalidated = await revalidateQuarantined(db, batchSize * 10);
+
   const result = await processIntake(db, batchSize);
-  if (result.processed === 0) {
-    return { message: "Nothing was waiting in product intake.", details: {} };
+  if (result.processed === 0 && revalidated.released === 0) {
+    return {
+      message: "Nothing was waiting in product intake.",
+      details: { revalidated: revalidated.inspected, still_held: revalidated.stillHeld },
+    };
   }
   return {
-    message: `Processed ${result.processed} products. ${result.published} went live, ${result.quarantined} were quarantined and ${result.failed} failed.`,
+    message: `Processed ${result.processed} products. ${result.published} went live, ${result.quarantined} were quarantined and ${result.failed} failed. Revalidation released ${revalidated.released} of ${revalidated.inspected} held product(s).`,
     details: {
       processed: result.processed,
       approved: result.approved,
@@ -88,6 +97,10 @@ export async function runIntakeWorker(db: Db, batchSize = 6): Promise<IntakeJobS
       failed: result.failed,
       classified: result.classified,
       optimised: result.optimised,
+      revalidated: revalidated.inspected,
+      released: revalidated.released,
+      still_held: revalidated.stillHeld,
     },
   };
 }
+
