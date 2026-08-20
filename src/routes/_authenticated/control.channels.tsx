@@ -22,6 +22,7 @@ import {
   getPublicationConsole,
   migratePublicationsFn,
   runPublicationAuditFn,
+  verifySurfaceParityFn,
 } from "@/lib/zendrop/publication.functions";
 
 export const Route = createFileRoute("/_authenticated/control/channels")({
@@ -72,6 +73,15 @@ function ChannelsPage() {
       toast.error(error instanceof Error ? error.message : "The migration did not run"),
   });
 
+  const parityFn = useServerFn(verifySurfaceParityFn);
+  const parity = useMutation({
+    mutationFn: () => parityFn({ data: { limit: 25 } }),
+    onSuccess: (result: any) =>
+      result.ok ? toast.success(result.message) : toast.warning(result.message),
+    onError: (error) =>
+      error instanceof Error ? toast.error(error.message) : toast.error("The check did not run"),
+  });
+
   const checklist = view.data?.checklist;
   const lastRun = view.data?.lastRun ?? null;
   const items = view.data?.lastItems ?? [];
@@ -85,6 +95,11 @@ function ChannelsPage() {
       <PageHeader
         title="Sales channels"
         description="NUR GOODS sells on three live surfaces. Verified sellable products belong on the headless channel, the Online Store and Shop, and nowhere else. Point of Sale stays off."
+        actions={
+          <Button variant="outline" size="sm" onClick={() => parity.mutate()} disabled={parity.isPending}>
+            {parity.isPending ? "Checking parity" : "Check three surface parity"}
+          </Button>
+        }
       />
 
       <SectionCard
