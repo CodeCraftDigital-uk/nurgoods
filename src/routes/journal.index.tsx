@@ -9,6 +9,9 @@ import { listPublicArticles } from "@/lib/services/public-content.functions";
 export const Route = createFileRoute("/journal/")({
   // Server rendered so the article list is crawlable and citable.
   loader: async () => {
+    // Client navigations must commit instantly: the page refetches through
+    // React Query instead of blocking the route transition on the server.
+    if (typeof window !== "undefined") return null;
     try {
       return await listPublicArticles({});
     } catch {

@@ -12,6 +12,9 @@ import { listStorefrontCollectionsFn } from "@/lib/services/storefront.functions
 export const Route = createFileRoute("/collections/")({
   // Server rendered so every collection link is in the crawlable HTML.
   loader: async () => {
+    // Client navigations must commit instantly: the page refetches through
+    // React Query instead of blocking the route transition on the server.
+    if (typeof window !== "undefined") return null;
     try {
       return await listStorefrontCollectionsFn({ data: { withProductsOnly: true } });
     } catch {
