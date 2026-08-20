@@ -117,15 +117,16 @@ export async function runIntakeWorker(db: Db, batchSize = 6): Promise<IntakeJobS
   const revalidated = await revalidateQuarantined(db, batchSize * 10);
 
   const result = await processIntake(db, batchSize);
-  if (result.processed === 0 && revalidated.released === 0) {
+  if (result.processed === 0 && revalidated.released === 0 && mirrored === 0) {
     return {
       message: "Nothing was waiting in product intake.",
-      details: { revalidated: revalidated.inspected, still_held: revalidated.stillHeld },
+      details: { mirrored, revalidated: revalidated.inspected, still_held: revalidated.stillHeld },
     };
   }
   return {
     message: `Processed ${result.processed} products. ${result.published} went live, ${result.quarantined} were quarantined and ${result.failed} failed. Revalidation released ${revalidated.released} of ${revalidated.inspected} held product(s).`,
     details: {
+      mirrored,
       processed: result.processed,
       approved: result.approved,
       published: result.published,
