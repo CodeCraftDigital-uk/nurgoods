@@ -12,6 +12,9 @@ import {
 export const Route = createFileRoute("/legal/")({
   // Server rendered so every policy link is present in the crawlable HTML.
   loader: async () => {
+    // Client navigations must commit instantly: the page refetches through
+    // React Query instead of blocking the route transition on the server.
+    if (typeof window !== "undefined") return null;
     try {
       const [sources, documents, references] = await Promise.all([
         listPublicLegalSources({}),

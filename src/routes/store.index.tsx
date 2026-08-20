@@ -57,6 +57,9 @@ export const Route = createFileRoute("/store/")({
   // The first page is rendered on the server so crawlers and answer engines
   // see real product links instead of an empty shell.
   loader: async ({ deps }) => {
+    // Client navigations must commit instantly: the page refetches through
+    // React Query instead of blocking the route transition on the server.
+    if (typeof window !== "undefined") return null;
     try {
       const page = await searchCatalogueFn({
         data: {

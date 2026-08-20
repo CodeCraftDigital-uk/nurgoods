@@ -73,6 +73,9 @@ export const Route = createFileRoute("/")({
   // Server rendered so the home page ships real product, collection and
   // article links instead of an empty shell.
   loader: async () => {
+    // Client navigations must commit instantly: the page refetches through
+    // React Query instead of blocking the route transition on the server.
+    if (typeof window !== "undefined") return null;
     try {
       const [newest, browse, collections, articles] = await Promise.all([
         listStorefrontProductsFn({ data: { limit: 8, sort: "newest" } }),
