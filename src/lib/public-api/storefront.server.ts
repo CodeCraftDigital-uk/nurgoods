@@ -293,6 +293,9 @@ export async function listStorefrontProducts(input: {
 }): Promise<{ items: StorefrontProductCard[]; total: number; hasMore: boolean }> {
   const supabase = await publicClient();
   const { limit, offset } = normalisePage(input);
+  const memoKey = `products:${JSON.stringify({ ...input, limit, offset })}`;
+  return cached(memoKey, async () => {
+
 
   let builder = supabase
     .from("storefront_snapshot")
