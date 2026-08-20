@@ -11,12 +11,17 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
  */
 
 async function assertAdmin(context: any): Promise<void> {
-  const { data: isAdmin } = await context.supabase.rpc("has_role", {
+  const { data: isAdmin, error } = await context.supabase.rpc("has_role", {
     _user_id: context.userId,
     _role: "admin",
   });
+  // A failed check is not a denied check. Reporting the real reason keeps a
+  // transient session or database problem from masquerading as a permission
+  // problem, which is impossible to diagnose from the console.
+  if (error) throw new Error(`The administrator check could not run: ${error.message}`);
   if (!isAdmin) throw new Error("Forbidden");
 }
+
 
 async function admin() {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
