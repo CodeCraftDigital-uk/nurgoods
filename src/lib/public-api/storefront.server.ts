@@ -64,7 +64,7 @@ interface CategoryRow {
 }
 
 /** Live canonical taxonomy, enabled nodes only. */
-async function loadTaxonomy(supabase: any): Promise<{
+async function loadTaxonomyUncached(supabase: any): Promise<{
   bySlug: Map<string, CategoryRow>;
   childrenOf: Map<string, string[]>;
 }> {
@@ -83,6 +83,10 @@ async function loadTaxonomy(supabase: any): Promise<{
     childrenOf.set(parent.slug, [...(childrenOf.get(parent.slug) ?? []), row.slug]);
   }
   return { bySlug, childrenOf };
+}
+
+function loadTaxonomy(supabase: any) {
+  return cached("taxonomy", () => loadTaxonomyUncached(supabase));
 }
 
 /** A category plus everything beneath it, so parent pages include their leaves. */
@@ -140,7 +144,17 @@ export async function loadHiddenProductIds(supabase: any): Promise<string[]> {
 
 
 async function loadSuppressedProductIds(supabase: any): Promise<string[]> {
-  return loadHiddenProductIds(supabase);
+  // Suppression only changes when a job rebuilds it, so the short lived
+  // process cache keeps product pages down to their own indexed reads.
+  return cached("suppressed-ids", () => loadHiddenProductIds(supabase));
+}
+
+/** Cached duplicate suppression rows, shared by every product page render. */
+async function loadSuppressionRows(supabase: any): Promise<any[]> {
+  return cached("suppression-rows", async () => {
+    const { data } = await supabase.rpc("public_suppressed_products");
+    return (data ?? []) as any[];
+  });
 }
 
 
@@ -149,8 +163,8 @@ export async function resolveCanonicalHandle(
   supabase: any,
   productId: string,
 ): Promise<{ suppressed: boolean; canonical_handle: string | null }> {
-  const { data } = await supabase.rpc("public_suppressed_products");
-  const match = ((data ?? []) as any[]).find((row) => row.product_id === productId);
+  const rows = await loadSuppressionRows(supabase);
+  const match = rows.find((row) => row.product_id === productId);
   if (!match) return { suppressed: false, canonical_handle: null };
   return { suppressed: true, canonical_handle: (match.canonical_handle as string | null) ?? null };
 }
@@ -277,7 +291,7 @@ export async function listStorefrontProducts(input: {
   builder = applySnapshotSort(builder, input.sort ?? "featured");
 
   if (input.category) {
-    const { childrenOf, bySlug } = await cached("taxonomy", () => loadTaxonomy(supabase));
+    const { childrenOf, bySlug } = await loadTaxonomy(supabase);
     if (!bySlug.has(input.category)) return { items: [], total: 0, hasMore: false };
     builder = builder.in("category_slug", categoryBranch(input.category, childrenOf));
   }
@@ -380,62 +394,50 @@ export async function listStorefrontCollections(options?: {
   withProductsOnly?: boolean;
 }): Promise<StorefrontCollection[]> {
   const supabase = await publicClient();
-  const { data, error } = await supabase
-    .from("shopify_collections")
-    .select("id, handle, title, description, image_url, product_count, shopify_updated_at, last_synced_at")
-    .order("title", { ascending: true })
-    .limit(100);
-  if (error) throw new Error(error.message);
-  const rows = (data ?? []) as any[];
-  if (rows.length === 0) return [];
+  const all = await cached("collections", async () => {
+    // Two indexed local reads only. The snapshot already excludes suppressed
+    // duplicates and listings held by intake, so no suppression fan out is
+    // needed on a customer request.
+    const [{ data, error }, { data: snapshot }] = await Promise.all([
+      supabase
+        .from("shopify_collections")
+        .select(
+          "id, handle, title, description, image_url, product_count, shopify_updated_at, last_synced_at",
+        )
+        .order("title", { ascending: true })
+        .limit(100),
+      supabase.from("storefront_snapshot").select("collection_handles, image_url").limit(5000),
+    ]);
+    if (error) throw new Error(error.message);
+    const rows = (data ?? []) as any[];
+    if (rows.length === 0) return [] as StorefrontCollection[];
 
-  // The store does not always set a collection image, so a genuine member
-  // product image stands in. Nothing is invented: the image always belongs to a
-  // product inside that collection.
-  const { data: joins } = await supabase
-    .from("shopify_product_collections")
-    .select("collection_id, product_id")
-    .in(
-      "collection_id",
-      rows.map((row) => row.id),
-    )
-    .limit(2000);
-  // Suppressed duplicates never count towards a collection tile.
-  const hiddenCollectionIds = new Set(await loadSuppressedProductIds(supabase));
-  const joinRows = ((joins ?? []) as any[]).filter(
-    (join) => !hiddenCollectionIds.has(join.product_id),
-  );
-  const productIds = [...new Set(joinRows.map((join) => join.product_id))];
-
-  const imageByProduct = new Map<string, string>();
-  if (productIds.length > 0) {
-    const { data: products } = await supabase
-      .from("shopify_products")
-      .select("id, featured_image_url, title")
-      .in("id", productIds);
-    for (const product of (products ?? []) as any[]) {
-      if (product.featured_image_url) imageByProduct.set(product.id, product.featured_image_url);
+    // The store does not always set a collection image, so a genuine member
+    // product image stands in. Nothing is invented: the image always belongs to
+    // a product inside that collection.
+    const counts = new Map<string, number>();
+    const covers = new Map<string, string>();
+    for (const row of ((snapshot ?? []) as any[])) {
+      const handles: string[] = Array.isArray(row.collection_handles) ? row.collection_handles : [];
+      for (const handle of handles) {
+        if (typeof handle !== "string") continue;
+        counts.set(handle, (counts.get(handle) ?? 0) + 1);
+        if (row.image_url && !covers.has(handle)) covers.set(handle, row.image_url);
+      }
     }
-  }
-  const counts = new Map<string, number>();
-  const covers = new Map<string, string>();
-  for (const join of joinRows) {
-    counts.set(join.collection_id, (counts.get(join.collection_id) ?? 0) + 1);
-    const image = imageByProduct.get(join.product_id);
-    if (image && !covers.has(join.collection_id)) covers.set(join.collection_id, image);
-  }
 
-  const mapped = rows.map((row) => {
-    const collection = mapCollection(row);
-    const count = counts.get(row.id) ?? collection.product_count;
-    return {
-      ...collection,
-      product_count: count,
-      image_url: collection.image_url ?? covers.get(row.id) ?? null,
-    };
+    return rows.map((row) => {
+      const collection = mapCollection(row);
+      return {
+        ...collection,
+        product_count: counts.get(collection.handle) ?? 0,
+        image_url: collection.image_url ?? covers.get(collection.handle) ?? null,
+      };
+    });
   });
-  return options?.withProductsOnly ? mapped.filter((c) => c.product_count > 0) : mapped;
+  return options?.withProductsOnly ? all.filter((c) => c.product_count > 0) : all;
 }
+
 
 export async function getStorefrontCollection(handle: string): Promise<StorefrontCollection | null> {
   const supabase = await publicClient();
@@ -520,53 +522,103 @@ function numericId(value: unknown): string | null {
   return match ? match[1]! : null;
 }
 
-let checkoutDomainCache: { value: string | null; expires: number } | null = null;
-
 /**
- * Resolves the host that serves the basket and payment pages. The owner can
- * set a dedicated checkout host when the store's own primary domain is used
- * elsewhere, otherwise the paired store host is used.
+ * Checkout readiness is resolved by a background job and stored locally, so a
+ * customer request never waits on the store host. Public pages read this one
+ * small row and nothing else.
  */
-export async function getCheckoutDomain(): Promise<string | null> {
-  if (checkoutDomainCache && checkoutDomainCache.expires > Date.now()) {
-    return checkoutDomainCache.value;
-  }
-  let value: string | null = null;
-  try {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: integration } = await supabaseAdmin
-      .from("integrations")
-      .select("id")
-      .eq("provider", "shopify")
-      .maybeSingle();
-    if ((integration as any)?.id) {
-      const { data: rows } = await supabaseAdmin
-        .from("integration_settings")
-        .select("key, value")
-        .eq("integration_id", (integration as any).id)
-        .in("key", ["checkout_domain", "shop_domain"]);
-      const map = new Map(((rows ?? []) as any[]).map((row) => [row.key, row.value as string | null]));
-      value = (map.get("checkout_domain") || map.get("shop_domain") || null) as string | null;
+export interface CheckoutState {
+  checkout_domain: string | null;
+  checkout_ready: boolean;
+  storefront_checkout: boolean;
+  checked_at: string | null;
+}
+
+const EMPTY_CHECKOUT_STATE: CheckoutState = {
+  checkout_domain: null,
+  checkout_ready: false,
+  storefront_checkout: false,
+  checked_at: null,
+};
+
+export async function getCheckoutState(): Promise<CheckoutState> {
+  return cached("checkout-state", async () => {
+    try {
+      const supabase = await publicClient();
+      const { data } = await supabase
+        .from("storefront_checkout_state" as never)
+        .select("checkout_domain, checkout_ready, storefront_checkout, checked_at")
+        .maybeSingle();
+      if (!data) return EMPTY_CHECKOUT_STATE;
+      const row = data as any;
+      return {
+        checkout_domain: row.checkout_domain ?? null,
+        checkout_ready: Boolean(row.checkout_ready),
+        storefront_checkout: Boolean(row.storefront_checkout),
+        checked_at: row.checked_at ?? null,
+      };
+    } catch {
+      // Fail closed: a missing record hides the basket rather than offering a
+      // link that could dead end.
+      return EMPTY_CHECKOUT_STATE;
     }
-  } catch {
-    value = null;
-  }
-  checkoutDomainCache = { value, expires: Date.now() + 60_000 };
-  return value;
+  });
 }
 
 /**
- * Confirms the basket host genuinely answers as the store rather than looping
- * back to this site. A store whose primary domain points here will redirect
- * basket links away, so the product page must not offer a link that dead ends.
- * The single probe is shared with the headless checkout gate.
+ * Background refresh. Only staff tooling and scheduled jobs call this, never a
+ * page render. It performs the remote probes and stores the verdict locally.
  */
-export async function isCheckoutReady(domain: string | null): Promise<boolean> {
-  if (!domain) return false;
-  const { probeCheckoutHost } = await import("@/lib/services/shopify-storefront.server");
-  const probe = await probeCheckoutHost(domain);
-  return probe?.servesStore ?? false;
+export async function refreshCheckoutState(): Promise<CheckoutState> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  let domain: string | null = null;
+  const { data: integration } = await supabaseAdmin
+    .from("integrations")
+    .select("id")
+    .eq("provider", "shopify")
+    .maybeSingle();
+  if ((integration as any)?.id) {
+    const { data: rows } = await supabaseAdmin
+      .from("integration_settings")
+      .select("key, value")
+      .eq("integration_id", (integration as any).id)
+      .in("key", ["checkout_domain", "shop_domain"]);
+    const map = new Map(((rows ?? []) as any[]).map((row) => [row.key, row.value as string | null]));
+    domain = (map.get("checkout_domain") || map.get("shop_domain") || null) as string | null;
+  }
+
+  const { probeCheckoutHost, isStorefrontCheckoutReady } = await import(
+    "@/lib/services/shopify-storefront.server"
+  );
+  let checkoutReady = false;
+  if (domain) {
+    try {
+      const probe = await probeCheckoutHost(domain, { force: true });
+      checkoutReady = probe?.servesStore ?? false;
+    } catch {
+      checkoutReady = false;
+    }
+  }
+  let storefrontCheckout = false;
+  try {
+    storefrontCheckout = await isStorefrontCheckoutReady();
+  } catch {
+    storefrontCheckout = false;
+  }
+
+  const next: CheckoutState = {
+    checkout_domain: domain,
+    checkout_ready: checkoutReady,
+    storefront_checkout: storefrontCheckout,
+    checked_at: new Date().toISOString(),
+  };
+  await supabaseAdmin
+    .from("storefront_checkout_state" as never)
+    .upsert({ id: true, ...next } as any, { onConflict: "id" });
+  memo.delete("checkout-state");
+  return next;
 }
+
 
 
 
@@ -726,23 +778,19 @@ export async function getStorefrontProduct(handle: string): Promise<StorefrontPr
   // Prefer siblings inside the same canonical category over supplier grouping.
   if (canonicalSlug) {
     const branch = categoryBranch(canonicalSlug, taxonomy.childrenOf);
-    const { data: sameCategory } = await supabase
-      .rpc("public_product_categories")
+    // Siblings come from the publishable snapshot, so no suppression or
+    // classification fan out happens while a customer waits.
+    const { data: siblings } = await supabase
+      .from("storefront_snapshot")
+      .select(SNAPSHOT_CARD_COLUMNS)
       .in("category_slug", branch)
-      .limit(40);
-    const ids = ((sameCategory ?? []) as any[])
-      .map((entry) => entry.product_id as string)
-      .filter((id) => id !== row.id && !hiddenProductIds.has(id))
-      .slice(0, 24);
-    if (ids.length > 0) {
-      const { data: siblings } = await supabase
-        .from("shopify_products")
-        .select(CARD_COLUMNS)
-        .in("id", ids)
-        .order("title", { ascending: true })
-        .limit(4);
-      related = ((siblings ?? []) as any[]).map((sibling) => mapCard(sibling));
-    }
+      .neq("handle", handle)
+      .order("title", { ascending: true })
+      .limit(5);
+    related = ((siblings ?? []) as any[])
+      .filter((sibling) => sibling.product_id !== row.id)
+      .slice(0, 4)
+      .map((sibling) => mapSnapshotCard(sibling));
   }
   if (related.length === 0 && collectionIds.length > 0) {
 
@@ -798,7 +846,7 @@ export async function getStorefrontProduct(handle: string): Promise<StorefrontPr
     available_for_sale: v.available_for_sale ?? null,
   }));
 
-  const checkoutDomain = await getCheckoutDomain();
+  const checkoutState = await getCheckoutState();
 
   const options = Array.isArray(row.options)
     ? (row.options as any[]).flatMap((o) =>
@@ -824,14 +872,9 @@ export async function getStorefrontProduct(handle: string): Promise<StorefrontPr
     seo_title: intelligence?.seo_title ?? row.seo_title ?? null,
     seo_description: intelligence?.meta_description ?? row.seo_description ?? null,
     store_url: row.online_store_url ?? null,
-    checkout_domain: checkoutDomain,
-    checkout_ready: await isCheckoutReady(checkoutDomain),
-    storefront_checkout: await (async () => {
-      const { isStorefrontCheckoutReady } = await import(
-        "@/lib/services/shopify-storefront.server"
-      );
-      return isStorefrontCheckoutReady();
-    })(),
+    checkout_domain: checkoutState.checkout_domain,
+    checkout_ready: checkoutState.checkout_ready,
+    storefront_checkout: checkoutState.storefront_checkout,
 
     options,
     media,
