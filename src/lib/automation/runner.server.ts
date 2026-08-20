@@ -50,6 +50,13 @@ interface RunContext {
 }
 
 /**
+ * How long a run left in "running" may sit before another invocation may take
+ * it over. Long supplier jobs are time boxed to well under two minutes, so an
+ * attempt still marked running after five is one that was cut off in flight.
+ */
+const LONG_JOB_STALE_MS = 5 * 60_000;
+
+/**
  * Claims a run key so a duplicate invocation of a scheduled job cannot do the
  * work twice. Returns null when the key is already taken.
  */
@@ -57,7 +64,9 @@ async function claimRun(
   ctx: RunContext,
   jobKey: string,
   runKey: string,
+  staleAfterMs = 30 * 60_000,
 ): Promise<string | null> {
+
   const { data, error } = await ctx.supabase
     .from("automation_runs")
     .insert({ job_key: jobKey, run_key: runKey, status: "running" } as never)
