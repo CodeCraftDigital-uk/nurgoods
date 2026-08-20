@@ -396,9 +396,13 @@ async function runIntelligenceJob(
 }
 
 /**
- * Hourly supplier sourcing. The run key is dated to the hour so a repeated
- * scheduler call inside the same hour reports the work already happened rather
- * than sourcing twice.
+ * Bounded supplier sourcing pass.
+ *
+ * The run key is bucketed so a duplicated scheduler call inside the same
+ * window cannot source twice, but an attempt that was cut off mid flight is
+ * reclaimed quickly rather than blocking the rest of the window. The pass
+ * itself is time boxed and persists its own checkpoint, so a window is only
+ * ever recorded as completed after genuine, durable progress.
  */
 async function runSourcingJob(ctx: RunContext, jobKey: string): Promise<JobRunResult> {
   // Fifteen minute run buckets. The catalogue traversal is checkpointed, so a
@@ -407,7 +411,7 @@ async function runSourcingJob(ctx: RunContext, jobKey: string): Promise<JobRunRe
   const now = new Date();
   const bucket = `${now.toISOString().slice(0, 13)}:${String(Math.floor(now.getUTCMinutes() / 15) * 15).padStart(2, "0")}`;
   const runKey = `${jobKey}:${bucket}`;
-  const runId = await claimRun(ctx, jobKey, runKey);
+  const runId = await claimRun(ctx, jobKey, runKey, LONG_JOB_STALE_MS);
   if (!runId) {
     return {
       jobKey,
@@ -417,10 +421,17 @@ async function runSourcingJob(ctx: RunContext, jobKey: string): Promise<JobRunRe
     };
   }
   try {
+    const { data: sourcingJob } = await ctx.supabase
+      .from("automation_jobs")
+      .select("config")
+      .eq("job_key", jobKey)
+      .maybeSingle();
+    const budgetMs = Number((sourcingJob as any)?.config?.budget_ms) || 110_000;
     const { runHourlySourcing } = await import("@/lib/zendrop/sourcing-job.server");
-    const summary = await runHourlySourcing(ctx.supabase, jobKey);
+    const summary = await runHourlySourcing(ctx.supabase, jobKey, { budgetMs });
     await closeRun(ctx, runId, "succeeded", summary.message, summary.details);
     return { jobKey, status: "succeeded", message: summary.message, details: summary.details };
+
   } catch (cause) {
     const message = cause instanceof Error ? cause.message : "The sourcing job failed";
     await closeRun(ctx, runId, "failed", message);
