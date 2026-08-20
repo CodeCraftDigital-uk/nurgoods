@@ -1,0 +1,12 @@
+import { getWebhookSigningSecret } from "@/lib/services/shopify.server";
+import { createHmac } from "crypto";
+import { supabaseAdmin as db } from "@/integrations/supabase/client.server";
+const secret = await getWebhookSigningSecret();
+console.log("secret_present", Boolean(secret));
+const { data } = await db.from("shopify_products").select("shopify_product_id,title,handle").eq("status","active").limit(1);
+const p:any = data?.[0];
+const body = JSON.stringify({ admin_graphql_api_id: p.shopify_product_id, title: p.title, handle: p.handle, updated_at: new Date().toISOString() });
+const sig = createHmac("sha256", secret!).update(body,"utf8").digest("base64");
+const t = Date.now();
+const res = await fetch("https://admin.nurgoods.com/api/public/hooks/shopify-intake", { method:"POST", headers:{"content-type":"application/json","x-shopify-hmac-sha256":sig,"x-shopify-topic":"products/update"}, body });
+console.log("signed_delivery", res.status, Date.now()-t, "ms", await res.text());
