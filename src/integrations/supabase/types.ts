@@ -3433,6 +3433,102 @@ export type Database = {
         }
         Relationships: []
       }
+      storefront_snapshot: {
+        Row: {
+          available_for_sale: boolean | null
+          category_name: string | null
+          category_slug: string | null
+          collection_handles: string[]
+          compare_at_price_min: number | null
+          currency: string | null
+          handle: string
+          image_url: string | null
+          price_max: number | null
+          price_min: number | null
+          product_id: string
+          product_type: string | null
+          refreshed_at: string
+          search_text: string | null
+          seo_description: string | null
+          seo_title: string | null
+          summary: string | null
+          tags: string[]
+          title: string
+          updated_at: string | null
+          variant_count: number
+          vendor: string | null
+        }
+        Insert: {
+          available_for_sale?: boolean | null
+          category_name?: string | null
+          category_slug?: string | null
+          collection_handles?: string[]
+          compare_at_price_min?: number | null
+          currency?: string | null
+          handle: string
+          image_url?: string | null
+          price_max?: number | null
+          price_min?: number | null
+          product_id: string
+          product_type?: string | null
+          refreshed_at?: string
+          search_text?: string | null
+          seo_description?: string | null
+          seo_title?: string | null
+          summary?: string | null
+          tags?: string[]
+          title: string
+          updated_at?: string | null
+          variant_count?: number
+          vendor?: string | null
+        }
+        Update: {
+          available_for_sale?: boolean | null
+          category_name?: string | null
+          category_slug?: string | null
+          collection_handles?: string[]
+          compare_at_price_min?: number | null
+          currency?: string | null
+          handle?: string
+          image_url?: string | null
+          price_max?: number | null
+          price_min?: number | null
+          product_id?: string
+          product_type?: string | null
+          refreshed_at?: string
+          search_text?: string | null
+          seo_description?: string | null
+          seo_title?: string | null
+          summary?: string | null
+          tags?: string[]
+          title?: string
+          updated_at?: string | null
+          variant_count?: number
+          vendor?: string | null
+        }
+        Relationships: []
+      }
+      storefront_snapshot_meta: {
+        Row: {
+          id: boolean
+          product_count: number
+          refreshed_at: string
+          version: number
+        }
+        Insert: {
+          id?: boolean
+          product_count?: number
+          refreshed_at?: string
+          version?: number
+        }
+        Update: {
+          id?: boolean
+          product_count?: number
+          refreshed_at?: string
+          version?: number
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -3962,10 +4058,15 @@ export type Database = {
           product_id: string
         }[]
       }
+      recover_stale_automation_runs: {
+        Args: { _budget_minutes?: number }
+        Returns: number
+      }
       refresh_product_price_range: {
         Args: { _product_id: string }
         Returns: undefined
       }
+      refresh_storefront_snapshot: { Args: never; Returns: number }
       set_integration_secret: {
         Args: { _name: string; _secret: string }
         Returns: undefined
