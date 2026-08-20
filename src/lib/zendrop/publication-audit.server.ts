@@ -3,9 +3,9 @@
  *
  * The audit is read only and is the default. It walks the active catalogue,
  * reads the real channel state of each product from the store, and compares it
- * with the approved state: the NUR GOODS headless channel and Shop on, the
- * Online Store, Point of Sale and anything unapproved off. Nothing is changed
- * unless a caller deliberately asks for a live run.
+ * with the approved state: the NUR GOODS headless channel, the Online Store
+ * and Shop all on, Point of Sale and anything unapproved off. Nothing is
+ * changed unless a caller deliberately asks for a live run.
  *
  * Shop can refuse an individual product on its own eligibility rules. That is
  * recorded as an exception against the product, the headless channel is left
@@ -344,8 +344,8 @@ export async function readChannelChecklist(): Promise<ChannelChecklist> {
             name: channel.name,
             desired: policy.includeOnlineStore,
             note: policy.includeOnlineStore
-              ? "Opt in recorded, so it is still published to"
-              : "Off. NUR GOODS is the only browsing storefront",
+              ? "Approved. One of the three live selling surfaces"
+              : "Switched off by an explicit admin setting",
           };
         }
         if (lower === "shop" || lower === "shop app") {
