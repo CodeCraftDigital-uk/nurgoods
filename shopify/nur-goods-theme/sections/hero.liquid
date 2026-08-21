@@ -1,25 +1,41 @@
 {%- comment -%}
-  Homepage hero mirroring the headless hero: navy gradient, eyebrow, serif
-  headline, two live catalogue stats, primary actions, AI connector banner and
-  a four up product tile panel.
+  Homepage hero. Mirrors the production headless hero exactly: navy brand
+  gradient with a cool blue glow, the full width AI connector banner above the
+  content grid, eyebrow pill, display headline, lede, gold and glass CTAs,
+  live catalogue stat cards and a glass panel of four recent product tiles.
 {%- endcomment -%}
 {%- liquid
   assign product_count = collections.all.all_products_count
-  assign category_count = 0
-  for c in collections
-    assign prefix = c.handle | slice: 0, 4
-    if prefix == 'nur-'
-      assign category_count = category_count | plus: 1
-    endif
-  endfor
   assign tiles = section.settings.tile_collection.products | default: collections.all.products
 -%}
 <section class="hero brand-gradient">
   <div class="hero__bg" aria-hidden="true"><span class="hero__glow"></span></div>
+
+  {%- if section.settings.show_ai_banner -%}
+    <div class="hero__banner-wrap">
+      <a class="ai-banner" href="{{ section.settings.ai_url | default: '/pages/ai-connectors' }}">
+        <span class="ai-banner__glow" aria-hidden="true"></span>
+        <span class="ai-banner__marks" aria-hidden="true">
+          <span class="ai-mark ai-mark--openai">{% render 'icon', name: 'openai' %}</span>
+          <span class="ai-mark ai-mark--claude">{% render 'icon', name: 'claude' %}</span>
+        </span>
+        <span class="ai-banner__text">
+          <span class="ai-banner__eyebrow">
+            New
+            <span class="ai-banner__sep" aria-hidden="true"></span>
+            {{ section.settings.ai_eyebrow }}
+          </span>
+          <span class="ai-banner__body">{{ section.settings.ai_text }}</span>
+        </span>
+        <span class="ai-banner__cta">{{ section.settings.ai_cta }}<span aria-hidden="true">&rarr;</span></span>
+      </a>
+    </div>
+  {%- endif -%}
+
   <div class="hero__inner">
-    <div>
+    <div class="hero__copy">
       {%- if section.settings.eyebrow != blank -%}
-        <p class="hero__eyebrow">{% render 'icon', name: 'sparkle' %}{{ section.settings.eyebrow }}</p>
+        <p class="hero__eyebrow"><span class="dot-gold" aria-hidden="true"></span>{{ section.settings.eyebrow }}</p>
       {%- endif -%}
       <h1 class="hero__title">{{ section.settings.heading }}</h1>
       <p class="hero__lede">{{ section.settings.lede }}</p>
@@ -31,35 +47,20 @@
         {%- endif -%}
       </div>
 
-      {%- if section.settings.show_stats -%}
-        <dl class="hero__stats">
+      {%- if section.settings.show_stats and product_count > 0 -%}
+        <dl class="hero__stats" aria-label="Catalogue availability">
           <div class="hero__stat">
             <dt>Products available</dt>
             <dd>{{ product_count }}</dd>
           </div>
-          {%- if category_count > 0 -%}
-            <div class="hero__stat">
-              <dt>Categories</dt>
-              <dd>{{ category_count }}</dd>
-            </div>
-          {%- endif -%}
         </dl>
-      {%- endif -%}
-
-      {%- if section.settings.show_ai_banner -%}
-        <a class="ai-banner" href="{{ section.settings.ai_url }}" style="margin-top:2rem">
-          <div>
-            <span class="ai-banner__eyebrow">{% render 'icon', name: 'sparkle' %}AI connectors</span>
-            <span class="ai-banner__body">{{ section.settings.ai_text }}</span>
-          </div>
-        </a>
       {%- endif -%}
     </div>
 
     <div class="hero__panel glass-panel">
       <div class="hero__panel-head">
         <h2>{{ section.settings.panel_heading }}</h2>
-        <a class="hero__panel-link" href="{{ routes.all_products_collection_url }}">View all</a>
+        <a class="hero__panel-link" href="{{ routes.all_products_collection_url }}?sort_by=created-descending">See all</a>
       </div>
       <div class="hero__panel-grid">
         {%- for product in tiles limit: 4 -%}
@@ -96,7 +97,9 @@
     { "type": "text", "id": "panel_heading", "label": "Panel heading", "default": "Recently added" },
     { "type": "collection", "id": "tile_collection", "label": "Panel products" },
     { "type": "checkbox", "id": "show_ai_banner", "label": "Show AI connector banner", "default": true },
-    { "type": "text", "id": "ai_text", "label": "AI banner text", "default": "Ask ChatGPT or Claude about the NUR GOODS range and get answers straight from our catalogue." },
+    { "type": "text", "id": "ai_eyebrow", "label": "AI banner eyebrow", "default": "Shop NUR GOODS with AI" },
+    { "type": "textarea", "id": "ai_text", "label": "AI banner text", "default": "Connect our catalogue to ChatGPT or Claude and find products through a simple conversation." },
+    { "type": "text", "id": "ai_cta", "label": "AI banner action", "default": "Set up AI Connectors" },
     { "type": "url", "id": "ai_url", "label": "AI banner link" }
   ],
   "presets": [{ "name": "Hero" }]

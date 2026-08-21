@@ -42,7 +42,7 @@
         {% render 'brand-logo', treatment: 'square', surface: 'light', height: 24 %}
         <p class="footer__legal">{{ 'now' | date: '%Y' }} {{ shop.name }}. All rights reserved.</p>
       </div>
-      <p class="footer__legal">{{ section.settings.legal_note }}</p>
+      {%- if section.settings.legal_note != blank -%}<p class="footer__legal">{{ section.settings.legal_note }}</p>{%- endif -%}
     </div>
   </div>
 </footer>
@@ -61,7 +61,7 @@
       "type": "text",
       "id": "legal_note",
       "label": "Legal note",
-      "default": "Prices include applicable taxes where shown at checkout."
+      "default": ""
     }
   ],
   "blocks": [

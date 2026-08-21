@@ -5,16 +5,39 @@
     "footer": {
       "type": "footer",
       "blocks": {
-        "shopping": { "type": "menu", "settings": { "heading": "Shopping", "menu": "footer" } },
-        "policies": { "type": "menu", "settings": { "heading": "Help and policies", "menu": "footer" } },
-        "contact": { "type": "contact", "settings": { "heading": "About and contact" } }
+        "shopping": {
+          "type": "menu",
+          "settings": {
+            "heading": "Shopping",
+            "menu": "footer"
+          }
+        },
+        "policies": {
+          "type": "menu",
+          "settings": {
+            "heading": "Help and policies",
+            "menu": "footer"
+          }
+        },
+        "contact": {
+          "type": "contact",
+          "settings": {
+            "heading": "About and contact"
+          }
+        }
       },
-      "block_order": ["shopping", "policies", "contact"],
+      "block_order": [
+        "shopping",
+        "policies",
+        "contact"
+      ],
       "settings": {
         "blurb": "A considered everyday range, listed from the live store and ordered through secure store checkout.",
-        "legal_note": "Prices include applicable taxes where shown at checkout."
+        "legal_note": ""
       }
     }
   },
-  "order": ["footer"]
+  "order": [
+    "footer"
+  ]
 }
