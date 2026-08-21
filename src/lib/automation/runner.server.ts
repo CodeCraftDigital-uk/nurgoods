@@ -441,7 +441,12 @@ async function execute(ctx: RunContext, jobKey: string): Promise<JobRunResult> {
       // headless website all show one price. Bounded and resumable, so it walks
       // the whole catalogue, drafts included, over successive runs.
       const { runPriceAuthorityCycle } = await import("@/lib/pricing/authority.server");
+      const { syncApprovedFormulaVersion, pricingGateStats } = await import(
+        "@/lib/pricing/gate.server"
+      );
+      await syncApprovedFormulaVersion();
       const cycle = await runPriceAuthorityCycle({ pushLimit: 30 });
+      const gate = await pricingGateStats().catch(() => null);
       return {
         jobKey,
         status: cycle.reprice.failed > 0 ? "failed" : "succeeded",
@@ -458,9 +463,15 @@ async function execute(ctx: RunContext, jobKey: string): Promise<JobRunResult> {
           parity_mirror_mismatches: cycle.parity.mirrorMismatches,
           parity_non_charm: cycle.parity.nonCharm,
           parity_legacy_rows: cycle.parity.legacyRows,
+          gate_pending: gate?.pending ?? -1,
+          gate_held: gate?.held ?? -1,
+          gate_verified: gate?.verified ?? -1,
+          gate_drift: gate?.drift ?? -1,
+          gate_products_blocked: gate?.products_blocked ?? -1,
         },
       };
     }
+
 
 
     case "storefront_snapshot_refresh": {
