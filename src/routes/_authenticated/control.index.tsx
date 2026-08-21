@@ -28,7 +28,8 @@ function Metric({ label, value, hint }: { label: string; value: string; hint?: s
 }
 
 function DashboardPage() {
-  const { isAdmin, loading } = useAuth();
+  const { isAdmin, loading, rolesError, refreshRoles } = useAuth();
+
   const aiStatusFn = useServerFn(getAiProviderStatus);
 
   const aiStatus = useQuery({
@@ -63,6 +64,30 @@ function DashboardPage() {
   });
 
   if (!loading && !isAdmin) {
+    // A failed role read is not an authorisation answer, so it gets its own
+    // recoverable state rather than telling the owner the role is missing.
+    if (rolesError) {
+      return (
+        <div className="space-y-8">
+          <PageHeader
+            eyebrow="Dashboard"
+            title="Could not confirm your access"
+            description="Your session is signed in, but the role check did not complete, so nothing is being hidden on purpose."
+          />
+          <SectionCard title="What to do">
+            <p className="text-sm text-muted-foreground">{rolesError}</p>
+            <button
+              type="button"
+              onClick={() => void refreshRoles()}
+              className="mt-4 inline-flex min-h-10 items-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            >
+              Retry access check
+            </button>
+          </SectionCard>
+        </div>
+      );
+    }
+
     return (
       <div className="space-y-8">
         <PageHeader
@@ -79,6 +104,7 @@ function DashboardPage() {
       </div>
     );
   }
+
 
   const published = (articles.data ?? []).filter((a) => a.status === "published").length;
   const scheduled = (articles.data ?? []).filter((a) => a.status === "scheduled").length;

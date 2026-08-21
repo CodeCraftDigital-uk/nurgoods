@@ -65,7 +65,9 @@ function BrandMark() {
 export function AdminShell({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const { user, isAdmin, signOut } = useAuth();
+  const { user, isAdmin, rolesResolved, rolesError, signOut } = useAuth();
+  // "Limited access" must only be claimed once the role read actually answered.
+  const roleLabel = !rolesResolved ? "Checking access" : rolesError ? "Access unknown" : isAdmin ? "Admin" : "Limited access";
 
   return (
     <div className="min-h-screen bg-background">
@@ -80,7 +82,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
         <div className="border-t border-sidebar-border pt-4">
           <p className="truncate text-xs text-sidebar-foreground/60">{user?.email ?? "Signed in"}</p>
           <p className="mt-0.5 text-[0.7rem] uppercase tracking-[0.16em] text-sidebar-foreground/40">
-            {isAdmin ? "Admin" : "Limited access"}
+            {roleLabel}
           </p>
           <button
             onClick={() => void signOut()}
