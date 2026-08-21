@@ -1,0 +1,104 @@
+{%- comment -%}
+  Homepage hero mirroring the headless hero: navy gradient, eyebrow, serif
+  headline, two live catalogue stats, primary actions, AI connector banner and
+  a four up product tile panel.
+{%- endcomment -%}
+{%- liquid
+  assign product_count = collections.all.all_products_count
+  assign category_count = 0
+  for c in collections
+    assign prefix = c.handle | slice: 0, 4
+    if prefix == 'nur-'
+      assign category_count = category_count | plus: 1
+    endif
+  endfor
+  assign tiles = section.settings.tile_collection.products | default: collections.all.products
+-%}
+<section class="hero brand-gradient">
+  <div class="hero__bg" aria-hidden="true"><span class="hero__glow"></span></div>
+  <div class="hero__inner">
+    <div>
+      {%- if section.settings.eyebrow != blank -%}
+        <p class="hero__eyebrow">{% render 'icon', name: 'sparkle' %}{{ section.settings.eyebrow }}</p>
+      {%- endif -%}
+      <h1 class="hero__title">{{ section.settings.heading }}</h1>
+      <p class="hero__lede">{{ section.settings.lede }}</p>
+
+      <div class="hero__actions">
+        <a class="btn btn--gold" href="{{ section.settings.primary_url | default: routes.all_products_collection_url }}">{{ section.settings.primary_label }}</a>
+        {%- if section.settings.secondary_label != blank -%}
+          <a class="btn btn--onDark" href="{{ section.settings.secondary_url }}">{{ section.settings.secondary_label }}</a>
+        {%- endif -%}
+      </div>
+
+      {%- if section.settings.show_stats -%}
+        <dl class="hero__stats">
+          <div class="hero__stat">
+            <dt>Products available</dt>
+            <dd>{{ product_count }}</dd>
+          </div>
+          {%- if category_count > 0 -%}
+            <div class="hero__stat">
+              <dt>Categories</dt>
+              <dd>{{ category_count }}</dd>
+            </div>
+          {%- endif -%}
+        </dl>
+      {%- endif -%}
+
+      {%- if section.settings.show_ai_banner -%}
+        <a class="ai-banner" href="{{ section.settings.ai_url }}" style="margin-top:2rem">
+          <div>
+            <span class="ai-banner__eyebrow">{% render 'icon', name: 'sparkle' %}AI connectors</span>
+            <span class="ai-banner__body">{{ section.settings.ai_text }}</span>
+          </div>
+        </a>
+      {%- endif -%}
+    </div>
+
+    <div class="hero__panel glass-panel">
+      <div class="hero__panel-head">
+        <h2>{{ section.settings.panel_heading }}</h2>
+        <a class="hero__panel-link" href="{{ routes.all_products_collection_url }}">View all</a>
+      </div>
+      <div class="hero__panel-grid">
+        {%- for product in tiles limit: 4 -%}
+          <a class="hero__tile" href="{{ product.url }}">
+            {%- if product.featured_media -%}
+              <img src="{{ product.featured_media | image_url: width: 400 }}"
+                   alt="{{ product.featured_media.alt | default: product.title | escape }}"
+                   width="400" height="400" loading="eager" fetchpriority="high">
+            {%- else -%}
+              {{ 'product-1' | placeholder_svg_tag: '' }}
+            {%- endif -%}
+            <p>{{ product.title }}</p>
+          </a>
+        {%- else -%}
+          <p class="hero__lede">Products appear here as soon as the catalogue is published.</p>
+        {%- endfor -%}
+      </div>
+    </div>
+  </div>
+</section>
+
+{% schema %}
+{
+  "name": "Hero",
+  "settings": [
+    { "type": "text", "id": "eyebrow", "label": "Eyebrow", "default": "Good things, brought to light." },
+    { "type": "text", "id": "heading", "label": "Heading", "default": "Considered everyday goods, chosen with care" },
+    { "type": "textarea", "id": "lede", "label": "Supporting text", "default": "A curated everyday range with clear pricing, free delivery to the United Kingdom and the United States, and secure checkout." },
+    { "type": "text", "id": "primary_label", "label": "Primary button", "default": "Shop the range" },
+    { "type": "url", "id": "primary_url", "label": "Primary button link" },
+    { "type": "text", "id": "secondary_label", "label": "Secondary button", "default": "Read the Journal" },
+    { "type": "url", "id": "secondary_url", "label": "Secondary button link" },
+    { "type": "checkbox", "id": "show_stats", "label": "Show live catalogue stats", "default": true },
+    { "type": "text", "id": "panel_heading", "label": "Panel heading", "default": "In the range" },
+    { "type": "collection", "id": "tile_collection", "label": "Panel products" },
+    { "type": "checkbox", "id": "show_ai_banner", "label": "Show AI connector banner", "default": true },
+    { "type": "text", "id": "ai_text", "label": "AI banner text", "default": "Ask ChatGPT or Claude about the NUR GOODS range and get answers straight from our catalogue." },
+    { "type": "url", "id": "ai_url", "label": "AI banner link" }
+  ],
+  "presets": [{ "name": "Hero" }]
+}
+{% endschema %}

@@ -1,0 +1,36 @@
+{%- comment -%}
+  Category tile. Only canonical NUR collections should be passed in.
+  Params: category_collection, heading_override, loading
+{%- endcomment -%}
+{%- liquid
+  assign tile = category_collection
+  assign label = heading_override | default: tile.title
+  assign loading = loading | default: 'lazy'
+  assign art = tile.image
+  if art == blank
+    assign art = tile.products.first.featured_media.preview_image
+  endif
+-%}
+{%- if tile != blank and tile.handle != blank -%}
+  <li>
+    <a class="card glass-card" href="{{ tile.url }}" style="display:flex;flex-direction:column;height:100%">
+      <div class="category-tile__media">
+        {%- if art -%}
+          <img src="{{ art | image_url: width: 480 }}"
+               srcset="{{ art | image_url: width: 320 }} 320w, {{ art | image_url: width: 640 }} 640w"
+               sizes="(min-width: 1024px) 22vw, 60vw"
+               alt="{{ art.alt | default: label | escape }}"
+               width="480" height="360" loading="{{ loading }}">
+        {%- else -%}
+          {{ 'collection-1' | placeholder_svg_tag: '' }}
+        {%- endif -%}
+      </div>
+      <div class="category-tile__body">
+        <h3>{{ label }}</h3>
+        {%- if tile.all_products_count > 0 -%}
+          <span class="count-pill">{{ tile.all_products_count }}</span>
+        {%- endif -%}
+      </div>
+    </a>
+  </li>
+{%- endif -%}

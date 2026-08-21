@@ -1,0 +1,35 @@
+{%- comment -%}
+  Organization and WebSite structured data. Only brand facts that are real.
+  Product structured data lives in the product template so it is not duplicated.
+{%- endcomment -%}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": {{ shop.url | append: '/#organization' | json }},
+      "name": {{ shop.name | json }},
+      "url": {{ shop.url | json }},
+      "slogan": {{ settings.brand_tagline | json }},
+      "logo": {{ 'nur-goods-square-light.png' | asset_url | prepend: 'https:' | split: '?' | first | json }},
+      "email": {{ settings.support_email | json }}
+      {%- if settings.social_tiktok != blank -%},
+      "sameAs": [{{ settings.social_tiktok | json }}]
+      {%- endif -%}
+    },
+    {
+      "@type": "WebSite",
+      "@id": {{ shop.url | append: '/#website' | json }},
+      "url": {{ shop.url | json }},
+      "name": {{ shop.name | json }},
+      "publisher": { "@id": {{ shop.url | append: '/#organization' | json }} },
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": {{ shop.url | append: '/search?q={search_term_string}' | json }},
+        "query-input": "required name=search_term_string"
+      }
+    }
+  ]
+}
+</script>

@@ -1,0 +1,49 @@
+{%- comment -%}Breadcrumbs plus BreadcrumbList schema.{%- endcomment -%}
+{%- liquid
+  assign crumbs = ''
+  case template.name
+    when 'product'
+      assign crumbs = 'product'
+    when 'collection'
+      assign crumbs = 'collection'
+    when 'article'
+      assign crumbs = 'article'
+    when 'page'
+      assign crumbs = 'page'
+    when 'blog'
+      assign crumbs = 'blog'
+  endcase
+-%}
+{%- if crumbs != blank -%}
+  <nav class="breadcrumbs" aria-label="Breadcrumb">
+    <a href="{{ routes.root_url }}">Home</a>
+    <span aria-hidden="true">/</span>
+    {%- case crumbs -%}
+      {%- when 'product' -%}
+        {%- capture nur_category_name %}{% render 'nur-category', product: product, field: 'name' %}{% endcapture -%}
+        {%- capture nur_category_url %}{% render 'nur-category', product: product, field: 'url' %}{% endcapture -%}
+        {%- assign nur_category_name = nur_category_name | strip -%}
+        {%- assign nur_category_url = nur_category_url | strip -%}
+        {%- if nur_category_name != blank and nur_category_url != blank -%}
+          <a href="{{ nur_category_url }}">{{ nur_category_name }}</a>
+          <span aria-hidden="true">/</span>
+        {%- else -%}
+          <a href="{{ routes.all_products_collection_url }}">Store</a>
+          <span aria-hidden="true">/</span>
+        {%- endif -%}
+        <span aria-current="page">{{ product.title }}</span>
+      {%- when 'collection' -%}
+        <a href="{{ routes.all_products_collection_url }}">Store</a>
+        <span aria-hidden="true">/</span>
+        <span aria-current="page">{{ collection.title }}</span>
+      {%- when 'blog' -%}
+        <span aria-current="page">{{ blog.title }}</span>
+      {%- when 'article' -%}
+        <a href="{{ blog.url }}">{{ blog.title }}</a>
+        <span aria-hidden="true">/</span>
+        <span aria-current="page">{{ article.title }}</span>
+      {%- when 'page' -%}
+        <span aria-current="page">{{ page.title }}</span>
+    {%- endcase -%}
+  </nav>
+{%- endif -%}

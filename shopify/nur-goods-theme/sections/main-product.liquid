@@ -1,0 +1,188 @@
+{%- comment -%}
+  Product detail page mirroring the headless PDP.
+  Price, availability, options and inventory all come from Shopify. Retail
+  price is NEVER recalculated in the theme.
+{%- endcomment -%}
+{%- liquid
+  assign current = product.selected_or_first_available_variant
+  assign reduced = false
+  if current.compare_at_price > current.price
+    assign reduced = true
+  endif
+  capture cat_name
+    render 'nur-category', product: product, field: 'name'
+  endcapture
+  assign cat_name = cat_name | strip
+-%}
+
+<div class="wrap" style="padding-block:1.5rem 4rem">
+  {% render 'breadcrumbs' %}
+
+  <div class="pdp" data-gallery>
+    <div>
+      <div class="pdp__stage glass-card">
+        {%- if product.featured_media -%}
+          <img data-gallery-stage
+               src="{{ product.featured_media | image_url: width: 1200 }}"
+               srcset="{{ product.featured_media | image_url: width: 600 }} 600w, {{ product.featured_media | image_url: width: 1200 }} 1200w"
+               sizes="(min-width: 1024px) 46vw, 92vw"
+               alt="{{ product.featured_media.alt | default: product.title | escape }}"
+               width="1200" height="1200" loading="eager" fetchpriority="high">
+        {%- else -%}
+          {{ 'product-1' | placeholder_svg_tag: '' }}
+        {%- endif -%}
+      </div>
+
+      {%- if product.media.size > 1 -%}
+        <ul class="pdp__thumbs">
+          {%- for media in product.media limit: 10 -%}
+            <li>
+              <button type="button" class="pdp__thumb" data-gallery-thumb
+                      data-full="{{ media | image_url: width: 1200 }}"
+                      data-alt="{{ media.alt | default: product.title | escape }}"
+                      aria-current="{% if forloop.first %}true{% else %}false{% endif %}"
+                      aria-label="View image {{ forloop.index }}">
+                <img src="{{ media | image_url: width: 200 }}" alt="" width="100" height="100" loading="lazy">
+              </button>
+            </li>
+          {%- endfor -%}
+        </ul>
+      {%- endif -%}
+    </div>
+
+    <div>
+      {%- if cat_name != blank -%}
+        <p class="pdp__kicker">{{ cat_name }}</p>
+      {%- elsif product.vendor != blank and product.vendor != shop.name -%}
+        <p class="pdp__kicker">{{ product.vendor }}</p>
+      {%- endif -%}
+
+      <h1 class="pdp__title">{{ product.title }}</h1>
+
+      <p class="pdp__price" aria-live="polite">
+        <span class="price price--lg" data-price-current>{{ current.price | money }}</span>
+        <span class="price__was" data-price-compare {% unless reduced %}hidden{% endunless %}>Was <s>{{ current.compare_at_price | money }}</s></span>
+      </p>
+      {%- if product.price_varies -%}
+        <p class="pdp__meta">Price depends on the option you choose.</p>
+      {%- endif -%}
+      <p class="pdp__meta" data-availability>
+        {%- if current.available -%}In stock and ready to ship{%- else -%}Currently unavailable{%- endif -%}
+      </p>
+      <p class="pdp__meta" data-sku {% unless current.sku %}hidden{% endunless %}>{{ current.sku }}</p>
+
+      <form method="post" action="{{ routes.cart_add_url }}" data-product-form enctype="multipart/form-data">
+        <input type="hidden" name="form_type" value="product">
+        <input type="hidden" name="utf8" value="✓">
+        <input type="hidden" name="id" value="{{ current.id }}" data-variant-id>
+
+        {%- unless product.has_only_default_variant -%}
+          <div data-variant-picker>
+            {%- for option in product.options_with_values -%}
+              <fieldset class="option-group" data-option-index="{{ forloop.index0 }}" style="border:0;padding:0;margin-inline:0">
+                <legend class="option-group__label">{{ option.name }}</legend>
+                <div class="option-values">
+                  {%- for value in option.values -%}
+                    <label class="option-value">
+                      <input type="radio" name="nur-option-{{ forloop.parentloop.index0 }}" value="{{ value | escape }}" {% if option.selected_value == value %}checked{% endif %}>
+                      <span>{{ value }}</span>
+                    </label>
+                  {%- endfor -%}
+                </div>
+              </fieldset>
+            {%- endfor -%}
+          </div>
+        {%- endunless -%}
+
+        <div class="buybox">
+          <label class="visually-hidden" for="quantity">Quantity</label>
+          <select class="field" id="quantity" name="quantity">
+            {%- for i in (1..10) -%}<option value="{{ i }}">{{ i }}</option>{%- endfor -%}
+          </select>
+          <button type="submit" class="btn btn--primary" data-default-label="Add to basket" {% unless current.available %}disabled{% endunless %}>
+            {%- if current.available -%}Add to basket{%- else -%}Sold out{%- endif -%}
+          </button>
+        </div>
+      </form>
+
+      {%- if section.settings.trust_note != blank -%}
+        <p class="fineprint">{{ section.settings.trust_note }}</p>
+      {%- endif -%}
+
+      {%- if product.description != blank -%}
+        <div class="rte" style="margin-top:2rem">{{ product.description }}</div>
+      {%- endif -%}
+
+      {%- for block in section.blocks -%}
+        {%- if block.type == 'collapsible' -%}
+          <details class="glass-card" style="margin-top:1rem;border-radius:1rem;padding:1rem" {{ block.shopify_attributes }}>
+            <summary style="cursor:pointer;font-weight:600">{{ block.settings.heading }}</summary>
+            <div class="rte" style="margin-top:.75rem">{{ block.settings.body }}</div>
+          </details>
+        {%- endif -%}
+      {%- endfor -%}
+    </div>
+  </div>
+</div>
+
+<script type="application/json" data-variant-json>
+  [
+    {%- for variant in product.variants -%}
+      {
+        "id": {{ variant.id }},
+        "options": {{ variant.options | json }},
+        "price": {{ variant.price }},
+        "compare_at_price": {{ variant.compare_at_price | default: 0 }},
+        "available": {{ variant.available }},
+        "sku": {{ variant.sku | json }}
+      }{% unless forloop.last %},{% endunless %}
+    {%- endfor -%}
+  ]
+</script>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Product",
+  "name": {{ product.title | json }},
+  "description": {{ product.description | strip_html | truncate: 600 | json }},
+  "url": {{ shop.url | append: product.url | json }},
+  {%- if product.featured_media %}
+  "image": [{{ product.featured_media | image_url: width: 1200 | prepend: 'https:' | json }}],
+  {%- endif %}
+  {%- if product.vendor != blank %}
+  "brand": { "@type": "Brand", "name": {{ product.vendor | json }} },
+  {%- endif %}
+  "offers": {
+    "@type": "Offer",
+    "url": {{ shop.url | append: product.url | json }},
+    "price": {{ current.price | divided_by: 100.0 | json }},
+    "priceCurrency": {{ cart.currency.iso_code | json }},
+    "availability": {% if current.available %}"https://schema.org/InStock"{% else %}"https://schema.org/OutOfStock"{% endif %}
+  }
+}
+</script>
+
+{% schema %}
+{
+  "name": "Product",
+  "settings": [
+    {
+      "type": "textarea",
+      "id": "trust_note",
+      "label": "Trust note",
+      "default": "Payment and order tracking are handled securely on the NUR GOODS store. Delivery to the United Kingdom and the United States is free and no delivery charge is added at checkout. Full terms are set out in the policy pages."
+    }
+  ],
+  "blocks": [
+    {
+      "type": "collapsible",
+      "name": "Collapsible detail",
+      "settings": [
+        { "type": "text", "id": "heading", "label": "Heading" },
+        { "type": "richtext", "id": "body", "label": "Body" }
+      ]
+    }
+  ]
+}
+{% endschema %}

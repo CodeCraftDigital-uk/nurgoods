@@ -1,0 +1,60 @@
+{%- comment -%}
+  Product card. Mirrors the headless ProductCard component.
+  Price is always Shopify authoritative and is never recalculated here.
+  Params: product, loading ('lazy' | 'eager'), sizes
+{%- endcomment -%}
+{%- liquid
+  assign sizes = sizes | default: '(min-width: 1024px) 22vw, (min-width: 640px) 30vw, 45vw'
+  assign loading = loading | default: 'lazy'
+  assign reduced = false
+  if product.compare_at_price > product.price
+    assign reduced = true
+  endif
+-%}
+{%- capture nur_category_name %}{% render 'nur-category', product: product, field: 'name' %}{% endcapture -%}
+{%- assign nur_category_name = nur_category_name | strip -%}
+<article class="card glass-card">
+  <a href="{{ product.url }}" style="display:flex;flex-direction:column;height:100%">
+    <div class="card__media">
+      {%- if product.featured_media -%}
+        <img
+          src="{{ product.featured_media | image_url: width: 600 }}"
+          srcset="{{ product.featured_media | image_url: width: 300 }} 300w, {{ product.featured_media | image_url: width: 600 }} 600w, {{ product.featured_media | image_url: width: 900 }} 900w"
+          sizes="{{ sizes }}"
+          alt="{{ product.featured_media.alt | default: product.title | escape }}"
+          width="600"
+          height="600"
+          loading="{{ loading }}">
+      {%- else -%}
+        {{ 'product-1' | placeholder_svg_tag: 'card__media' }}
+      {%- endif -%}
+      {%- if reduced -%}
+        <span class="card__badge">Reduced</span>
+      {%- elsif product.available == false -%}
+        <span class="card__badge card__badge--muted">Sold out</span>
+      {%- endif -%}
+    </div>
+    <div class="card__body">
+      {%- if nur_category_name != blank -%}
+        <p class="card__kicker">{{ nur_category_name }}</p>
+      {%- endif -%}
+      <h3 class="card__title">{{ product.title }}</h3>
+      {%- assign summary = product.description | strip_html | truncatewords: 20 -%}
+      {%- if summary != blank -%}
+        <p class="card__summary">{{ summary }}</p>
+      {%- endif -%}
+      <div class="card__price">
+        <span class="price">
+          {%- if product.price_varies -%}From {% endif -%}
+          {{ product.price | money }}
+        </span>
+        {%- if reduced -%}
+          <span class="price__was">Was <s>{{ product.compare_at_price | money }}</s></span>
+        {%- endif -%}
+      </div>
+      {%- if settings.show_free_shipping_note -%}
+        <p class="shipping-badge">{{ settings.free_shipping_note }}</p>
+      {%- endif -%}
+    </div>
+  </a>
+</article>

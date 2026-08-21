@@ -1,0 +1,73 @@
+{%- comment -%}
+  Store and category listing. Uses Shopify native filtering and sorting so the
+  theme never queries an external service. Secondary filter cards are
+  deliberately omitted, matching the current headless store page.
+{%- endcomment -%}
+<div class="wrap" style="padding-block:1.5rem 4rem">
+  {% render 'breadcrumbs' %}
+
+  <h1 class="page-title">{{ collection.title }}</h1>
+  {%- if collection.description != blank -%}
+    <div class="page-lede rte">{{ collection.description }}</div>
+  {%- endif -%}
+
+  <form method="get" class="toolbar" style="margin-top:2rem">
+    {%- for filter in collection.filters -%}
+      {%- if filter.type == 'list' and section.settings.show_filters -%}
+        <label class="visually-hidden" for="filter-{{ filter.param_name }}">{{ filter.label }}</label>
+        <select class="field" id="filter-{{ filter.param_name }}" name="{{ filter.param_name }}" data-auto-submit>
+          <option value="">{{ filter.label }}: all</option>
+          {%- for value in filter.values -%}
+            <option value="{{ value.value }}" {% if value.active %}selected{% endif %}>{{ value.label }} ({{ value.count }})</option>
+          {%- endfor -%}
+        </select>
+      {%- endif -%}
+    {%- endfor -%}
+
+    <div style="margin-left:auto;display:flex;align-items:center;gap:.75rem">
+      <span class="section-lede" style="margin:0">{{ collection.products_count }} products</span>
+      <label class="visually-hidden" for="sort_by">Sort by</label>
+      <select class="field" id="sort_by" name="sort_by" data-auto-submit>
+        {%- assign current_sort = collection.sort_by | default: collection.default_sort_by -%}
+        {%- for option in collection.sort_options -%}
+          <option value="{{ option.value }}" {% if option.value == current_sort %}selected{% endif %}>{{ option.name }}</option>
+        {%- endfor -%}
+      </select>
+    </div>
+  </form>
+
+  {%- paginate collection.products by 24 -%}
+    {%- if collection.products.size > 0 -%}
+      <ul class="product-grid product-grid--wide" style="margin-top:1.5rem">
+        {%- for product in collection.products -%}
+          <li>{% render 'product-card', product: product, loading: 'lazy' %}</li>
+        {%- endfor -%}
+      </ul>
+
+      {%- if paginate.pages > 1 -%}
+        <nav class="pagination" aria-label="Pagination">
+          {%- for part in paginate.parts -%}
+            {%- if part.is_link -%}
+              <a href="{{ part.url }}">{{ part.title }}</a>
+            {%- else -%}
+              <span {% if part.title == paginate.current_page %}aria-current="page"{% endif %}>{{ part.title }}</span>
+            {%- endif -%}
+          {%- endfor -%}
+        </nav>
+      {%- endif -%}
+    {%- else -%}
+      <div class="empty-state" style="margin-top:2rem">
+        <p class="section-lede" style="margin-inline:auto">No products match right now. Try clearing the filters or search the full range.</p>
+      </div>
+    {%- endif -%}
+  {%- endpaginate -%}
+</div>
+
+{% schema %}
+{
+  "name": "Collection",
+  "settings": [
+    { "type": "checkbox", "id": "show_filters", "label": "Show native Shopify filters", "default": true }
+  ]
+}
+{% endschema %}

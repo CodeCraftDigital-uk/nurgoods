@@ -1,0 +1,62 @@
+{%- comment -%}
+  Answerable FAQ block for AEO. FAQPage schema is only emitted when at least
+  one question and answer pair exists, so no empty or invented markup ships.
+{%- endcomment -%}
+<section class="section">
+  <div class="wrap">
+    <h2 class="section-title">{{ section.settings.heading }}</h2>
+    <dl class="faq-grid">
+      {%- for block in section.blocks -%}
+        <div class="glass-card" {{ block.shopify_attributes }}>
+          <dt>{{ block.settings.question }}</dt>
+          <dd>{{ block.settings.answer }}</dd>
+        </div>
+      {%- endfor -%}
+    </dl>
+  </div>
+</section>
+
+{%- if section.blocks.size > 0 -%}
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {%- for block in section.blocks -%}
+        {
+          "@type": "Question",
+          "name": {{ block.settings.question | json }},
+          "acceptedAnswer": { "@type": "Answer", "text": {{ block.settings.answer | strip_html | json }} }
+        }{% unless forloop.last %},{% endunless %}
+      {%- endfor -%}
+    ]
+  }
+  </script>
+{%- endif -%}
+
+{% schema %}
+{
+  "name": "FAQ",
+  "settings": [{ "type": "text", "id": "heading", "label": "Heading", "default": "Frequently asked questions" }],
+  "blocks": [
+    {
+      "type": "faq",
+      "name": "Question",
+      "settings": [
+        { "type": "text", "id": "question", "label": "Question" },
+        { "type": "textarea", "id": "answer", "label": "Answer" }
+      ]
+    }
+  ],
+  "max_blocks": 12,
+  "presets": [
+    {
+      "name": "FAQ",
+      "blocks": [
+        { "type": "faq", "settings": { "question": "Where does NUR GOODS deliver?", "answer": "We deliver to the United Kingdom and the United States. Delivery is free to both markets." } },
+        { "type": "faq", "settings": { "question": "How do I track my order?", "answer": "Tracking is emailed to you once your order ships. You can also reply to that email for help." } }
+      ]
+    }
+  ]
+}
+{% endschema %}

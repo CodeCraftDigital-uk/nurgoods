@@ -1,0 +1,34 @@
+{%- comment -%}Journal article with Article structured data.{%- endcomment -%}
+<article class="wrap" style="padding-block:1.5rem 4rem">
+  {% render 'breadcrumbs' %}
+  <h1 class="page-title">{{ article.title }}</h1>
+  <p class="section-lede">{{ article.published_at | date: '%-d %B %Y' }}{% if article.author != blank %} &middot; {{ article.author }}{% endif %}</p>
+
+  {%- if article.image -%}
+    <img src="{{ article.image | image_url: width: 1400 }}"
+         alt="{{ article.image.alt | default: article.title | escape }}"
+         width="1400" height="788" loading="eager"
+         style="margin-top:1.5rem;border-radius:1.5rem;aspect-ratio:16/9;object-fit:cover">
+  {%- endif -%}
+
+  <div class="rte prose-narrow" style="margin-top:2rem">{{ article.content }}</div>
+</article>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": {{ article.title | json }},
+  "datePublished": {{ article.published_at | date: '%Y-%m-%d' | json }},
+  "author": { "@type": "Organization", "name": {{ shop.name | json }} },
+  "publisher": { "@id": {{ shop.url | append: '/#organization' | json }} },
+  "mainEntityOfPage": {{ shop.url | append: article.url | json }}
+  {%- if article.image -%},
+  "image": [{{ article.image | image_url: width: 1200 | prepend: 'https:' | json }}]
+  {%- endif -%}
+}
+</script>
+
+{% schema %}
+{ "name": "Article", "settings": [] }
+{% endschema %}

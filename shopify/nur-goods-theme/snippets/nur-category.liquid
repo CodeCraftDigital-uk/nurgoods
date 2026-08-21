@@ -1,0 +1,64 @@
+{%- comment -%}
+  NUR CATEGORY CONTRACT
+  ---------------------
+  NUR GOODS owns its own taxonomy. Supplier and legacy Shopify product types or
+  collection titles are never treated as authoritative category labels.
+
+  Resolution order for a product:
+    1. product.metafields.nur.category_name / nur.category_slug
+    2. the first collection whose handle uses the canonical `nur-` prefix
+    3. blank, so callers fall back to a neutral label rather than a legacy one
+
+  `render` has an isolated scope, so this snippet OUTPUTS a single field and
+  callers wrap it in `capture`:
+
+    {%- capture cat_name %}{% render 'nur-category', product: product, field: 'name' %}{% endcapture -%}
+    {%- capture cat_url %}{% render 'nur-category', product: product, field: 'url' %}{% endcapture -%}
+
+  Params: product, field ('name' | 'slug' | 'url')
+{%- endcomment -%}
+{%- liquid
+  assign cat_name = ''
+  assign cat_handle = ''
+
+  assign meta_name = product.metafields.nur.category_name.value | default: product.metafields.nur.category_name
+  assign meta_slug = product.metafields.nur.category_slug.value | default: product.metafields.nur.category_slug
+
+  if meta_name != blank
+    assign cat_name = meta_name
+  endif
+  if meta_slug != blank
+    assign cat_handle = meta_slug | handleize
+  endif
+
+  if cat_handle == blank
+    for candidate in product.collections
+      assign prefix = candidate.handle | slice: 0, 4
+      if prefix == 'nur-'
+        assign cat_handle = candidate.handle
+        if cat_name == blank
+          assign cat_name = candidate.title
+        endif
+        break
+      endif
+    endfor
+  endif
+
+  if cat_handle != blank
+    assign handle_prefix = cat_handle | slice: 0, 4
+    unless handle_prefix == 'nur-'
+      assign cat_handle = cat_handle | prepend: 'nur-'
+    endunless
+  endif
+
+  if cat_name == blank and cat_handle != blank
+    assign cat_name = collections[cat_handle].title
+  endif
+
+  assign field = field | default: 'name'
+-%}
+{%- case field -%}
+  {%- when 'name' -%}{{ cat_name }}
+  {%- when 'slug' -%}{{ cat_handle }}
+  {%- when 'url' -%}{%- if cat_handle != blank and collections[cat_handle].handle != blank -%}{{ collections[cat_handle].url }}{%- endif -%}
+{%- endcase -%}

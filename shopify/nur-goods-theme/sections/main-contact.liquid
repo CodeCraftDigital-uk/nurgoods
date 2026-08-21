@@ -1,0 +1,39 @@
+{%- comment -%}Contact page using the native Shopify contact form.{%- endcomment -%}
+<div class="wrap" style="padding-block:1.5rem 4rem">
+  {% render 'breadcrumbs' %}
+  <h1 class="page-title">{{ page.title | default: 'Contact' }}</h1>
+  {%- if page.content != blank -%}
+    <div class="rte prose-narrow" style="margin-top:1rem">{{ page.content }}</div>
+  {%- endif -%}
+
+  {%- if settings.support_email != blank -%}
+    <p class="page-lede">Prefer email? Write to <a href="mailto:{{ settings.support_email }}" style="text-decoration:underline;text-underline-offset:4px">{{ settings.support_email }}</a>.</p>
+  {%- endif -%}
+
+  {%- form 'contact', class: 'form-grid', style: 'margin-top:2rem' -%}
+    {%- if form.posted_successfully? -%}
+      <p class="form-note" role="status">Thank you. Your message has been sent and we will reply by email.</p>
+    {%- endif -%}
+    {%- if form.errors -%}
+      <p class="form-error" role="alert">{{ form.errors | default_errors }}</p>
+    {%- endif -%}
+
+    <div>
+      <label for="contact-name">Name</label>
+      <input id="contact-name" type="text" name="contact[name]" autocomplete="name" required>
+    </div>
+    <div>
+      <label for="contact-email">Email</label>
+      <input id="contact-email" type="email" name="contact[email]" autocomplete="email" required>
+    </div>
+    <div>
+      <label for="contact-body">How can we help?</label>
+      <textarea id="contact-body" name="contact[body]" rows="6" required></textarea>
+    </div>
+    <button type="submit" class="btn btn--primary" style="justify-self:start">Send message</button>
+  {%- endform -%}
+</div>
+
+{% schema %}
+{ "name": "Contact", "settings": [] }
+{% endschema %}

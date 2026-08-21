@@ -1,0 +1,38 @@
+{%- comment -%}Latest Journal articles.{%- endcomment -%}
+{%- assign journal = blogs[section.settings.blog] -%}
+{%- if journal.articles_count > 0 -%}
+  <section class="section">
+    <div class="wrap">
+      <div class="section-head">
+        <div>
+          <h2 class="section-title">{{ section.settings.heading }}</h2>
+          <p class="section-lede">{{ section.settings.lede }}</p>
+        </div>
+        <a class="link-underline" href="{{ journal.url }}">Read the Journal</a>
+      </div>
+      <div class="article-grid">
+        {%- for article in journal.articles limit: 3 -%}
+          <a class="article-card glass-card" href="{{ article.url }}">
+            <h3>{{ article.title }}</h3>
+            <p>{{ article.excerpt_or_content | strip_html | truncatewords: 26 }}</p>
+            <p style="margin-top:auto;padding-top:1rem;font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;color:var(--muted-foreground)">
+              {{ article.published_at | date: '%-d %B %Y' }}
+            </p>
+          </a>
+        {%- endfor -%}
+      </div>
+    </div>
+  </section>
+{%- endif -%}
+
+{% schema %}
+{
+  "name": "Journal preview",
+  "settings": [
+    { "type": "text", "id": "heading", "label": "Heading", "default": "From the Journal" },
+    { "type": "textarea", "id": "lede", "label": "Supporting text", "default": "Practical guides and considered notes from the NUR GOODS team." },
+    { "type": "blog", "id": "blog", "label": "Blog" }
+  ],
+  "presets": [{ "name": "Journal preview" }]
+}
+{% endschema %}

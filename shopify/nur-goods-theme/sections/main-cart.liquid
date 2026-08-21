@@ -1,0 +1,55 @@
+{%- comment -%}Full basket page. Works with JavaScript disabled.{%- endcomment -%}
+<div class="wrap" style="padding-block:2rem 4rem">
+  <h1 class="page-title" style="margin-top:0">Your basket</h1>
+
+  {%- if cart.item_count == 0 -%}
+    <div class="empty-state" style="margin-top:2rem">
+      <p class="section-lede" style="margin-inline:auto">Your basket is empty.</p>
+      <a class="btn btn--primary btn--sm" style="margin-top:1rem" href="{{ routes.all_products_collection_url }}">Browse the range</a>
+    </div>
+  {%- else -%}
+    <form action="{{ routes.cart_url }}" method="post" novalidate style="margin-top:2rem">
+      <table class="cart-table">
+        <thead>
+          <tr><th scope="col">Product</th><th scope="col">Quantity</th><th scope="col">Total</th></tr>
+        </thead>
+        <tbody>
+          {%- for item in cart.items -%}
+            <tr>
+              <td>
+                <div style="display:flex;gap:1rem">
+                  {%- if item.image -%}
+                    <img src="{{ item.image | image_url: width: 160 }}" alt="{{ item.image.alt | default: item.product.title | escape }}" width="80" height="80" style="border-radius:.75rem;object-fit:cover">
+                  {%- endif -%}
+                  <div>
+                    <a href="{{ item.url }}" style="font-weight:600">{{ item.product.title }}</a>
+                    {%- unless item.variant.title contains 'Default' -%}
+                      <p class="cart-line__opts">{{ item.variant.title }}</p>
+                    {%- endunless -%}
+                    <p class="cart-line__unit">{{ item.final_price | money }} each</p>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <label class="visually-hidden" for="updates_{{ item.key }}">Quantity for {{ item.product.title | escape }}</label>
+                <input class="field" style="width:5rem" id="updates_{{ item.key }}" name="updates[]" type="number" min="0" value="{{ item.quantity }}">
+              </td>
+              <td><span class="price" style="font-size:1rem">{{ item.final_line_price | money }}</span></td>
+            </tr>
+          {%- endfor -%}
+        </tbody>
+      </table>
+
+      <div style="margin-top:2rem;max-width:22rem;margin-left:auto">
+        <div class="subtotal-row"><span>Subtotal</span><span>{{ cart.total_price | money }}</span></div>
+        <p class="fineprint">Delivery and any taxes are confirmed at checkout.</p>
+        <button type="submit" name="update" class="btn btn--ghost btn--full btn--sm" style="margin-top:.75rem">Update basket</button>
+        <button type="submit" name="checkout" class="btn btn--primary btn--full" style="margin-top:.5rem">Checkout securely</button>
+      </div>
+    </form>
+  {%- endif -%}
+</div>
+
+{% schema %}
+{ "name": "Cart", "settings": [] }
+{% endschema %}
