@@ -31,9 +31,18 @@
   else
     assign custom = settings.logo_light
   endif
+
+  assign custom_width = width
+  if custom != blank and custom.height > 0
+    assign custom_width = custom.width | times: height | divided_by: custom.height | round
+  endif
+  if custom_width == 0
+    assign custom_width = width
+  endif
 -%}
 {%- if custom != blank -%}
-  <img src="{{ custom | image_url: height: retina_height }}" alt="{{ shop.name | escape }}" width="{{ custom.width | times: height | divided_by: custom.height | default: width }}" height="{{ height }}" style="height:{{ height }}px;width:auto" class="{{ class }}">
+  <img src="{{ custom | image_url: height: retina_height }}" alt="{{ shop.name | escape }}" width="{{ custom_width }}" height="{{ height }}" style="height:{{ height }}px;width:auto" class="{{ class }}">
+
 {%- else -%}
   <img src="{{ file | asset_url }}" alt="{{ shop.name | escape }}" width="{{ width }}" height="{{ height }}" style="height:{{ height }}px;width:auto" class="{{ class }}">
 {%- endif -%}
