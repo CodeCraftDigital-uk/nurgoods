@@ -95,6 +95,7 @@ export async function auditSellability(): Promise<SellabilityAudit> {
           }
         : null,
       markets,
+      mode: "catalogue",
     });
     for (const reason of verdict.reasons) reasonCounts[reason] = (reasonCounts[reason] ?? 0) + 1;
     rows.push({
@@ -213,5 +214,6 @@ export async function productSellability(shopifyProductId: string): Promise<Sell
       eligible: row.eligible === true,
       quotedAt: row.quoted_at ?? null,
     })),
+    mode: "catalogue",
   });
 }

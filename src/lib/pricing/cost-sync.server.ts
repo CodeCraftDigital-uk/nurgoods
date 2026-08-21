@@ -28,6 +28,8 @@ export interface CostSyncResult {
   variantsSeen: number;
   variantsWithCost: number;
   variantsUpdated: number;
+  /** Where the next bounded pass should resume, or null when the store is fully read. */
+  nextCursor: string | null;
   message: string;
 }
 
@@ -37,21 +39,28 @@ function numeric(value: unknown): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-export async function syncVariantCosts(): Promise<CostSyncResult> {
+export async function syncVariantCosts(
+  options: { cursor?: string | null; maxPages?: number } = {},
+): Promise<CostSyncResult> {
   const credentials = await intakeCredentials();
   const supabase = await zendropAdminClient();
 
-  let cursor: string | null = null;
+  const maxPages = Math.max(1, Math.min(options.maxPages ?? 40, 40));
+  let cursor: string | null = options.cursor ?? null;
+  let exhausted = false;
   let seen = 0;
   let withCost = 0;
   let updated = 0;
   const now = new Date().toISOString();
 
-  for (let page = 0; page < 40; page += 1) {
+  for (let page = 0; page < maxPages; page += 1) {
     const data: any = await shopifyGraphql(credentials, VARIANT_COST_QUERY, { cursor });
     const connection = data?.productVariants;
     const nodes: any[] = connection?.nodes ?? [];
-    if (nodes.length === 0) break;
+    if (nodes.length === 0) {
+      exhausted = true;
+      break;
+    }
 
     for (const node of nodes) {
       seen += 1;
@@ -79,15 +88,22 @@ export async function syncVariantCosts(): Promise<CostSyncResult> {
       updated += (rows ?? []).length;
     }
 
-    if (!connection?.pageInfo?.hasNextPage) break;
+    if (!connection?.pageInfo?.hasNextPage) {
+      exhausted = true;
+      break;
+    }
     cursor = connection.pageInfo.endCursor ?? null;
-    if (!cursor) break;
+    if (!cursor) {
+      exhausted = true;
+      break;
+    }
   }
 
   return {
     variantsSeen: seen,
     variantsWithCost: withCost,
     variantsUpdated: updated,
+    nextCursor: exhausted ? null : cursor,
     message: `Read ${seen} store variants, ${withCost} carry a recorded cost of goods, ${updated} mirror rows refreshed.`,
   };
 }

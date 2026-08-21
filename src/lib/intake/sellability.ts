@@ -49,6 +49,16 @@ export interface SellabilityInput {
   now?: Date;
   freshnessHours?: number;
   requiredMarkets?: readonly string[];
+  /**
+   * Catalogue mode. Deliverability to the UK and USA is filtered by the
+   * supplier before a product ever reaches the store, so re-proving shipping
+   * and supplier mapping for every listing is wasted work at catalogue time.
+   * In catalogue mode a listing is only held for evidence that something is
+   * actively wrong: a manual hold or a supplier that reports the product as
+   * unavailable. Fulfilment time checks are unchanged and still require a
+   * complete, fresh supplier mapping before any order is dispatched.
+   */
+  mode?: "catalogue" | "fulfilment";
 }
 
 export interface SellabilityVerdict {
@@ -82,8 +92,22 @@ export function evaluateSellability(input: SellabilityInput): SellabilityVerdict
   const freshness = input.freshnessHours ?? EVIDENCE_FRESHNESS_HOURS;
   const required = input.requiredMarkets ?? REQUIRED_MARKETS;
   const reasons: string[] = [];
+  const catalogueMode = input.mode === "catalogue";
 
   const link = input.link;
+  if (catalogueMode) {
+    if (link?.manualHold === true) reasons.push("manual_hold");
+    if (link?.supplierAvailable === false) reasons.push("supplier_unavailable");
+    const held = reasons.length > 0;
+    return {
+      sellable: !held,
+      reasons,
+      message: held
+        ? `Held because ${reasons.join(", ").replace(/_/g, " ")}`
+        : "Nothing is blocking this listing from the storefront",
+    };
+  }
+
   if (!link) {
     reasons.push("no_supplier_link");
   } else {
