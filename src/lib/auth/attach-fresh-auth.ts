@@ -1,5 +1,6 @@
 import { createMiddleware } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
+import { isUnusableToken } from "@/lib/auth/session-health";
 
 /**
  * Attaches the Supabase bearer token to every server function call.
@@ -10,26 +11,8 @@ import { supabase } from "@/integrations/supabase/client";
  * as a blank admin screen. Detecting that locally and refreshing the session
  * once turns a hard failure into a transparent retry.
  */
-function readClaims(token: string): { iat?: number; exp?: number } | null {
-  try {
-    const part = token.split(".")[1];
-    if (!part) return null;
-    const json = atob(part.replace(/-/g, "+").replace(/_/g, "/"));
-    return JSON.parse(json) as { iat?: number; exp?: number };
-  } catch {
-    return null;
-  }
-}
+const isUnusable = isUnusableToken;
 
-function isUnusable(token: string): boolean {
-  const claims = readClaims(token);
-  if (!claims) return false;
-  const now = Math.floor(Date.now() / 1000);
-  // Small tolerances mirror the leeway the auth server itself allows.
-  if (typeof claims.iat === "number" && claims.iat > now + 5) return true;
-  if (typeof claims.exp === "number" && claims.exp < now + 5) return true;
-  return false;
-}
 
 export const attachFreshSupabaseAuth = createMiddleware({ type: "function" }).client(
   async ({ next }) => {

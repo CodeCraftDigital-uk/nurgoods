@@ -2290,6 +2290,107 @@ export type Database = {
         }
         Relationships: []
       }
+      product_price_authority: {
+        Row: {
+          authority_source: string
+          cost_source: string | null
+          created_at: string
+          currency: string
+          drift_detected_at: string | null
+          expected_price: number | null
+          formula_inputs: Json
+          formula_version: string
+          hold_reason: string | null
+          id: string
+          idempotency_key: string | null
+          landed_cost: number | null
+          landed_cost_verified_at: string | null
+          last_push_error: string | null
+          last_push_status: string | null
+          last_pushed_at: string | null
+          next_attempt_at: string | null
+          observed_at: string | null
+          observed_shopify_price: number | null
+          product_id: string
+          push_attempts: number
+          push_state: string
+          shipping_quoted_at: string | null
+          shipping_source: string | null
+          shopify_product_id: string
+          shopify_variant_id: string
+          updated_at: string
+          variant_title: string | null
+        }
+        Insert: {
+          authority_source?: string
+          cost_source?: string | null
+          created_at?: string
+          currency?: string
+          drift_detected_at?: string | null
+          expected_price?: number | null
+          formula_inputs?: Json
+          formula_version: string
+          hold_reason?: string | null
+          id?: string
+          idempotency_key?: string | null
+          landed_cost?: number | null
+          landed_cost_verified_at?: string | null
+          last_push_error?: string | null
+          last_push_status?: string | null
+          last_pushed_at?: string | null
+          next_attempt_at?: string | null
+          observed_at?: string | null
+          observed_shopify_price?: number | null
+          product_id: string
+          push_attempts?: number
+          push_state?: string
+          shipping_quoted_at?: string | null
+          shipping_source?: string | null
+          shopify_product_id: string
+          shopify_variant_id: string
+          updated_at?: string
+          variant_title?: string | null
+        }
+        Update: {
+          authority_source?: string
+          cost_source?: string | null
+          created_at?: string
+          currency?: string
+          drift_detected_at?: string | null
+          expected_price?: number | null
+          formula_inputs?: Json
+          formula_version?: string
+          hold_reason?: string | null
+          id?: string
+          idempotency_key?: string | null
+          landed_cost?: number | null
+          landed_cost_verified_at?: string | null
+          last_push_error?: string | null
+          last_push_status?: string | null
+          last_pushed_at?: string | null
+          next_attempt_at?: string | null
+          observed_at?: string | null
+          observed_shopify_price?: number | null
+          product_id?: string
+          push_attempts?: number
+          push_state?: string
+          shipping_quoted_at?: string | null
+          shipping_source?: string | null
+          shopify_product_id?: string
+          shopify_variant_id?: string
+          updated_at?: string
+          variant_title?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_price_authority_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "shopify_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_price_revisions: {
         Row: {
           applied_by: string | null
@@ -3433,6 +3534,30 @@ export type Database = {
         }
         Relationships: []
       }
+      storefront_checkout_state: {
+        Row: {
+          checked_at: string
+          checkout_domain: string | null
+          checkout_ready: boolean
+          id: boolean
+          storefront_checkout: boolean
+        }
+        Insert: {
+          checked_at?: string
+          checkout_domain?: string | null
+          checkout_ready?: boolean
+          id?: boolean
+          storefront_checkout?: boolean
+        }
+        Update: {
+          checked_at?: string
+          checkout_domain?: string | null
+          checkout_ready?: boolean
+          id?: boolean
+          storefront_checkout?: boolean
+        }
+        Relationships: []
+      }
       storefront_snapshot: {
         Row: {
           available_for_sale: boolean | null
@@ -4042,6 +4167,14 @@ export type Database = {
         Args: never
         Returns: {
           product_id: string
+        }[]
+      }
+      public_legal_references: {
+        Args: never
+        Returns: {
+          slug: string
+          source_url: string
+          title: string
         }[]
       }
       public_product_categories: {
