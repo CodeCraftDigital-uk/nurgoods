@@ -1,0 +1,45 @@
+[
+  {
+    "name": "theme_info",
+    "theme_name": "NUR GOODS",
+    "theme_version": "1.0.0",
+    "theme_author": "NUR GOODS",
+    "theme_documentation_url": "https://nurgoods.com",
+    "theme_support_email": "support@nurgoods.com"
+  },
+  {
+    "name": "Brand",
+    "settings": [
+      {
+        "type": "paragraph",
+        "content": "Defaults reproduce the NUR GOODS identity out of the box. Only upload logo files that are the approved master artwork."
+      },
+      { "type": "image_picker", "id": "logo_light", "label": "Horizontal logo for light surfaces" },
+      { "type": "image_picker", "id": "logo_dark", "label": "Horizontal logo for dark surfaces" },
+      { "type": "image_picker", "id": "favicon", "label": "Favicon" },
+      { "type": "text", "id": "brand_tagline", "label": "Tagline", "default": "Good things, brought to light." },
+      { "type": "text", "id": "support_email", "label": "Support email", "default": "support@nurgoods.com" },
+      { "type": "url", "id": "social_tiktok", "label": "TikTok URL" },
+      { "type": "text", "id": "social_tiktok_handle", "label": "TikTok handle", "default": "@nur.goods" },
+      { "type": "image_picker", "id": "social_share_image", "label": "Default share image" }
+    ]
+  },
+  {
+    "name": "Search and SEO",
+    "settings": [
+      {
+        "type": "textarea",
+        "id": "default_meta_description",
+        "label": "Default meta description",
+        "default": "Considered everyday goods from NUR GOODS, with clear pricing, free delivery to the United Kingdom and the United States, and secure checkout."
+      }
+    ]
+  },
+  {
+    "name": "Product cards",
+    "settings": [
+      { "type": "checkbox", "id": "show_free_shipping_note", "label": "Show delivery note on product cards", "default": true },
+      { "type": "text", "id": "free_shipping_note", "label": "Delivery note", "default": "Free UK and US delivery" }
+    ]
+  }
+]

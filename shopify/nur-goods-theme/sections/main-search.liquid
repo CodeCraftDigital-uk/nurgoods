@@ -1,0 +1,54 @@
+{%- comment -%}
+  Native Shopify search results. Shopify indexes title, description, tags,
+  product type, vendor, SKU and variant titles, so no external index is needed.
+{%- endcomment -%}
+<div class="wrap" style="padding-block:2rem 4rem">
+  <h1 class="page-title" style="margin-top:0">Search</h1>
+  <div style="max-width:40rem;margin-top:1.5rem">
+    {% render 'search-form', id: 'page-search' %}
+  </div>
+
+  {%- if search.performed -%}
+    <p class="section-lede">{{ search.results_count }} results for &ldquo;{{ search.terms | escape }}&rdquo;</p>
+
+    {%- paginate search.results by 24 -%}
+      {%- if search.results_count > 0 -%}
+        <ul class="product-grid product-grid--wide" style="margin-top:1.5rem">
+          {%- for item in search.results -%}
+            <li>
+              {%- if item.object_type == 'product' -%}
+                {% render 'product-card', product: item %}
+              {%- else -%}
+                <a class="article-card glass-card" href="{{ item.url }}">
+                  <h3>{{ item.title }}</h3>
+                  <p>{{ item.content | strip_html | truncatewords: 24 }}</p>
+                </a>
+              {%- endif -%}
+            </li>
+          {%- endfor -%}
+        </ul>
+
+        {%- if paginate.pages > 1 -%}
+          <nav class="pagination" aria-label="Pagination">
+            {%- for part in paginate.parts -%}
+              {%- if part.is_link -%}
+                <a href="{{ part.url }}">{{ part.title }}</a>
+              {%- else -%}
+                <span {% if part.title == paginate.current_page %}aria-current="page"{% endif %}>{{ part.title }}</span>
+              {%- endif -%}
+            {%- endfor -%}
+          </nav>
+        {%- endif -%}
+      {%- else -%}
+        <div class="empty-state" style="margin-top:2rem">
+          <p class="section-lede" style="margin-inline:auto">Nothing matched that search. Try a shorter term or browse the full range.</p>
+          <a class="btn btn--ghost btn--sm" style="margin-top:1rem" href="{{ routes.all_products_collection_url }}">Browse everything</a>
+        </div>
+      {%- endif -%}
+    {%- endpaginate -%}
+  {%- endif -%}
+</div>
+
+{% schema %}
+{ "name": "Search", "settings": [] }
+{% endschema %}

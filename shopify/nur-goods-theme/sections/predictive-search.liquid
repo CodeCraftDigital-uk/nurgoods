@@ -1,0 +1,39 @@
+{%- comment -%}
+  Rendered by Shopify's native predictive search endpoint
+  (/search/suggest?section_id=predictive-search) and injected by nur-theme.js.
+{%- endcomment -%}
+<div data-predictive-inner>
+  {%- if predictive_search.performed -%}
+    {%- for product in predictive_search.resources.products -%}
+      <a class="predictive__item" href="{{ product.url }}">
+        {%- if product.featured_media -%}
+          <img src="{{ product.featured_media | image_url: width: 80 }}" alt="" width="40" height="40" loading="lazy">
+        {%- endif -%}
+        <span>{{ product.title }}</span>
+        <span class="predictive__kind">{{ product.price | money }}</span>
+      </a>
+    {%- endfor -%}
+    {%- for collection in predictive_search.resources.collections -%}
+      <a class="predictive__item" href="{{ collection.url }}">
+        <span>{{ collection.title }}</span>
+        <span class="predictive__kind">Category</span>
+      </a>
+    {%- endfor -%}
+    {%- for article in predictive_search.resources.articles -%}
+      <a class="predictive__item" href="{{ article.url }}">
+        <span>{{ article.title }}</span>
+        <span class="predictive__kind">Journal</span>
+      </a>
+    {%- endfor -%}
+    {%- for page in predictive_search.resources.pages -%}
+      <a class="predictive__item" href="{{ page.url }}">
+        <span>{{ page.title }}</span>
+        <span class="predictive__kind">Page</span>
+      </a>
+    {%- endfor -%}
+  {%- endif -%}
+</div>
+
+{% schema %}
+{ "name": "Predictive search", "settings": [] }
+{% endschema %}

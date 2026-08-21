@@ -1,0 +1,38 @@
+{%- comment -%}
+  Official NUR GOODS artwork only. Never recoloured, never redrawn.
+  Params: treatment (horizontal | square), surface (light | dark), height, class.
+{%- endcomment -%}
+{%- liquid
+  assign treatment = treatment | default: 'horizontal'
+  assign surface = surface | default: 'light'
+  assign height = height | default: 64
+
+  if treatment == 'square'
+    assign ratio = 1.0
+    if surface == 'dark'
+      assign file = 'nur-goods-square-dark.png'
+    else
+      assign file = 'nur-goods-square-light.png'
+    endif
+  else
+    assign ratio = 2.5
+    if surface == 'dark'
+      assign file = 'nur-goods-horizontal-dark.png'
+    else
+      assign file = 'nur-goods-horizontal-light.png'
+    endif
+  endif
+
+  assign width = height | times: ratio | round
+
+  if surface == 'dark'
+    assign custom = settings.logo_dark
+  else
+    assign custom = settings.logo_light
+  endif
+-%}
+{%- if custom != blank -%}
+  <img src="{{ custom | image_url: height: height | times: 2 }}" alt="{{ shop.name | escape }}" height="{{ height }}" style="height:{{ height }}px;width:auto" class="{{ class }}">
+{%- else -%}
+  <img src="{{ file | asset_url }}" alt="{{ shop.name | escape }}" width="{{ width }}" height="{{ height }}" style="height:{{ height }}px;width:auto" class="{{ class }}">
+{%- endif -%}

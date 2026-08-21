@@ -1,0 +1,23 @@
+{%- comment -%}
+  Native Shopify search. Predictive suggestions are progressive enhancement,
+  the form always works as a plain GET to /search.
+  Params: id, compact, placeholder
+{%- endcomment -%}
+{%- assign field_id = id | default: 'search' -%}
+<form role="search" method="get" action="{{ routes.search_url }}" data-predictive-form style="position:relative;width:100%">
+  <label class="visually-hidden" for="{{ field_id }}">Search products</label>
+  <input type="hidden" name="options[prefix]" value="last">
+  <input type="hidden" name="type" value="product">
+  <div class="searchbar{% if compact %} searchbar--compact{% endif %}">
+    {% render 'icon', name: 'search' %}
+    <input
+      id="{{ field_id }}"
+      type="search"
+      name="q"
+      value="{{ search.terms | escape }}"
+      autocomplete="off"
+      placeholder="{{ placeholder | default: 'Search the NUR GOODS range' | escape }}">
+    <button type="submit" class="searchbar__submit">Search</button>
+  </div>
+  <div class="predictive glass-panel" data-predictive-results hidden role="listbox" aria-label="Search suggestions"></div>
+</form>

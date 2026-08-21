@@ -1,0 +1,10 @@
+{%- comment -%}Generic content page, also used for policy style content.{%- endcomment -%}
+<div class="wrap" style="padding-block:1.5rem 4rem">
+  {% render 'breadcrumbs' %}
+  <h1 class="page-title">{{ page.title }}</h1>
+  <div class="rte prose-narrow" style="margin-top:1.5rem">{{ page.content }}</div>
+</div>
+
+{% schema %}
+{ "name": "Page", "settings": [] }
+{% endschema %}

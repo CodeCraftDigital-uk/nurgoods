@@ -1,0 +1,40 @@
+{%- comment -%}Three service cues. Factual statements only.{%- endcomment -%}
+<section class="section">
+  <div class="wrap">
+    <div class="cue-grid">
+      {%- for block in section.blocks -%}
+        <div class="cue glass-card" {{ block.shopify_attributes }}>
+          <h3>{{ block.settings.heading }}</h3>
+          <p>{{ block.settings.body }}</p>
+        </div>
+      {%- endfor -%}
+    </div>
+  </div>
+</section>
+
+{% schema %}
+{
+  "name": "Service cues",
+  "blocks": [
+    {
+      "type": "cue",
+      "name": "Cue",
+      "settings": [
+        { "type": "text", "id": "heading", "label": "Heading", "default": "Free delivery" },
+        { "type": "textarea", "id": "body", "label": "Body", "default": "Delivery to the United Kingdom and the United States is free. No delivery charge is added at checkout." }
+      ]
+    }
+  ],
+  "max_blocks": 3,
+  "presets": [
+    {
+      "name": "Service cues",
+      "blocks": [
+        { "type": "cue", "settings": { "heading": "Free delivery", "body": "Delivery to the United Kingdom and the United States is free. No delivery charge is added at checkout." } },
+        { "type": "cue", "settings": { "heading": "Secure checkout", "body": "Payment and order tracking are handled securely on the NUR GOODS store." } },
+        { "type": "cue", "settings": { "heading": "Real support", "body": "Questions are answered by a person. Full terms are set out in the policy pages." } }
+      ]
+    }
+  ]
+}
+{% endschema %}

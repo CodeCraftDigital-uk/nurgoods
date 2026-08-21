@@ -1,0 +1,72 @@
+{%- comment -%}
+  Shop by category. Only canonical NUR collections are shown. Blocks let the
+  merchant pick collections explicitly in the theme editor; when no block is
+  configured the section auto discovers collections whose handle starts with
+  the canonical `nur-` prefix, so legacy supplier collections never surface.
+{%- endcomment -%}
+<section class="section">
+  <div class="wrap" data-rail>
+    <div class="section-head">
+      <div>
+        <h2 class="section-title">{{ section.settings.heading }}</h2>
+        {%- if section.settings.lede != blank -%}
+          <p class="section-lede">{{ section.settings.lede }}</p>
+        {%- endif -%}
+      </div>
+      <a class="link-underline" href="{{ routes.all_products_collection_url }}">Browse everything</a>
+    </div>
+
+    <ul class="category-rail" data-rail-track style="margin-top:1.5rem">
+      {%- if section.blocks.size > 0 -%}
+        {%- for block in section.blocks -%}
+          {%- assign picked = block.settings.collection -%}
+          {%- if picked != blank -%}
+            {% render 'category-tile', category_collection: picked, heading_override: block.settings.heading %}
+          {%- endif -%}
+        {%- endfor -%}
+      {%- else -%}
+        {%- assign shown = 0 -%}
+        {%- for candidate in collections -%}
+          {%- assign prefix = candidate.handle | slice: 0, 4 -%}
+          {%- if prefix == 'nur-' and shown < section.settings.max_auto -%}
+            {% render 'category-tile', category_collection: candidate %}
+            {%- assign shown = shown | plus: 1 -%}
+          {%- endif -%}
+        {%- endfor -%}
+        {%- if shown == 0 -%}
+          <li class="empty-state" style="grid-row:span 2">
+            <p class="section-lede" style="margin-inline:auto">Categories appear once canonical NUR collections are published.</p>
+          </li>
+        {%- endif -%}
+      {%- endif -%}
+    </ul>
+
+    <div class="rail-controls">
+      <button type="button" data-rail-prev aria-label="Scroll categories left">{% render 'icon', name: 'arrow-left' %}</button>
+      <button type="button" data-rail-next aria-label="Scroll categories right">{% render 'icon', name: 'arrow-right' %}</button>
+    </div>
+  </div>
+</section>
+
+{% schema %}
+{
+  "name": "Shop by category",
+  "settings": [
+    { "type": "text", "id": "heading", "label": "Heading", "default": "Shop by category" },
+    { "type": "textarea", "id": "lede", "label": "Supporting text", "default": "Browse the range by the categories NUR GOODS maintains." },
+    { "type": "range", "id": "max_auto", "label": "Maximum auto discovered categories", "min": 3, "max": 24, "step": 1, "default": 12 }
+  ],
+  "blocks": [
+    {
+      "type": "category",
+      "name": "Category",
+      "settings": [
+        { "type": "collection", "id": "collection", "label": "Canonical NUR collection" },
+        { "type": "text", "id": "heading", "label": "Label override" }
+      ]
+    }
+  ],
+  "max_blocks": 24,
+  "presets": [{ "name": "Shop by category" }]
+}
+{% endschema %}

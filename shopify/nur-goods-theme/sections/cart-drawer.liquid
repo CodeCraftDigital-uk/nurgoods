@@ -1,0 +1,65 @@
+{%- comment -%}
+  AJAX basket drawer mirroring the headless BasketSheet. Server rendered on
+  first paint, then refreshed from /cart.js. Without JavaScript the header
+  basket link goes straight to /cart, so nothing is lost.
+{%- endcomment -%}
+<div class="drawer" data-cart-drawer hidden>
+  <button type="button" class="drawer__scrim" data-close-overlay aria-label="Close basket"></button>
+  <div class="drawer__panel" role="dialog" aria-modal="true" aria-label="Your basket">
+    <div class="drawer__head">
+      <h2>Your basket</h2>
+      <button type="button" class="icon-btn" data-close-overlay aria-label="Close basket">{% render 'icon', name: 'close' %}</button>
+    </div>
+
+    <div class="drawer__empty" data-cart-empty {% if cart.item_count > 0 %}hidden{% endif %}>
+      <p>Your basket is empty.</p>
+      <a class="btn btn--ghost btn--sm" href="{{ routes.all_products_collection_url }}">Browse the range</a>
+    </div>
+
+    <div class="drawer__body">
+      <ul data-cart-lines>
+        {%- for item in cart.items -%}
+          <li class="cart-line" data-line-key="{{ item.key }}">
+            {%- if item.image -%}
+              <img src="{{ item.image | image_url: width: 144 }}" alt="{{ item.image.alt | default: item.product.title | escape }}" width="72" height="72" loading="lazy">
+            {%- endif -%}
+            <div class="cart-line__info">
+              <a class="cart-line__title" href="{{ item.url }}">{{ item.product.title }}</a>
+              {%- unless item.variant.title contains 'Default' -%}
+                <p class="cart-line__opts">{{ item.variant.title }}</p>
+              {%- endunless -%}
+              <p class="cart-line__unit">{{ item.final_price | money }} each</p>
+              <div class="cart-line__row">
+                <div class="qty">
+                  <button type="button" data-line-change="-1" aria-label="Decrease quantity">&minus;</button>
+                  <span>{{ item.quantity }}</span>
+                  <button type="button" data-line-change="1" aria-label="Increase quantity">+</button>
+                </div>
+                <div class="cart-line__row" style="gap:.5rem">
+                  <span class="price" style="font-size:.95rem">{{ item.final_line_price | money }}</span>
+                  <button type="button" class="line-remove" data-line-remove aria-label="Remove item">&times;</button>
+                </div>
+              </div>
+            </div>
+          </li>
+        {%- endfor -%}
+      </ul>
+    </div>
+
+    <div class="drawer__foot" data-cart-foot {% if cart.item_count == 0 %}hidden{% endif %}>
+      <div class="subtotal-row">
+        <span>Subtotal</span>
+        <span data-cart-subtotal>{{ cart.total_price | money }}</span>
+      </div>
+      <p class="fineprint">Delivery and any taxes are confirmed at checkout.</p>
+      <form action="{{ routes.cart_url }}" method="post">
+        <button type="submit" name="checkout" class="btn btn--primary btn--full" style="margin-top:.75rem">Checkout securely</button>
+      </form>
+      <a class="btn btn--ghost btn--full btn--sm" href="{{ routes.cart_url }}" style="margin-top:.5rem">View full basket</a>
+    </div>
+  </div>
+</div>
+
+{% schema %}
+{ "name": "Cart drawer", "settings": [] }
+{% endschema %}

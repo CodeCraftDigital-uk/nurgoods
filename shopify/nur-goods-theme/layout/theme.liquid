@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="{{ request.locale.iso_code }}" data-money-format="{{ shop.money_format | strip_html | escape }}" data-cart-url="{{ routes.cart_url }}" data-predictive-url="{{ routes.predictive_search_url }}">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#001E31">
+    <link rel="canonical" href="{{ canonical_url }}">
+    <link rel="preconnect" href="https://cdn.shopify.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=DM+Sans:wght@400;500;600;700&family=Cormorant+Garamond:wght@500;600;700&display=swap">
+
+    {%- if settings.favicon != blank -%}
+      <link rel="icon" type="image/png" href="{{ settings.favicon | image_url: width: 48 }}">
+      <link rel="apple-touch-icon" href="{{ settings.favicon | image_url: width: 180 }}">
+    {%- else -%}
+      <link rel="icon" type="image/png" href="{{ 'favicon-nurgoods-v2.png' | asset_url }}">
+      <link rel="apple-touch-icon" href="{{ 'icon-nurgoods-512-v2.png' | asset_url }}">
+    {%- endif -%}
+
+    {% render 'meta-tags' %}
+
+    <link rel="stylesheet" href="{{ 'nur-theme.css' | asset_url }}">
+    <script src="{{ 'nur-theme.js' | asset_url }}" defer="defer"></script>
+
+    {{ content_for_header }}
+  </head>
+
+  <body class="template-{{ template.name | handle }}">
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    {% sections 'header-group' %}
+
+    <main id="main" role="main">
+      {{ content_for_layout }}
+    </main>
+
+    {% sections 'footer-group' %}
+
+    {% section 'cart-drawer' %}
+    {% render 'organization-schema' %}
+  </body>
+</html>

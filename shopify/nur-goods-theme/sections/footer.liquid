@@ -1,0 +1,94 @@
+{%- comment -%}Structured commerce footer mirroring the headless footer.{%- endcomment -%}
+<footer class="footer">
+  <div class="footer__grid">
+    <div>
+      {% render 'brand-logo', treatment: 'horizontal', surface: 'light', height: 56 %}
+      <p class="footer__tagline">{{ settings.brand_tagline }}</p>
+      <p class="footer__blurb">{{ section.settings.blurb }}</p>
+    </div>
+
+    {%- for block in section.blocks -%}
+      {%- if block.type == 'menu' -%}
+        <nav aria-label="{{ block.settings.heading | escape }}" {{ block.shopify_attributes }}>
+          <h2>{{ block.settings.heading }}</h2>
+          <ul>
+            {%- for link in block.settings.menu.links -%}
+              <li><a href="{{ link.url }}">{{ link.title }}</a></li>
+            {%- endfor -%}
+          </ul>
+        </nav>
+      {%- elsif block.type == 'contact' -%}
+        <div {{ block.shopify_attributes }}>
+          <h2>{{ block.settings.heading }}</h2>
+          <ul>
+            {%- if settings.support_email != blank -%}
+              <li><a href="mailto:{{ settings.support_email }}">{{ settings.support_email }}</a></li>
+            {%- endif -%}
+            {%- if settings.social_tiktok != blank -%}
+              <li><a href="{{ settings.social_tiktok }}" rel="me noopener">TikTok {{ settings.social_tiktok_handle }}</a></li>
+            {%- endif -%}
+            {%- for link in block.settings.menu.links -%}
+              <li><a href="{{ link.url }}">{{ link.title }}</a></li>
+            {%- endfor -%}
+          </ul>
+        </div>
+      {%- endif -%}
+    {%- endfor -%}
+  </div>
+
+  <div class="footer__bar">
+    <div class="footer__bar-inner">
+      <div style="display:flex;align-items:center;gap:.75rem">
+        {% render 'brand-logo', treatment: 'square', surface: 'light', height: 24 %}
+        <p class="footer__legal">{{ 'now' | date: '%Y' }} {{ shop.name }}. All rights reserved.</p>
+      </div>
+      <p class="footer__legal">{{ section.settings.legal_note }}</p>
+    </div>
+  </div>
+</footer>
+
+{% schema %}
+{
+  "name": "Footer",
+  "settings": [
+    {
+      "type": "textarea",
+      "id": "blurb",
+      "label": "Intro text",
+      "default": "A considered everyday range, listed from the live store and ordered through secure store checkout."
+    },
+    {
+      "type": "text",
+      "id": "legal_note",
+      "label": "Legal note",
+      "default": "Prices include applicable taxes where shown at checkout."
+    }
+  ],
+  "blocks": [
+    {
+      "type": "menu",
+      "name": "Menu column",
+      "settings": [
+        { "type": "text", "id": "heading", "label": "Heading", "default": "Shopping" },
+        { "type": "link_list", "id": "menu", "label": "Menu" }
+      ]
+    },
+    {
+      "type": "contact",
+      "name": "Contact column",
+      "settings": [
+        { "type": "text", "id": "heading", "label": "Heading", "default": "About and contact" },
+        { "type": "link_list", "id": "menu", "label": "Extra links" }
+      ]
+    }
+  ],
+  "default": {
+    "settings": {},
+    "blocks": [
+      { "type": "menu", "settings": { "heading": "Shopping" } },
+      { "type": "menu", "settings": { "heading": "Help and policies" } },
+      { "type": "contact", "settings": { "heading": "About and contact" } }
+    ]
+  }
+}
+{% endschema %}
