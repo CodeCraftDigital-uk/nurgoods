@@ -31,6 +31,9 @@ export const Route = createFileRoute("/api/public/hooks/automation")({
         } catch {
           jobKey = "";
         }
+        // Scheduled jobs under the Shopify led model. Retired catalogue
+        // sourcing and supplier gating jobs are deliberately absent: they are
+        // manual recovery tools only and must never be driven by a timer.
         const allowed = new Set([
           "shopify_catalogue_sync",
           "publish_scheduler",
@@ -45,13 +48,14 @@ export const Route = createFileRoute("/api/public/hooks/automation")({
           "product_intake_worker",
           "catalogue_seo_sweep",
           "catalogue_identity_remediation",
-          "supplier_sourcing_hourly",
-          "supplier_product_refresh",
           "prohibited_category_sweep",
           "live_pricing_integrity",
+          "price_authority_sync",
+          "storefront_snapshot_refresh",
           "order_fulfilment_queue",
           "order_tracking_sync",
         ]);
+
         if (!allowed.has(jobKey)) {
           return Response.json({ error: "Unknown job" }, { status: 400 });
         }

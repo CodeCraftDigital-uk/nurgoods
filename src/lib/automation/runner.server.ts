@@ -175,24 +175,20 @@ const SNAPSHOT_AFFECTING_JOBS = new Set([
   "catalogue_seo_sweep",
   "live_pricing_integrity",
   "prohibited_category_sweep",
-  "supplier_product_refresh",
-  "supplier_sourcing_hourly",
-  "supplier_link_recovery",
-  "sellability_hold_sweep",
   "price_authority_sync",
 ]);
 
 /**
- * Jobs that bring catalogue data inward from the store or the supplier. An
- * incoming price is only ever an observation, so once one of these lands the
- * authority is re measured and any drift is corrected outward again.
+ * Jobs that bring store catalogue data inward. The store is authoritative for
+ * status and for the retail price, so once a mirror pass lands the pricing
+ * worker re-measures cost of goods and corrects any variant that drifted away
+ * from the canonical formula.
  */
 const PRICE_AUTHORITY_TRIGGERS = new Set([
   "shopify_catalogue_sync",
-  "product_intake_worker",
   "product_intake_delta_sync",
-  "supplier_product_refresh",
 ]);
+
 
 export async function runAutomationJob(
   ctx: RunContext,
