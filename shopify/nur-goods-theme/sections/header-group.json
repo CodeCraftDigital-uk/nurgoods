@@ -5,17 +5,38 @@
     "header": {
       "type": "header",
       "blocks": {
-        "s1": { "type": "service", "settings": { "text": "Free delivery to the United Kingdom and the United States" } },
-        "s2": { "type": "service", "settings": { "text": "Secure checkout on the NUR GOODS store" } },
-        "s3": { "type": "service", "settings": { "text": "Support from a person at support@nurgoods.com" } }
+        "s1": {
+          "type": "service",
+          "settings": {
+            "text": "Free delivery in the United Kingdom and the United States"
+          }
+        },
+        "s2": {
+          "type": "service",
+          "settings": {
+            "text": "Secure checkout on the NUR GOODS store"
+          }
+        },
+        "s3": {
+          "type": "service",
+          "settings": {
+            "text": "Support from a person at support@nurgoods.com"
+          }
+        }
       },
-      "block_order": ["s1", "s2", "s3"],
+      "block_order": [
+        "s1",
+        "s2",
+        "s3"
+      ],
       "settings": {
         "menu": "main-menu",
-        "support_link": "/pages/contact",
+        "support_link": "/pages/contact-and-legal-information",
         "show_service_strip": true
       }
     }
   },
-  "order": ["header"]
+  "order": [
+    "header"
+  ]
 }
