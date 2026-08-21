@@ -87,6 +87,10 @@ function makePort(overrides: Partial<ActivationPort> & { status?: string | null 
     async checkSellable() {
       return { sellable: true, message: "" };
     },
+    async checkPricingVerified() {
+      return true;
+    },
+
     ...overrides,
   } as ActivationPort;
 }
