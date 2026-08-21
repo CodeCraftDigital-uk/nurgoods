@@ -39,7 +39,7 @@
     "name": "Product cards",
     "settings": [
       { "type": "checkbox", "id": "show_free_shipping_note", "label": "Show delivery note on product cards", "default": true },
-      { "type": "text", "id": "free_shipping_note", "label": "Delivery note", "default": "Free UK and US delivery" }
+      { "type": "text", "id": "free_shipping_note", "label": "Delivery note", "default": "Free UK & USA shipping" }
     ]
   }
 ]
