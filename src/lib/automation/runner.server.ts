@@ -444,9 +444,15 @@ async function execute(ctx: RunContext, jobKey: string): Promise<JobRunResult> {
       const { syncApprovedFormulaVersion, pricingGateStats } = await import(
         "@/lib/pricing/gate.server"
       );
+      const { runPricingLifecycleRetries } = await import("@/lib/pricing/lifecycle.server");
       await syncApprovedFormulaVersion();
       const cycle = await runPriceAuthorityCycle({ pushLimit: 30 });
+      // The lifecycle retry pass: anything pending, held or in error gets a
+      // bounded new attempt, and anything newly verified is activated and
+      // published by the same service.
+      const lifecycle = await runPricingLifecycleRetries(15).catch(() => null);
       const gate = await pricingGateStats().catch(() => null);
+
       return {
         jobKey,
         status: cycle.reprice.failed > 0 ? "failed" : "succeeded",
@@ -468,6 +474,13 @@ async function execute(ctx: RunContext, jobKey: string): Promise<JobRunResult> {
           gate_verified: gate?.verified ?? -1,
           gate_drift: gate?.drift ?? -1,
           gate_products_blocked: gate?.products_blocked ?? -1,
+          lifecycle_evaluated: lifecycle?.evaluated ?? 0,
+          lifecycle_verified: lifecycle?.verified ?? 0,
+          lifecycle_held: lifecycle?.held ?? 0,
+          lifecycle_errored: lifecycle?.errored ?? 0,
+          lifecycle_activated: lifecycle?.activated ?? 0,
+          lifecycle_drafted: lifecycle?.drafted ?? 0,
+
         },
       };
     }

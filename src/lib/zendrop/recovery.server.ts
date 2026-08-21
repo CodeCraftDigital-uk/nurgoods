@@ -80,6 +80,18 @@ export async function restoreProductToSale(input: {
     };
   }
 
+  // Stock returning is not a licence to sell. The pricing service must have
+  // verified this product's price on the formula currently in force, otherwise
+  // the restoration would race the pricing lifecycle.
+  const { isPricingVerified } = await import("../pricing/lifecycle.server");
+  if (!(await isPricingVerified(input.shopifyProductId))) {
+    return {
+      restored: false,
+      reason: "The pricing service has not verified this product's price, so it stays off sale.",
+      channels: [],
+    };
+  }
+
   if (input.dryRun) {
     return {
       restored: false,
@@ -87,6 +99,7 @@ export async function restoreProductToSale(input: {
       channels: [],
     };
   }
+
 
   if (String(product.status ?? "").toUpperCase() !== "ACTIVE") {
     const activated: any = await shopifyGraphql(credentials, ACTIVATE_MUTATION, {

@@ -467,12 +467,13 @@ export async function processIntake(db: Db, limit = 6): Promise<IntakeProcessRes
       // trigger repeated repricing. Anything not verified is withdrawn from the
       // Online Store and Shop until it is, and restored afterwards.
       try {
-        const { enforcePricingPublicationGate } = await import("@/lib/pricing/gate.server");
-        await enforcePricingPublicationGate({ shopifyProductIds: [row.shopify_product_id] });
+        const { runPricingLifecycle } = await import("@/lib/pricing/lifecycle.server");
+        await runPricingLifecycle({ shopifyProductIds: [row.shopify_product_id] });
       } catch {
         // Pricing is retried by the scheduled pricing worker. It must never
         // fail an otherwise healthy intake record.
       }
+
 
 
       // 6. Approval.

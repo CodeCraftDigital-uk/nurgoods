@@ -181,4 +181,29 @@ export const runPriceAuthorityCycleFn = createServerFn({ method: "POST" })
     return runPriceAuthorityCycle({ pushLimit: 60 });
   });
 
+/**
+ * The pricing publication lifecycle summary: how many products are pending,
+ * being processed, verified, held for missing cost or in error, with the most
+ * recent reasons and outcomes.
+ */
+export const getPricingLifecycleStatusFn = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context);
+    const { zendropAdminClient } = await import("../zendrop/client.server");
+    const supabase = await zendropAdminClient();
+    const { data } = await supabase.rpc("pricing_lifecycle_stats" as never);
+    return (data ?? null) as Record<string, any> | null;
+  });
+
+/** Runs a bounded lifecycle retry pass for whatever is pending, held or in error. */
+export const runPricingLifecycleRetriesFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context);
+    const { runPricingLifecycleRetries } = await import("./lifecycle.server");
+    return runPricingLifecycleRetries(15);
+  });
+
 export type { AuditStatus };
+

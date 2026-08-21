@@ -20,6 +20,9 @@ import {
 import {
   applyPricingAuditFn,
   getPriceAuthorityStatusFn,
+  getPricingLifecycleStatusFn,
+  runPricingLifecycleRetriesFn,
+
   getPricingAudit,
   runPriceAuthorityCycleFn,
   recoverSupplierLinkageFn,
@@ -141,6 +144,25 @@ function CataloguePricingPage() {
     onError: (error: Error) => toast.error(error.message),
   });
 
+  const lifecycleStatusFn = useServerFn(getPricingLifecycleStatusFn);
+  const lifecycle = useQuery({
+    queryKey: ["pricing-lifecycle"],
+    queryFn: () => lifecycleStatusFn({}),
+    retry: false,
+  });
+  const lifecycleRetryFn = useServerFn(runPricingLifecycleRetriesFn);
+  const lifecycleRetries = useMutation({
+    mutationFn: () => lifecycleRetryFn({}),
+    onSuccess: (result: any) => {
+      toast.success(result.message);
+      void queryClient.invalidateQueries({ queryKey: ["pricing-lifecycle"] });
+      void queryClient.invalidateQueries({ queryKey: ["price-authority"] });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+  const lifecycleReasons: any[] = (lifecycle.data?.["recent_reasons"] as any[]) ?? [];
+
+
   const run = audit.data?.run ?? null;
   const totals = run?.totals;
   const items = audit.data?.items ?? [];
@@ -195,6 +217,104 @@ function CataloguePricingPage() {
           </div>
         }
       />
+
+      <SectionCard
+        title="Publication lifecycle"
+        description="Nothing reaches a customer before its price is proven. A product is priced from the store's own cost of goods, written back, read back and only then marked verified, activated and published to the Online Store and Shop. Anything unverified stays a draft."
+        actions={
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => lifecycleRetries.mutate()}
+            disabled={lifecycleRetries.isPending}
+          >
+            <RefreshCw className="mr-2 h-4 w-4" />
+            {lifecycleRetries.isPending ? "Retrying" : "Retry held and failed"}
+          </Button>
+        }
+      >
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          <Metric
+            label="Verified"
+            value={String(lifecycle.data?.["verified"] ?? 0)}
+            hint="Price written and read back identical"
+          />
+          <Metric
+            label="Pending"
+            value={String(
+              Number(lifecycle.data?.["pending"] ?? 0) + Number(lifecycle.data?.["untracked_products"] ?? 0),
+            )}
+            hint="Waiting for a pricing pass"
+          />
+          <Metric
+            label="Processing"
+            value={String(lifecycle.data?.["processing"] ?? 0)}
+            hint="Being priced right now"
+          />
+          <Metric
+            label="Held"
+            value={String(lifecycle.data?.["held"] ?? 0)}
+            hint="No usable cost of goods, never guessed"
+          />
+          <Metric
+            label="Error"
+            value={String(lifecycle.data?.["error"] ?? 0)}
+            hint="Write or read back disagreed"
+          />
+        </div>
+        <p className="mt-3 text-xs text-muted-foreground">
+          Formula {String(lifecycle.data?.["formula_version"] ?? "unknown")}. Last priced{" "}
+          {lifecycle.data?.["last_priced_at"]
+            ? new Date(String(lifecycle.data["last_priced_at"])).toLocaleString("en-GB")
+            : "never"}
+          . Last verified{" "}
+          {lifecycle.data?.["last_verified_at"]
+            ? new Date(String(lifecycle.data["last_verified_at"])).toLocaleString("en-GB")
+            : "never"}
+          . {String(lifecycle.data?.["retry_due"] ?? 0)} due a retry,{" "}
+          {String(lifecycle.data?.["stale_formula"] ?? 0)} on an older formula.
+        </p>
+        {lifecycleReasons.length > 0 ? (
+          <Table className="mt-4">
+            <TableHeader>
+              <TableRow>
+                <TableHead>Product</TableHead>
+                <TableHead>State</TableHead>
+                <TableHead>Reason</TableHead>
+                <TableHead>Attempts</TableHead>
+                <TableHead>Outcome</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {lifecycleReasons.map((row) => (
+                <TableRow key={String(row.shopify_product_id)}>
+                  <TableCell className="font-mono text-xs">
+                    {String(row.shopify_product_id).split("/").pop()}
+                  </TableCell>
+                  <TableCell>
+                    <StatusPill
+                      tone={
+                        row.status === "held" ? "pending" : row.status === "error" ? "warning" : "neutral"
+                      }
+                    >
+                      {String(row.status)}
+                    </StatusPill>
+                  </TableCell>
+
+                  <TableCell className="max-w-md text-xs text-muted-foreground">
+                    {row.reason ? String(row.reason) : "No reason recorded"}
+                  </TableCell>
+                  <TableCell className="text-xs">{String(row.attempts ?? 0)}</TableCell>
+                  <TableCell className="max-w-xs text-xs text-muted-foreground">
+                    {[row.activation_result, row.publication_result].filter(Boolean).join("; ") || "Not yet published"}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        ) : null}
+      </SectionCard>
+
 
       <SectionCard
         title="Price authority"
