@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import type {
+  StorefrontCategory,
   StorefrontCategoryPage,
   StorefrontCollection,
   StorefrontFacets,
@@ -71,6 +72,15 @@ export const listStorefrontCollectionsFn = createServerFn({ method: "GET" })
   .handler(async ({ data }): Promise<StorefrontCollection[]> => {
     const { listStorefrontCollections } = await import("@/lib/public-api/storefront.server");
     return listStorefrontCollections({ withProductsOnly: data.withProductsOnly });
+  });
+
+export const listStorefrontCategoriesFn = createServerFn({ method: "GET" })
+  .inputValidator((input: { withProductsOnly?: boolean } | undefined) => ({
+    withProductsOnly: Boolean(input?.withProductsOnly),
+  }))
+  .handler(async ({ data }): Promise<StorefrontCategory[]> => {
+    const { listStorefrontCategories } = await import("@/lib/public-api/storefront.server");
+    return listStorefrontCategories({ withProductsOnly: data.withProductsOnly });
   });
 
 export const getStorefrontCollectionFn = createServerFn({ method: "GET" })

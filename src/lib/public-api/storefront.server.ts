@@ -454,6 +454,58 @@ export async function listStorefrontCollections(options?: {
 }
 
 
+/**
+ * Storefront category tiles for the homepage rail. Counts and cover images
+ * come from the local storefront snapshot keyed by the canonical NUR taxonomy
+ * slug, never from Shopify/Zendrop product_type or collection labels, so a
+ * supplier mis-labelled product can never surface under the wrong aisle.
+ */
+export interface StorefrontCategory {
+  slug: string;
+  name: string;
+  description: string | null;
+  image_url: string | null;
+  product_count: number;
+}
+
+export async function listStorefrontCategories(options?: {
+  withProductsOnly?: boolean;
+}): Promise<StorefrontCategory[]> {
+  const supabase = await publicClient();
+  const all = await cached("categories", async () => {
+    const { data, error } = await supabase
+      .from("storefront_snapshot")
+      .select("category_slug, category_name, image_url")
+      .not("category_slug", "is", null);
+    if (error) throw new Error(error.message);
+    const rows = (data ?? []) as Array<{
+      category_slug: string | null;
+      category_name: string | null;
+      image_url: string | null;
+    }>;
+    const bySlug = new Map<string, { count: number; name: string; cover: string | null }>();
+    for (const row of rows) {
+      if (!row.category_slug) continue;
+      const entry = bySlug.get(row.category_slug) ?? {
+        count: 0,
+        name: row.category_name ?? row.category_slug,
+        cover: null,
+      };
+      entry.count += 1;
+      if (!entry.cover && row.image_url) entry.cover = row.image_url;
+      bySlug.set(row.category_slug, entry);
+    }
+    return [...bySlug.entries()].map(([slug, entry]) => ({
+      slug,
+      name: entry.name,
+      description: null,
+      image_url: entry.cover,
+      product_count: entry.count,
+    }));
+  });
+  return options?.withProductsOnly ? all.filter((c) => c.product_count > 0) : all;
+}
+
 export async function getStorefrontCollection(handle: string): Promise<StorefrontCollection | null> {
   const supabase = await publicClient();
   const { data, error } = await supabase
