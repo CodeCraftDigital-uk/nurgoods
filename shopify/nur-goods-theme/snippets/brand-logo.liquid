@@ -24,6 +24,7 @@
   endif
 
   assign width = height | times: ratio | round
+  assign retina_height = height | times: 2
 
   if surface == 'dark'
     assign custom = settings.logo_dark
@@ -32,7 +33,7 @@
   endif
 -%}
 {%- if custom != blank -%}
-  <img src="{{ custom | image_url: height: height | times: 2 }}" alt="{{ shop.name | escape }}" height="{{ height }}" style="height:{{ height }}px;width:auto" class="{{ class }}">
+  <img src="{{ custom | image_url: height: retina_height }}" alt="{{ shop.name | escape }}" height="{{ height }}" style="height:{{ height }}px;width:auto" class="{{ class }}">
 {%- else -%}
   <img src="{{ file | asset_url }}" alt="{{ shop.name | escape }}" width="{{ width }}" height="{{ height }}" style="height:{{ height }}px;width:auto" class="{{ class }}">
 {%- endif -%}

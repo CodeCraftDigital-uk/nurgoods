@@ -40,9 +40,7 @@
 
   <div class="header__nav-row">
     <nav class="nav" aria-label="Primary">
-      {%- for link in section.settings.menu.links -%}
-        <a class="nav__link" href="{{ link.url }}"{% if link.active %} aria-current="page"{% endif %}>{{ link.title }}</a>
-      {%- endfor -%}
+      {% render 'primary-nav', menu: section.settings.menu, link_class: 'nav__link' %}
     </nav>
   </div>
 </header>
@@ -58,9 +56,7 @@
       {% render 'search-form', id: 'menu-search', compact: true, placeholder: 'Search products' %}
     </div>
     <nav aria-label="Primary mobile" style="margin-top:1rem">
-      {%- for link in section.settings.menu.links -%}
-        <a class="mobile-menu__link" href="{{ link.url }}"{% if link.active %} aria-current="page"{% endif %}>{{ link.title }}</a>
-      {%- endfor -%}
+      {% render 'primary-nav', menu: section.settings.menu, link_class: 'mobile-menu__link' %}
     </nav>
     {%- if settings.support_email != blank -%}
       <a href="mailto:{{ settings.support_email }}" style="display:inline-block;margin-top:1.5rem;font-size:.875rem;color:var(--muted-foreground)">{{ settings.support_email }}</a>
@@ -92,13 +88,13 @@
     {
       "type": "service",
       "name": "Service cue",
-      "settings": [{ "type": "text", "id": "text", "label": "Text", "default": "Free delivery to the United Kingdom and the United States" }]
+      "settings": [{ "type": "text", "id": "text", "label": "Text", "default": "Free delivery in the United Kingdom and the United States" }]
     }
   ],
   "default": {
     "settings": {},
     "blocks": [
-      { "type": "service", "settings": { "text": "Free delivery to the United Kingdom and the United States" } },
+      { "type": "service", "settings": { "text": "Free delivery in the United Kingdom and the United States" } },
       { "type": "service", "settings": { "text": "Secure checkout on the NUR GOODS store" } },
       { "type": "service", "settings": { "text": "Support from a person at support@nurgoods.com" } }
     ]
