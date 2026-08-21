@@ -15,7 +15,6 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 
 const PRIMARY_NAV = [
   { label: "Store", to: "/store" },
-  { label: "Collections", to: "/collections" },
   { label: "Journal", to: "/journal" },
   { label: "Reviews", to: "/reviews" },
   { label: "AI Connectors", to: "/ai-connectors" },
@@ -247,10 +246,11 @@ export function PublicShell({ children }: { children: ReactNode }) {
               </li>
               <li>
                 <Link
-                  to="/collections"
+                  to="/store"
+                  search={{ sort: "newest" } as never}
                   className="inline-flex min-h-8 items-center text-muted-foreground hover:text-brand"
                 >
-                  Shop by category
+                  Recently added
                 </Link>
               </li>
               <li>

@@ -7,7 +7,7 @@ import { AiConnectorBanner } from "@/components/public/AiConnectorBanner";
 import { JsonLd } from "@/components/public/JsonLd";
 import { ReviewPlacementSlot } from "@/components/public/ReviewPlacementSlot";
 import { ProductCard, ProductCardSkeleton } from "@/components/public/ProductCard";
-import { CollectionTile, CollectionTileSkeleton } from "@/components/public/CollectionTile";
+import { CategoryCarousel } from "@/components/public/CategoryCarousel";
 import { BRAND } from "@/lib/brand";
 import { BRAND_ICONS, BRAND_SOCIAL_IMAGE } from "@/lib/brand-assets";
 
@@ -141,15 +141,19 @@ function Index() {
 
 
   const newestItems = newest.data?.items ?? [];
-  const browseItems = browse.data?.items ?? [];
+  // Every category that currently holds at least one publicly sellable
+  // listing. Empty categories are filtered out by the read model itself.
   const collectionItems = [...(collections.data ?? [])]
-    .sort((a, b) => b.product_count - a.product_count || a.title.localeCompare(b.title))
-    .slice(0, 8);
+    .filter((collection) => collection.product_count > 0)
+    .sort((a, b) => b.product_count - a.product_count || a.title.localeCompare(b.title));
   const articleItems = (articles.data ?? []).slice(0, 3);
   const heroImages = newestItems
     .map((product) => product.image_url)
     .filter((url): url is string => Boolean(url))
     .slice(0, 3);
+  // Live count of publicly sellable listings. Both queries return the exact
+  // row count of the storefront snapshot, so this tracks the read model rather
+  // than raw store rows and never needs a hard coded number.
   const totalProducts = browse.data?.total ?? newest.data?.total ?? 0;
 
   return (
@@ -235,16 +239,16 @@ function Index() {
               >
                 Browse the range
               </Link>
-              <Link
-                to="/collections"
+              <a
+                href="#categories"
                 className="inline-flex min-h-12 items-center rounded-2xl border border-white/30 bg-white/10 px-6 text-sm font-semibold text-navy-foreground backdrop-blur transition-colors hover:bg-white/20"
               >
                 Shop by category
-              </Link>
+              </a>
             </div>
             {totalProducts > 0 ? (
               <p className="mt-6 text-xs font-medium uppercase tracking-[0.2em] text-navy-foreground/70">
-                {totalProducts} products listed from the live store
+                {totalProducts.toLocaleString("en-GB")} products available to buy right now
               </p>
             ) : null}
           </div>
@@ -298,41 +302,6 @@ function Index() {
             </div>
           </div>
         </div>
-      </section>
-
-
-      {/* Categories */}
-      <section className="mx-auto mt-16 w-full max-w-7xl px-5 sm:mt-24 sm:px-8" aria-labelledby="categories">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h2 id="categories" className="font-brand text-[1.7rem] text-foreground sm:text-[2rem]">
-              Shop by category
-            </h2>
-            <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">
-              Categories come straight from the store, so each one only appears when there is
-              something in it.
-            </p>
-          </div>
-          <Link
-            to="/collections"
-            className="inline-flex min-h-11 items-center text-sm font-medium text-foreground underline decoration-gold underline-offset-4"
-          >
-            All categories
-          </Link>
-        </div>
-        <ul className="mt-6 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-          {collections.isLoading
-            ? [0, 1, 2, 3, 4, 5, 6, 7].map((index) => (
-                <li key={index}>
-                  <CollectionTileSkeleton />
-                </li>
-              ))
-            : collectionItems.map((collection) => (
-                <li key={collection.id}>
-                  <CollectionTile collection={collection} />
-                </li>
-              ))}
-        </ul>
       </section>
 
       {/* New in */}
@@ -389,32 +358,30 @@ function Index() {
         </div>
       </section>
 
-      {/* A to Z of the range */}
-      {browseItems.length > 0 ? (
-        <section
-          className="mx-auto mt-16 w-full max-w-7xl px-5 sm:mt-24 sm:px-8"
-          aria-labelledby="from-the-range"
-        >
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <h2 id="from-the-range" className="font-brand text-[1.7rem] text-foreground sm:text-[2rem]">
-              From the range
+      {/* Categories */}
+      <section className="mx-auto mt-16 w-full max-w-7xl px-5 sm:mt-24 sm:px-8" aria-labelledby="categories">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 id="categories" className="font-brand text-[1.7rem] text-foreground sm:text-[2rem]">
+              Shop by category
             </h2>
-            <Link
-              to="/store"
-              className="inline-flex min-h-11 items-center text-sm font-medium text-foreground underline decoration-gold underline-offset-4"
-            >
-              See everything
-            </Link>
+            <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">
+              Every category with something in it, swipe or use the arrows to see them all.
+            </p>
           </div>
-          <ul className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
-            {browseItems.slice(0, 4).map((product) => (
-              <li key={product.id}>
-                <ProductCard product={product} />
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
+          <Link
+            to="/store"
+            className="inline-flex min-h-11 items-center text-sm font-medium text-foreground underline decoration-gold underline-offset-4"
+          >
+            Browse all products
+          </Link>
+        </div>
+        <div className="mt-6">
+          <CategoryCarousel collections={collectionItems} loading={collections.isLoading} />
+        </div>
+      </section>
+
+
 
       {/* Service cues */}
       <section className="mx-auto mt-16 w-full max-w-7xl px-5 sm:mt-24 sm:px-8" aria-labelledby="service">
