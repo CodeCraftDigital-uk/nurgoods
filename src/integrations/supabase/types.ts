@@ -1805,6 +1805,27 @@ export type Database = {
         }
         Relationships: []
       }
+      pricing_formula_policy: {
+        Row: {
+          created_at: string
+          formula_version: string
+          id: boolean
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          formula_version: string
+          id?: boolean
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          formula_version?: string
+          id?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       product_classification_history: {
         Row: {
           actor: string | null
@@ -4217,6 +4238,7 @@ export type Database = {
           product_id: string
         }[]
       }
+      pricing_gate_stats: { Args: never; Returns: Json }
       public_legal_references: {
         Args: never
         Returns: {
