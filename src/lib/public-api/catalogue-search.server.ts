@@ -82,8 +82,12 @@ export interface CatalogueSearchResult {
 
 interface IndexEntry {
   card: StorefrontProductCard;
+  /** Precomputed searchable text from the storefront projection. */
   haystack: string;
+  haystackTokens: string[];
   titleLower: string;
+  /** Category, type, vendor, tags and collection names. */
+  secondary: string;
   categorySlug: string | null;
   collections: string[];
   tagsLower: string[];
@@ -97,6 +101,7 @@ interface CatalogueIndex {
   collectionTitles: Map<string, string>;
   builtAt: number;
 }
+
 
 const INDEX_TTL_MS = 60_000;
 let indexCache: CatalogueIndex | null = null;
@@ -144,30 +149,24 @@ function withinOneEdit(a: string, b: string): boolean {
 async function buildIndex(): Promise<CatalogueIndex> {
   const supabase = await publicClient();
 
-  const [{ data: suppressedRows }, { data: intakeRows }, { data: productRows }, { data: categoryRows }] =
+  // The storefront projection already excludes suppressed duplicates, listings
+  // held by intake and anything not published, and it carries a precomputed
+  // `search_text` covering title, description, summary, category, tags,
+  // collections, SEO fields and variant/SKU values. One indexed local read is
+  // therefore enough: no live store, supplier or model call is ever made.
+  const [{ data: snapshotRows }, { data: categoryRows }, { data: collectionRows }] =
     await Promise.all([
-      supabase.rpc("public_suppressed_products"),
-      supabase.rpc("hidden_intake_product_ids"),
       supabase
-        .from("shopify_products")
+        .from("storefront_snapshot")
         .select(
-          "id, handle, title, product_type, vendor, tags, featured_image_url, price_min, price_max, currency, compare_at_price_min, available_for_sale, variant_count, description, shopify_updated_at, last_synced_at",
+          "product_id, handle, title, product_type, vendor, tags, category_slug, category_name, image_url, price_min, price_max, currency, compare_at_price_min, available_for_sale, variant_count, summary, collection_handles, search_text, updated_at",
         )
-        .limit(2000),
+        .limit(5000),
       supabase.from("catalogue_categories").select("id, slug, name, parent_id").eq("enabled", true),
+      supabase.from("shopify_collections").select("handle, title").limit(500),
     ]);
 
-  const suppressed = new Set(((suppressedRows ?? []) as any[]).map((row) => row.product_id as string));
-  for (const row of ((intakeRows ?? []) as any[])) {
-    const value = typeof row === "string" ? row : (row as any)?.product_id;
-    if (value) suppressed.add(value as string);
-  }
-  const products = ((productRows ?? []) as any[]).filter(
-    (row) => !suppressed.has(row.id) && !isProhibitedRow(row as any),
-  );
-
-
-  const productIds = products.map((row) => row.id as string);
+  const rows = ((snapshotRows ?? []) as any[]).filter((row) => !isProhibitedRow(row as any));
 
   const nodes = (categoryRows ?? []) as Array<{
     id: string;
@@ -196,82 +195,52 @@ async function buildIndex(): Promise<CatalogueIndex> {
     branchOf.set(node.slug, out);
   }
 
-  const [{ data: classifications }, { data: enrichment }, { data: joins }, { data: collections }] =
-    await Promise.all([
-      productIds.length
-        ? supabase
-            .from("product_classifications")
-            .select("product_id, category_slug")
-            .in("product_id", productIds)
-        : Promise.resolve({ data: [] as any[] }),
-      productIds.length
-        ? supabase.from("product_enrichment").select("product_id, summary").in("product_id", productIds)
-        : Promise.resolve({ data: [] as any[] }),
-      supabase.from("shopify_product_collections").select("collection_id, product_id").limit(5000),
-      supabase.from("shopify_collections").select("id, handle, title").limit(200),
-    ]);
-
-  const categoryByProduct = new Map<string, string>();
-  for (const row of (classifications ?? []) as any[]) {
-    if (row.category_slug) categoryByProduct.set(row.product_id, row.category_slug);
-  }
-  const summaryByProduct = new Map<string, string>();
-  for (const row of (enrichment ?? []) as any[]) {
-    if (typeof row.summary === "string" && row.summary.trim()) {
-      summaryByProduct.set(row.product_id, row.summary.trim());
-    }
-  }
-  const collectionById = new Map(
-    ((collections ?? []) as any[]).map((row) => [row.id as string, row as { handle: string; title: string }]),
-  );
   const collectionTitles = new Map<string, string>();
-  const collectionsByProduct = new Map<string, string[]>();
-  for (const join of (joins ?? []) as any[]) {
-    const collection = collectionById.get(join.collection_id);
-    if (!collection || suppressed.has(join.product_id)) continue;
-    collectionTitles.set(collection.handle, collection.title);
-    collectionsByProduct.set(join.product_id, [
-      ...(collectionsByProduct.get(join.product_id) ?? []),
-      collection.handle,
-    ]);
+  for (const row of ((collectionRows ?? []) as any[])) {
+    if (row.handle) collectionTitles.set(row.handle as string, (row.title as string) ?? row.handle);
   }
 
-  const nameBySlug = new Map(nodes.map((node) => [node.slug, node.name]));
-
-  const entries: IndexEntry[] = products.map((row) => {
-    const categorySlug = categoryByProduct.get(row.id) ?? null;
-    const categoryName = categorySlug ? (nameBySlug.get(categorySlug) ?? null) : null;
-    const tags: string[] = Array.isArray(row.tags) ? row.tags.filter((tag: unknown) => typeof tag === "string") : [];
-    const summary = summaryByProduct.get(row.id) ?? null;
+  const entries: IndexEntry[] = rows.map((row) => {
+    const tags: string[] = Array.isArray(row.tags)
+      ? row.tags.filter((tag: unknown) => typeof tag === "string")
+      : [];
+    const productCollections: string[] = Array.isArray(row.collection_handles)
+      ? row.collection_handles.filter((handle: unknown) => typeof handle === "string")
+      : [];
     const card: StorefrontProductCard = {
-      id: row.id,
+      id: row.product_id,
       handle: row.handle,
       title: row.title,
       product_type: row.product_type ?? null,
-      category_slug: categorySlug,
-      category_name: categoryName,
+      category_slug: row.category_slug ?? null,
+      category_name: row.category_name ?? null,
       vendor: row.vendor ?? null,
       tags,
-      image_url: row.featured_image_url ?? null,
+      image_url: row.image_url ?? null,
       price_min: row.price_min ?? null,
       price_max: row.price_max ?? null,
       currency: row.currency ?? null,
       variant_count: row.variant_count ?? 0,
       compare_at_price_min: row.compare_at_price_min ?? null,
       available_for_sale: row.available_for_sale ?? null,
-      summary,
-      updated_at: row.shopify_updated_at ?? row.last_synced_at ?? null,
+      summary: typeof row.summary === "string" && row.summary.trim() ? row.summary : null,
+      updated_at: row.updated_at ?? null,
     };
-    const productCollections = collectionsByProduct.get(row.id) ?? [];
     const haystack = normalise(
       [
-        row.title,
-        categoryName,
+        typeof row.search_text === "string" ? row.search_text : "",
+        productCollections.map((handle) => collectionTitles.get(handle) ?? handle).join(" "),
+      ]
+        .filter(Boolean)
+        .join(" "),
+    );
+    const secondary = normalise(
+      [
+        row.category_name,
+        row.category_slug,
         row.product_type,
         row.vendor,
         tags.join(" "),
-        summary,
-        typeof row.description === "string" ? row.description.slice(0, 1200) : "",
         productCollections.map((handle) => collectionTitles.get(handle) ?? handle).join(" "),
       ]
         .filter(Boolean)
@@ -280,8 +249,10 @@ async function buildIndex(): Promise<CatalogueIndex> {
     return {
       card,
       haystack,
+      haystackTokens: haystack ? haystack.split(" ") : [],
       titleLower: normalise(row.title ?? ""),
-      categorySlug,
+      secondary,
+      categorySlug: row.category_slug ?? null,
       collections: productCollections,
       tagsLower: tags.map((tag) => tag.toLowerCase()),
       updatedMs: Date.parse(card.updated_at ?? "") || 0,
@@ -301,6 +272,7 @@ async function buildIndex(): Promise<CatalogueIndex> {
   };
 }
 
+
 async function getIndex(): Promise<CatalogueIndex> {
   if (indexCache && Date.now() - indexCache.builtAt < INDEX_TTL_MS) return indexCache;
   if (!indexPromise) {
@@ -316,20 +288,43 @@ async function getIndex(): Promise<CatalogueIndex> {
   return indexPromise;
 }
 
+/**
+ * Field weighted relevance. A token has to be found somewhere in the indexed
+ * content, but it can match a whole word, the start of a word or a substring,
+ * and short typos are tolerated. Title and primary keyword hits rank highest,
+ * then category, tags and collections, then description and variant text.
+ */
 function scoreEntry(entry: IndexEntry, tokens: string[]): number {
   let score = 0;
-  const haystackTokens = entry.haystack.split(" ");
   for (const token of tokens) {
-    if (entry.titleLower.startsWith(token)) score += 12;
-    else if (entry.titleLower.includes(token)) score += 8;
-    if (entry.tagsLower.some((tag) => tag.includes(token))) score += 4;
-    if (entry.haystack.includes(token)) score += 3;
-    else if (token.length >= 4 && haystackTokens.some((word) => withinOneEdit(word, token))) score += 1;
-    else return -1;
+    let hit = 0;
+    const titleWords = entry.titleLower.split(" ");
+    if (titleWords.includes(token)) hit = Math.max(hit, 30);
+    else if (titleWords.some((word) => word.startsWith(token))) hit = Math.max(hit, 24);
+    else if (entry.titleLower.includes(token)) hit = Math.max(hit, 18);
+
+    if (entry.tagsLower.some((tag) => tag.split(/\s+/).includes(token))) hit = Math.max(hit, 14);
+    else if (entry.tagsLower.some((tag) => tag.includes(token))) hit = Math.max(hit, 10);
+
+    if (entry.secondary.includes(token)) hit = Math.max(hit, 12);
+
+    if (entry.haystackTokens.includes(token)) hit = Math.max(hit, 8);
+    else if (entry.haystackTokens.some((word) => word.startsWith(token))) hit = Math.max(hit, 6);
+    else if (entry.haystack.includes(token)) hit = Math.max(hit, 4);
+    else if (
+      token.length >= 4 &&
+      entry.haystackTokens.some((word) => withinOneEdit(word, token))
+    ) {
+      hit = Math.max(hit, 2);
+    }
+
+    if (hit === 0) return -1;
+    score += hit;
   }
   if (entry.card.available_for_sale) score += 1;
   return score;
 }
+
 
 function matches(entry: IndexEntry, input: CatalogueQuery, branch: string[] | null): boolean {
   if (branch && (!entry.categorySlug || !branch.includes(entry.categorySlug))) return false;

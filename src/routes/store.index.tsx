@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Search, X } from "lucide-react";
 import { PublicShell } from "@/components/public/PublicShell";
 import { Breadcrumbs } from "@/components/public/Breadcrumbs";
@@ -113,7 +113,6 @@ function StoreIndex() {
   const initialPage = loaderData?.page ?? null;
   const navigate = useNavigate({ from: "/store/" });
   const [term, setTerm] = useState(search.q ?? "");
-  const [expanded, setExpanded] = useState(false);
   const [suggestOpen, setSuggestOpen] = useState(false);
   const [offset, setOffset] = useState(0);
   const [loaded, setLoaded] = useState<StoreCard[]>(initialPage?.items ?? []);
@@ -234,25 +233,11 @@ function StoreIndex() {
   const hasMore = items.length > 0 && items.length < total;
   const facets = results.data?.facets;
   const categories = facets?.categories ?? [];
-  const tags = facets?.tags ?? [];
-  const collections = facets?.collections ?? [];
-  const currency = facets?.price.currency ?? "GBP";
   const filtered = Boolean(
     search.q || search.category || search.collection || search.tag || search.max || search.instock,
   );
 
-  const priceSteps = useMemo(() => {
-    const max = facets?.price.max ?? 0;
-    if (!max) return [] as number[];
-    return [10, 20, 30, 50, 100].filter((step) => step < max);
-  }, [facets?.price.max]);
 
-  const formatPrice = (value: number) =>
-    new Intl.NumberFormat("en-GB", {
-      style: "currency",
-      currency,
-      maximumFractionDigits: 0,
-    }).format(value);
 
   const clearAll = () =>
     setSearch({
@@ -445,7 +430,7 @@ function StoreIndex() {
                 >
                   All
                 </button>
-                {categories.slice(0, expanded ? categories.length : 18).map((category) => (
+                {categories.map((category) => (
                   <button
                     key={category.slug}
                     type="button"
@@ -483,110 +468,18 @@ function StoreIndex() {
           ) : null}
 
 
-          <div className="mt-6 flex flex-wrap items-center gap-2">
-            <h2 className="mr-1 text-[0.65rem] uppercase tracking-[0.2em] text-muted-foreground">
-              Price and stock
-            </h2>
-            {priceSteps.map((step) => (
-              <button
-                key={step}
-                type="button"
-                onClick={() => setSearch({ max: search.max === step ? undefined : step })}
-                aria-pressed={search.max === step}
-                className={chip(search.max === step)}
-              >
-                Under {formatPrice(step)}
-              </button>
-            ))}
-            <button
-              type="button"
-              onClick={() => setSearch({ instock: search.instock ? undefined : true })}
-              aria-pressed={Boolean(search.instock)}
-              className={chip(Boolean(search.instock))}
-            >
-              In stock
-              {facets ? <span className="text-[0.65rem] opacity-70">{facets.available}</span> : null}
-            </button>
-          </div>
-
-          {collections.length > 0 ? (
-            <div className="mt-6">
-              <h2 className="text-[0.65rem] uppercase tracking-[0.2em] text-muted-foreground">
-                Collections
-              </h2>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => setSearch({ collection: undefined })}
-                  aria-pressed={!search.collection}
-                  className={chip(!search.collection)}
-                >
-                  All
-                </button>
-                {collections.slice(0, expanded ? collections.length : 12).map((collection) => (
-                  <button
-                    key={collection.handle}
-                    type="button"
-                    onClick={() =>
-                      setSearch({
-                        collection:
-                          search.collection === collection.handle ? undefined : collection.handle,
-                      })
-                    }
-                    aria-pressed={search.collection === collection.handle}
-                    className={chip(search.collection === collection.handle)}
-                  >
-                    {collection.title}
-                    <span className="text-[0.65rem] opacity-70">{collection.products}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          ) : null}
-
-          {tags.length > 0 ? (
-            <div className="mt-6">
-              <h2 className="text-[0.65rem] uppercase tracking-[0.2em] text-muted-foreground">
-                Popular tags
-              </h2>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {tags.slice(0, expanded ? tags.length : 12).map((tag) => (
-                  <button
-                    key={tag.tag}
-                    type="button"
-                    onClick={() => setSearch({ tag: search.tag === tag.tag ? undefined : tag.tag })}
-                    aria-pressed={search.tag === tag.tag}
-                    className={chip(search.tag === tag.tag)}
-                  >
-                    {tag.tag}
-                    <span className="text-[0.65rem] opacity-70">{tag.products}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          ) : null}
-
-          <div className="mt-5 flex flex-wrap gap-3">
-            {categories.length > 18 || collections.length > 12 || tags.length > 12 ? (
-              <button
-                type="button"
-                onClick={() => setExpanded((value) => !value)}
-                aria-expanded={expanded}
-                className="inline-flex min-h-10 items-center rounded-xl border border-input bg-surface px-4 text-xs font-semibold text-foreground transition-colors hover:border-brand/50"
-              >
-                {expanded ? "Show fewer filters" : "Show all filters"}
-              </button>
-            ) : null}
-            {filtered ? (
+          {filtered ? (
+            <div className="mt-5">
               <button
                 type="button"
                 onClick={clearAll}
                 className="inline-flex min-h-10 items-center rounded-xl border border-input bg-surface px-4 text-xs font-semibold text-foreground transition-colors hover:border-brand/50"
               >
-                Reset everything
+                Reset search
               </button>
-            ) : null}
-          </div>
+            </div>
+          ) : null}
+
         </div>
       </div>
 
@@ -653,20 +546,6 @@ function StoreIndex() {
             ) : null}
           </>
         )}
-
-        <div className="glass-card mt-14 rounded-3xl p-7 sm:p-9">
-          <h2 className="font-display text-2xl text-foreground">Browse by collection</h2>
-          <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">
-            Collections group the range by how the products are used, which is often a faster way
-            in than searching.
-          </p>
-          <Link
-            to="/collections"
-            className="mt-5 inline-flex min-h-11 items-center rounded-lg border border-input px-5 text-sm font-medium text-foreground transition-colors hover:bg-accent"
-          >
-            See collections
-          </Link>
-        </div>
       </div>
     </PublicShell>
   );
