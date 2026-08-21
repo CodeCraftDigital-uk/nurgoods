@@ -392,3 +392,57 @@ export async function holdProductOffSalesChannels(
     message: `Removed from ${current.map((channel) => channel.name).join(", ")}`,
   };
 }
+
+/**
+ * Withdraws one product from the two customer facing store channels, the
+ * Online Store and Shop, while leaving the headless channel and Point of Sale
+ * state untouched.
+ *
+ * This is the fail closed half of the pricing publication gate: a product that
+ * arrives before its price has been calculated and verified stops being
+ * sellable to customers immediately, without changing its status, price,
+ * variants or inventory. A later gate pass puts it back on the approved
+ * channels once pricing verifies.
+ */
+export async function withdrawCustomerChannels(
+  shopifyProductId: string,
+  options: { dryRun?: boolean } = {},
+): Promise<HoldResult> {
+  const state = await readProductPublicationState(shopifyProductId);
+  const current = state.channels.filter(
+    (channel) =>
+      state.publishedIds.includes(channel.id) &&
+      (classifyChannel(channel.name) === "online_store" || classifyChannel(channel.name) === "shop"),
+  );
+  if (current.length === 0) {
+    return {
+      removed: [],
+      alreadyUnpublished: true,
+      message: "Already off the Online Store and Shop",
+    };
+  }
+  if (options.dryRun) {
+    return {
+      removed: current.map((channel) => channel.name),
+      alreadyUnpublished: false,
+      message: "Dry run. No change was made in the store",
+    };
+  }
+
+  const credentials = await intakeCredentials();
+  const result: any = await shopifyGraphql(credentials, UNPUBLISH_MUTATION, {
+    id: shopifyProductId,
+    input: current.map((channel) => ({ publicationId: channel.id })),
+  });
+  const errors = (result?.publishableUnpublish?.userErrors ?? []).map((error: any) =>
+    String(error?.message ?? "Unpublishing failed"),
+  );
+  if (errors.length > 0) {
+    return { removed: [], alreadyUnpublished: false, message: errors.join(" ") };
+  }
+  return {
+    removed: current.map((channel) => channel.name),
+    alreadyUnpublished: false,
+    message: `Withdrawn from ${current.map((channel) => channel.name).join(", ")} while pricing is pending`,
+  };
+}
