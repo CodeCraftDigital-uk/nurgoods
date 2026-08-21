@@ -999,3 +999,51 @@ export async function getStorefrontCategory(
     items: page.items,
   };
 }
+
+export interface StorefrontStats {
+  /** Publicly sellable listings in the local storefront projection. */
+  products: number;
+  /** Variants belonging to those same listings. */
+  variants: number;
+  /** When the projection these figures come from was last rebuilt. */
+  refreshed_at: string | null;
+}
+
+const STATS_PAGE = 1000;
+const STATS_MAX_PAGES = 40;
+
+/**
+ * Catalogue size, read only from the local storefront projection. Held,
+ * suppressed, draft and otherwise non sellable records never enter that
+ * projection, so both figures are sellable by construction and move only when
+ * a snapshot rebuild lands. No upstream call happens on render.
+ */
+export async function getStorefrontStats(): Promise<StorefrontStats> {
+  return cached("storefront-stats", async () => {
+    const supabase = await publicClient();
+
+    const [{ count }, { data: meta }] = await Promise.all([
+      supabase.from("storefront_snapshot").select("product_id", { count: "exact", head: true }),
+      supabase.from("storefront_snapshot_meta").select("refreshed_at").maybeSingle(),
+    ]);
+
+    let variants = 0;
+    for (let page = 0; page < STATS_MAX_PAGES; page += 1) {
+      const from = page * STATS_PAGE;
+      const { data, error } = await supabase
+        .from("storefront_snapshot")
+        .select("variant_count")
+        .range(from, from + STATS_PAGE - 1);
+      if (error) break;
+      const rows = (data ?? []) as { variant_count: number | null }[];
+      for (const row of rows) variants += row.variant_count ?? 0;
+      if (rows.length < STATS_PAGE) break;
+    }
+
+    return {
+      products: count ?? 0,
+      variants,
+      refreshed_at: (meta as { refreshed_at?: string | null } | null)?.refreshed_at ?? null,
+    };
+  });
+}

@@ -99,3 +99,10 @@ export const getStorefrontCategoryFn = createServerFn({ method: "GET" })
     const { getStorefrontCategory } = await import("@/lib/public-api/storefront.server");
     return getStorefrontCategory(data.slug, { limit: data.limit, offset: data.offset });
   });
+
+export const getStorefrontStatsFn = createServerFn({ method: "GET" }).handler(
+  async (): Promise<import("@/lib/public-api/storefront.server").StorefrontStats> => {
+    const { getStorefrontStats } = await import("@/lib/public-api/storefront.server");
+    return getStorefrontStats();
+  },
+);
