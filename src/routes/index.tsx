@@ -14,7 +14,7 @@ import { BRAND_ICONS, BRAND_SOCIAL_IMAGE } from "@/lib/brand-assets";
 import { listPublicArticles } from "@/lib/services/public-content.functions";
 import {
   getStorefrontStatsFn,
-  listStorefrontCollectionsFn,
+  listStorefrontCategoriesFn,
   listStorefrontProductsFn,
 } from "@/lib/services/storefront.functions";
 
@@ -78,14 +78,14 @@ export const Route = createFileRoute("/")({
     // React Query instead of blocking the route transition on the server.
     if (typeof window !== "undefined") return null;
     try {
-      const [newest, browse, collections, articles, stats] = await Promise.all([
+      const [newest, browse, categories, articles, stats] = await Promise.all([
         listStorefrontProductsFn({ data: { limit: 8, sort: "newest" } }),
         listStorefrontProductsFn({ data: { limit: 8, sort: "featured" } }),
-        listStorefrontCollectionsFn({ data: { withProductsOnly: true } }),
+        listStorefrontCategoriesFn({ data: { withProductsOnly: true } }),
         listPublicArticles({}),
         getStorefrontStatsFn({}),
       ]);
-      return { newest, browse, collections, articles, stats };
+      return { newest, browse, categories, articles, stats };
     } catch {
       return null;
     }
@@ -113,7 +113,7 @@ const SERVICE_CUES = [
 function Index() {
   const initial = Route.useLoaderData();
   const fetchProducts = useServerFn(listStorefrontProductsFn);
-  const fetchCollections = useServerFn(listStorefrontCollectionsFn);
+  const fetchCategories = useServerFn(listStorefrontCategoriesFn);
   const fetchArticles = useServerFn(listPublicArticles);
   const fetchStats = useServerFn(getStorefrontStatsFn);
 
@@ -129,10 +129,10 @@ function Index() {
     ...(initial ? { initialData: initial.browse } : {}),
     retry: false,
   });
-  const collections = useQuery({
-    queryKey: ["home-collections"],
-    queryFn: () => fetchCollections({ data: { withProductsOnly: true } }),
-    ...(initial ? { initialData: initial.collections } : {}),
+  const categories = useQuery({
+    queryKey: ["home-categories"],
+    queryFn: () => fetchCategories({ data: { withProductsOnly: true } }),
+    ...(initial ? { initialData: initial.categories } : {}),
     retry: false,
   });
   const articles = useQuery({
@@ -156,9 +156,9 @@ function Index() {
   const newestItems = newest.data?.items ?? [];
   // Every category that currently holds at least one publicly sellable
   // listing. Empty categories are filtered out by the read model itself.
-  const collectionItems = [...(collections.data ?? [])]
-    .filter((collection) => collection.product_count > 0)
-    .sort((a, b) => b.product_count - a.product_count || a.title.localeCompare(b.title));
+  const categoryItems = [...(categories.data ?? [])]
+    .filter((category) => category.product_count > 0)
+    .sort((a, b) => b.product_count - a.product_count || a.name.localeCompare(b.name));
   const articleItems = (articles.data ?? []).slice(0, 3);
   const heroImages = newestItems
     .map((product) => product.image_url)
@@ -410,7 +410,7 @@ function Index() {
           </Link>
         </div>
         <div className="mt-6">
-          <CategoryCarousel collections={collectionItems} loading={collections.isLoading} />
+          <CategoryCarousel categories={categoryItems} loading={categories.isLoading} />
         </div>
       </section>
 

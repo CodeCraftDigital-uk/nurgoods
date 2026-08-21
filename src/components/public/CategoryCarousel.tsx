@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { CollectionTile, CollectionTileSkeleton } from "@/components/public/CollectionTile";
-import type { StorefrontCollection } from "@/lib/public-api/storefront.server";
+import { CategoryTile, CategoryTileSkeleton } from "@/components/public/CategoryTile";
+import type { StorefrontCategory } from "@/lib/public-api/storefront.server";
 
 /**
  * Category rail. Every populated category is reachable by swipe, by the arrow
@@ -10,10 +10,10 @@ import type { StorefrontCollection } from "@/lib/public-api/storefront.server";
  * never from a live catalogue call.
  */
 export function CategoryCarousel({
-  collections,
+  categories,
   loading = false,
 }: {
-  collections: StorefrontCollection[];
+  categories: StorefrontCategory[];
   loading?: boolean;
 }) {
   const track = useRef<HTMLUListElement | null>(null);
@@ -29,7 +29,7 @@ export function CategoryCarousel({
 
   useEffect(() => {
     syncEdges();
-  }, [syncEdges, collections.length, loading]);
+  }, [syncEdges, categories.length, loading]);
 
   const scrollBy = (direction: -1 | 1) => {
     const node = track.current;
@@ -45,14 +45,14 @@ export function CategoryCarousel({
       <ul className={rowClasses} aria-busy="true">
         {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map((index) => (
           <li key={index} className="snap-start">
-            <CollectionTileSkeleton />
+            <CategoryTileSkeleton />
           </li>
         ))}
       </ul>
     );
   }
 
-  if (collections.length === 0) return null;
+  if (categories.length === 0) return null;
 
   return (
     <div className="relative">
@@ -63,9 +63,9 @@ export function CategoryCarousel({
         aria-label="Product categories"
         className={`${rowClasses} focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring`}
       >
-        {collections.map((collection, index) => (
-          <li key={collection.id} className="snap-start">
-            <CollectionTile collection={collection} eager={index < 4} />
+        {categories.map((category, index) => (
+          <li key={category.slug} className="snap-start">
+            <CategoryTile category={category} eager={index < 4} />
           </li>
         ))}
       </ul>
