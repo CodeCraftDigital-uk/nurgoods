@@ -2592,6 +2592,69 @@ export type Database = {
           },
         ]
       }
+      product_pricing_lifecycle: {
+        Row: {
+          activation_result: string | null
+          attempts: number
+          created_at: string
+          formula_version: string | null
+          id: string
+          input_hash: string | null
+          last_app_write_at: string | null
+          last_priced_at: string | null
+          next_attempt_at: string | null
+          product_id: string | null
+          publication_result: string | null
+          reason: string | null
+          shopify_product_id: string
+          status: string
+          updated_at: string
+          variants_total: number
+          variants_verified: number
+          verified_at: string | null
+        }
+        Insert: {
+          activation_result?: string | null
+          attempts?: number
+          created_at?: string
+          formula_version?: string | null
+          id?: string
+          input_hash?: string | null
+          last_app_write_at?: string | null
+          last_priced_at?: string | null
+          next_attempt_at?: string | null
+          product_id?: string | null
+          publication_result?: string | null
+          reason?: string | null
+          shopify_product_id: string
+          status?: string
+          updated_at?: string
+          variants_total?: number
+          variants_verified?: number
+          verified_at?: string | null
+        }
+        Update: {
+          activation_result?: string | null
+          attempts?: number
+          created_at?: string
+          formula_version?: string | null
+          id?: string
+          input_hash?: string | null
+          last_app_write_at?: string | null
+          last_priced_at?: string | null
+          next_attempt_at?: string | null
+          product_id?: string | null
+          publication_result?: string | null
+          reason?: string | null
+          shopify_product_id?: string
+          status?: string
+          updated_at?: string
+          variants_total?: number
+          variants_verified?: number
+          verified_at?: string | null
+        }
+        Relationships: []
+      }
       product_seo_intelligence: {
         Row: {
           auto_published: boolean
@@ -4239,6 +4302,7 @@ export type Database = {
         }[]
       }
       pricing_gate_stats: { Args: never; Returns: Json }
+      pricing_lifecycle_stats: { Args: never; Returns: Json }
       public_legal_references: {
         Args: never
         Returns: {

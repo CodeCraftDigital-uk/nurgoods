@@ -55,6 +55,12 @@ export interface ActivationPort {
    * every required market. Fails closed.
    */
   checkSellable(shopifyProductId: string): Promise<{ sellable: boolean; message: string }>;
+  /**
+   * Proves the pricing service has written and read back the approved price on
+   * the formula currently in force. Fails closed.
+   */
+  checkPricingVerified(shopifyProductId: string): Promise<boolean>;
+
 }
 
 /** The real store adapter. */
@@ -94,7 +100,12 @@ export const shopifyActivationPort: ActivationPort = {
     const verdict = await productSellability(shopifyProductId);
     return { sellable: verdict.sellable, message: verdict.message };
   },
+  async checkPricingVerified(shopifyProductId) {
+    const { isPricingVerified } = await import("../pricing/lifecycle.server");
+    return isPricingVerified(shopifyProductId);
+  },
 };
+
 
 /**
  * Activates a supplier origin product and confirms its sales channels.
@@ -134,6 +145,21 @@ export async function activateForStorefront(
       };
     }
   }
+
+  // Fail closed: nothing goes on sale before the pricing service has proven
+  // the price. Stock, supplier evidence and intake progress are not substitutes
+  // for a verified price on the formula currently in force.
+  if (!(await port.checkPricingVerified(shopifyProductId))) {
+    return {
+      ok: false,
+      activated: false,
+      status,
+      channels: [],
+      message: "Not made live. The pricing service has not verified this product's price yet",
+    };
+  }
+
+
 
   if (status !== "active") {
     if (origin !== "supplier") {
