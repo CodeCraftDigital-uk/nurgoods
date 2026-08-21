@@ -1,7 +1,7 @@
 import { supabaseAdmin as db } from "@/integrations/supabase/client.server";
-import { resolveShopifyCredentials, shopifyGraphql } from "@/lib/services/shopify.server";
+import { intakeCredentials, shopifyGraphql } from "@/lib/services/shopify.server";
 
-const creds = await resolveShopifyCredentials();
+const creds = await intakeCredentials();
 
 const QUERY = `query($cursor: String) {
   products(first: 50, after: $cursor) {
