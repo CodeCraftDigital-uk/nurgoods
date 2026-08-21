@@ -1,0 +1,17 @@
+{
+  "sections": {
+    "header": { "name": "Header" },
+    "footer": { "name": "Footer" },
+    "hero": { "name": "Hero" },
+    "featured_products": { "name": "Product rail" },
+    "category_carousel": { "name": "Shop by category" },
+    "service_cues": { "name": "Service cues" },
+    "home_faq": { "name": "FAQ" },
+    "journal_preview": { "name": "Journal preview" }
+  },
+  "settings_schema": {
+    "brand": { "name": "Brand" },
+    "seo": { "name": "Search and SEO" },
+    "cards": { "name": "Product cards" }
+  }
+}

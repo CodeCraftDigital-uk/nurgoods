@@ -1,0 +1,43 @@
+{
+  "general": {
+    "accessibility": {
+      "skip_to_content": "Skip to content",
+      "close": "Close"
+    },
+    "search": {
+      "title": "Search",
+      "placeholder": "Search the NUR GOODS range",
+      "submit": "Search"
+    },
+    "404": {
+      "title": "Page not found",
+      "subtext": "That page has moved or no longer exists."
+    }
+  },
+  "products": {
+    "product": {
+      "add_to_cart": "Add to basket",
+      "sold_out": "Sold out",
+      "unavailable": "Unavailable",
+      "quantity": "Quantity"
+    }
+  },
+  "cart": {
+    "general": {
+      "title": "Your basket",
+      "empty": "Your basket is empty.",
+      "subtotal": "Subtotal",
+      "checkout": "Checkout securely",
+      "update": "Update basket"
+    }
+  },
+  "contact": {
+    "form": {
+      "name": "Name",
+      "email": "Email",
+      "message": "How can we help?",
+      "send": "Send message",
+      "post_success": "Thank you. Your message has been sent and we will reply by email."
+    }
+  }
+}
