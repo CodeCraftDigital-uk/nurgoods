@@ -100,7 +100,12 @@ export const shopifyActivationPort: ActivationPort = {
     const verdict = await productSellability(shopifyProductId);
     return { sellable: verdict.sellable, message: verdict.message };
   },
+  async checkPricingVerified(shopifyProductId) {
+    const { isPricingVerified } = await import("../pricing/lifecycle.server");
+    return isPricingVerified(shopifyProductId);
+  },
 };
+
 
 /**
  * Activates a supplier origin product and confirms its sales channels.
