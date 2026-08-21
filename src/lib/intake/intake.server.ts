@@ -458,19 +458,22 @@ export async function processIntake(db: Db, limit = 6): Promise<IntakeProcessRes
         result.optimised += 1;
       }
 
-      // 5. Retail price. Store product events reach this worker, so this is
-      // where the catalogue pricing service prices the variants from the
-      // store's own cost of goods, drafts included, before anything goes live.
-      // A variant with no usable cost is held here rather than guessed at, and
-      // an unchanged calculation writes nothing, so our own price write cannot
-      // trigger repeated repricing.
+      // 5. Retail price and the pricing publication gate. Store product events
+      // reach this worker, so this is where the catalogue pricing service
+      // prices the variants from the store's own cost of goods, drafts
+      // included, writes the price back, reads it back and verifies it. A
+      // variant with no usable cost is held rather than guessed at, and an
+      // unchanged calculation writes nothing, so our own price write cannot
+      // trigger repeated repricing. Anything not verified is withdrawn from the
+      // Online Store and Shop until it is, and restored afterwards.
       try {
-        const { repriceProducts } = await import("@/lib/pricing/authority.server");
-        await repriceProducts({ shopifyProductIds: [row.shopify_product_id] });
+        const { enforcePricingPublicationGate } = await import("@/lib/pricing/gate.server");
+        await enforcePricingPublicationGate({ shopifyProductIds: [row.shopify_product_id] });
       } catch {
         // Pricing is retried by the scheduled pricing worker. It must never
         // fail an otherwise healthy intake record.
       }
+
 
       // 6. Approval.
       await transition(db, row, "approved", "approved", "Every required intake gate passed", {
