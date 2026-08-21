@@ -141,7 +141,20 @@ describe("store activation", () => {
     expect(result.activated).toBe(false);
     expect(result.message).toContain("no supplier link");
   });
+
+  it("refuses to make any product live before its price is verified", async () => {
+    const port = makePort({
+      async checkPricingVerified() {
+        return false;
+      },
+    });
+    const result = await activateForStorefront("gid://shopify/Product/1", "store", port);
+    expect(result.ok).toBe(false);
+    expect(result.activated).toBe(false);
+    expect(result.message).toContain("has not verified this product's price");
+  });
 });
+
 
 describe("material fingerprint", () => {
   const base = {
