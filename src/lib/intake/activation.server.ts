@@ -55,6 +55,12 @@ export interface ActivationPort {
    * every required market. Fails closed.
    */
   checkSellable(shopifyProductId: string): Promise<{ sellable: boolean; message: string }>;
+  /**
+   * Proves the pricing service has written and read back the approved price on
+   * the formula currently in force. Fails closed.
+   */
+  checkPricingVerified(shopifyProductId: string): Promise<boolean>;
+
 }
 
 /** The real store adapter. */
