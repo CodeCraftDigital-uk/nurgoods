@@ -1,0 +1,47 @@
+{%- comment -%}
+  Primary navigation renderer.
+
+  Mirrors the current NUR GOODS headless nav exactly:
+    Store, Journal, Reviews, AI Connectors, Policies, Contact
+
+  Rules:
+    - Collections is never a top level item. Any Collections entry coming from
+      the selected Shopify menu is filtered out.
+    - When no menu is selected, or the selected menu is empty, a safe default
+      list is rendered that only points at URLs known to exist.
+    - The Shopify blog is `news`. The customer facing label stays `Journal`.
+
+  Params: menu (link_list), link_class (string)
+{%- endcomment -%}
+{%- liquid
+  assign link_class = link_class | default: 'nav__link'
+  assign rendered = 0
+-%}
+{%- if menu != blank and menu.links.size > 0 -%}
+  {%- for link in menu.links -%}
+    {%- liquid
+      assign title_key = link.title | downcase | strip
+      assign url_key = link.url | downcase
+      assign skip = false
+      if title_key == 'collections'
+        assign skip = true
+      endif
+      if url_key == '/collections'
+        assign skip = true
+      endif
+    -%}
+    {%- unless skip -%}
+      <a class="{{ link_class }}" href="{{ link.url }}"{% if link.active %} aria-current="page"{% endif %}>{{ link.title }}</a>
+      {%- assign rendered = rendered | plus: 1 -%}
+    {%- endunless -%}
+  {%- endfor -%}
+{%- endif -%}
+{%- if rendered == 0 -%}
+  {%- liquid
+    assign fallback_titles = 'Store,Journal,Reviews,AI Connectors,Policies,Contact' | split: ','
+    assign fallback_urls = '/collections/all,/blogs/news,https://nurgoods.com/reviews,https://nurgoods.com/ai-connectors,/pages/terms-and-conditions,/pages/contact-and-legal-information' | split: ','
+  -%}
+  {%- for title in fallback_titles -%}
+    <a class="{{ link_class }}" href="{{ fallback_urls[forloop.index0] }}">{{ title }}</a>
+  {%- endfor -%}
+{%- endif -%}

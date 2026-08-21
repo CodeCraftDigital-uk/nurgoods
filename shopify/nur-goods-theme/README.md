@@ -22,7 +22,8 @@ sections/    header-group.json, footer-group.json, header, footer, hero,
              main-cart, main-page, main-contact, main-blog, main-article,
              main-404, cart-drawer, predictive-search
 snippets/    meta-tags, organization-schema, brand-logo, nur-category,
-             product-card, category-tile, search-form, breadcrumbs, icon
+             primary-nav, product-card, category-tile, search-form,
+             breadcrumbs, icon
 assets/      nur-theme.css, nur-theme.js, brand PNGs, og image
 config/      settings_schema.json, settings_data.json
 locales/     en.default.json, en.default.schema.json
@@ -34,8 +35,8 @@ Ported directly from `src/styles.css` and the public components:
 
 - Palette: NUR navy `oklch(0.224 0.052 240.3)`, warm gold `oklch(0.712 0.131 83.7)`,
   white canvas, with hex fallbacks for engines without `oklch`.
-- Type: Plus Jakarta Sans display, DM Sans body, Cormorant Garamond for the
-  serif section and hero headings. Radii 12 to 18px, glass card and glass panel
+- Type: Plus Jakarta Sans display, DM Sans body. No serif display face, matching
+  the current brand rules. Radii 12 to 18px, glass card and glass panel
   treatments, `--shadow-card` / `--shadow-lift` elevation.
 - Header: horizontal master logo, centred search, Support link, basket button
   with live count, primary nav row on desktop, sheet menu on mobile, gold
@@ -72,11 +73,17 @@ Because `render` has an isolated scope, callers wrap the snippet in `capture`:
 1. Create a new unpublished theme in Shopify, then upload every file in this
    directory with `themeFilesUpsert` (or `shopify theme push --unpublished`).
    Binary assets in `assets/` are already the approved masters and upload as is.
-2. Create the menus the theme expects: `main-menu`
-   (Home, Store, Journal, Reviews, About, FAQ, Contact, Policies) and `footer`.
-   Do not add Collections to the primary menu.
-3. Point "Store" at `/collections/all`, or at a dedicated `nur-` collection if
-   you prefer a curated store landing page.
+2. Menus are optional. When no menu is selected, or the selected menu is empty,
+   `snippets/primary-nav.liquid` renders the current production nav exactly:
+   Store, Journal, Reviews, AI Connectors, Policies, Contact. Any Collections
+   entry found in a selected Shopify menu is filtered out automatically, so
+   Collections can never become a top level item.
+3. Default link targets used by the fallback nav:
+   Store `/collections/all`, Journal `/blogs/news`,
+   Reviews `https://nurgoods.com/reviews`,
+   AI Connectors `https://nurgoods.com/ai-connectors`,
+   Policies `/pages/terms-and-conditions`,
+   Contact `/pages/contact-and-legal-information`.
 4. Create canonical `nur-` collections and, optionally, the
    `nur.category_name` / `nur.category_slug` product metafield definitions.
 5. Preview, then publish manually from Shopify admin. Nothing here publishes
@@ -92,9 +99,11 @@ Because `render` has an isolated scope, callers wrap the snippet in `capture`:
   template or section group exists.
 - No hardcoded colours outside the token block, no external framework loaded.
 
-Shopify CLI and `theme-check` were not available in the build environment, so
-the checks above were run as a structural audit script rather than by the
-official linter. Run `shopify theme check` locally before publishing.
+In addition to the structural audit script, the official
+`@shopify/theme-check-node` linter was run against this directory in isolation
+(no main project dependencies changed). Result: 0 errors. The only remaining
+warnings are `RemoteAsset` notices for the Google Fonts stylesheet, which is
+required to reproduce the current NUR GOODS typography.
 
 ## Known limitations
 
@@ -106,7 +115,16 @@ official linter. Run `shopify theme check` locally before publishing.
   stat is Categories rather than Variants.
 - Predictive search returns Shopify's native resource set. Metafield-only
   attributes such as materials are not part of Shopify's native search index.
-- Blog templates assume a blog with handle `journal`.
+- The Shopify blog is `News` with handle `news`. There is no `journal` blog, so
+  the theme reads `blogs['news']` by default while keeping the customer facing
+  label `Journal`. The blog can be changed in the theme editor.
+- Reviews and AI Connectors do not exist as native Shopify pages, so the
+  fallback nav points those two items at the existing nurgoods.com routes rather
+  than dead Shopify URLs.
+- Existing Shopify pages assumed: `refund-returns-policy`,
+  `shipping-and-delivery-policy`, `terms-and-conditions`,
+  `contact-and-legal-information`. The theme never links to `/pages/contact`.
+- The Google Fonts stylesheet is the only external request made by the theme.
 - Reviews widgets are not embedded. Add the provider's app block once the app is
   installed on the theme.
 
@@ -121,8 +139,13 @@ Copied into `assets/`: `nur-goods-horizontal-light.png`,
 
 - [ ] Header logo, search, support, basket and mobile menu match the live site
 - [ ] Service strip copy matches current delivery and support statements
-- [ ] Homepage section order: hero, Recently added, Shop by category, cues,
-      Journal, FAQ
+- [ ] Homepage section order: hero (AI connector banner at the top of the hero),
+      Recently added, Shop by category, service cues, Journal, FAQ
+- [ ] Hero copy matches production: eyebrow `NUR GOODS marketplace`,
+      H1 `Good things, brought to light.`, CTAs `Browse the range` and
+      `Shop by category`, panel heading `Recently added`
+- [ ] Service cues read `Ordered on the main store`, `One range, kept in step`,
+      `A person answers`
 - [ ] Category cards show only canonical NUR categories
 - [ ] PDP shows Shopify price, variants, availability and add to basket
 - [ ] Cart drawer opens on add and falls back to `/cart` without JavaScript

@@ -11,7 +11,7 @@
   --radius: 0.875rem;
   --font-display: "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-body: "DM Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-serif: "Cormorant Garamond", "Iowan Old Style", Georgia, serif;
+  --font-serif: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
 
   --navy: oklch(0.224 0.052 240.3);
   --navy-foreground: oklch(0.98 0.007 81);
