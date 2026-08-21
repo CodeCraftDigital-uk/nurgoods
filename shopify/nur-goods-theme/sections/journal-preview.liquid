@@ -1,5 +1,8 @@
 {%- comment -%}Latest Journal articles.{%- endcomment -%}
-{%- assign journal = blogs[section.settings.blog] -%}
+{%- liquid
+  assign blog_handle = section.settings.blog | default: 'news'
+  assign journal = blogs[blog_handle]
+-%}
 {%- if journal.articles_count > 0 -%}
   <section class="section">
     <div class="wrap">
@@ -31,7 +34,7 @@
   "settings": [
     { "type": "text", "id": "heading", "label": "Heading", "default": "From the Journal" },
     { "type": "textarea", "id": "lede", "label": "Supporting text", "default": "Practical guides and considered notes from the NUR GOODS team." },
-    { "type": "blog", "id": "blog", "label": "Blog" }
+    { "type": "blog", "id": "blog", "label": "Blog", "info": "The Shopify blog is `news`. The customer facing label stays Journal." }
   ],
   "presets": [{ "name": "Journal preview" }]
 }
