@@ -23,33 +23,20 @@
 import { intakeCredentials, shopifyGraphql } from "../services/shopify.server";
 import { zendropAdminClient } from "../zendrop/client.server";
 import { loadPricingSettings } from "../zendrop/import.server";
-import { getFxRate, type FxQuote } from "../zendrop/fx.server";
 import { computeEconomics } from "./economics";
-import { assessShippingEvidence } from "./shipping-evidence";
-import { loadShippingBasis, type ShippingBasis } from "./audit.server";
 
 /**
  * Identifies the calculation behind a stored price. Bump this whenever the
  * formula changes so a historic price can always be explained by the rules that
  * were in force when it was set.
  */
-export const PRICING_FORMULA_VERSION = "landed-cogs-charm-v2";
+export const PRICING_FORMULA_VERSION = "shopify-unitcost-charm-v3";
 
 /** A penny. Prices equal within this are the same price. */
 const PENCE = 0.005;
 
 /** Retry spacing for a variant the store refused. Bounded and predictable. */
 const BACKOFF_MINUTES = [5, 30, 180, 720];
-
-const UNLINKED: ShippingBasis = {
-  amount: null,
-  currency: null,
-  service: null,
-  destination: null,
-  quotedAt: null,
-  source: null,
-  linked: false,
-};
 
 const VARIANT_PRICE_MUTATION = `
   mutation NurGoodsAuthorityPrice($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
@@ -101,40 +88,107 @@ function nextAttemptAt(attempts: number): string {
   return new Date(Date.now() + minutes * 60_000).toISOString();
 }
 
+/** Checkpoint identifiers for the resumable passes over the catalogue. */
+const COST_CHECKPOINT = "shopify_variant_cost";
+const PRICE_CHECKPOINT = "price_authority";
+
+async function readCheckpoint(supabase: any, id: string): Promise<string | null> {
+  const { data } = await supabase
+    .from("pricing_backfill_state")
+    .select("cursor")
+    .eq("id", id)
+    .maybeSingle();
+  return (data as any)?.cursor ?? null;
+}
+
+async function writeCheckpoint(
+  supabase: any,
+  id: string,
+  cursor: string | null,
+  counters: { seen?: number; priced?: number; held?: number } = {},
+): Promise<void> {
+  await supabase.from("pricing_backfill_state").upsert(
+    {
+      id,
+      cursor,
+      variants_seen: counters.seen ?? 0,
+      variants_priced: counters.priced ?? 0,
+      variants_held: counters.held ?? 0,
+      completed_at: cursor === null ? new Date().toISOString() : null,
+      updated_at: new Date().toISOString(),
+    } as never,
+    { onConflict: "id" },
+  );
+}
+
 /**
- * Recalculates the authoritative price for every active variant and records how
- * it compares with the store. Nothing is written to the store here; this pass
- * only establishes the truth and marks what needs correcting.
+ * Fingerprint of everything the price is derived from. An unchanged
+ * fingerprint means a recalculation is a no-op, which is what keeps our own
+ * write from bouncing back through the store webhook as fresh work.
+ */
+function inputHash(unitCost: number, settings: { target_margin: number; payment_fee_variable: number; payment_fee_fixed: number; rounding_mode: string }): string {
+  return [
+    unitCost.toFixed(4),
+    settings.target_margin,
+    settings.payment_fee_variable,
+    settings.payment_fee_fixed,
+    settings.rounding_mode,
+    PRICING_FORMULA_VERSION,
+  ].join("|");
+}
+
+/**
+ * Reads a bounded, resumable page of cost of goods straight from the store and
+ * mirrors it. The store's inventory unit cost is the only cost input the
+ * pricing service trusts.
+ */
+export async function refreshVariantCostPage(maxPages = 3): Promise<{
+  seen: number;
+  withCost: number;
+  message: string;
+}> {
+  const supabase = await zendropAdminClient();
+  const { syncVariantCosts } = await import("./cost-sync.server");
+  const cursor = await readCheckpoint(supabase, COST_CHECKPOINT);
+  const result = await syncVariantCosts({ cursor, maxPages });
+  await writeCheckpoint(supabase, COST_CHECKPOINT, result.nextCursor, {
+    seen: result.variantsSeen,
+    priced: result.variantsWithCost,
+  });
+  return { seen: result.variantsSeen, withCost: result.variantsWithCost, message: result.message };
+}
+
+/**
+ * Recalculates the price for a bounded, resumable page of active store
+ * variants and records how it compares with the store. Nothing is written to
+ * the store here; this pass only establishes the truth and marks what needs
+ * correcting.
+ *
+ * The only cost input is the store's own inventory unit cost, recorded in the
+ * settlement currency. Deliverability is filtered by the supplier before a
+ * product ever reaches the store, so this pass no longer re-proves shipping or
+ * supplier mapping. A variant with no usable cost is held, never guessed.
  */
 export async function reconcilePriceAuthority(
   options: { limit?: number } = {},
 ): Promise<AuthorityReconcileResult> {
-  const limit = options.limit ?? 400;
+  const limit = Math.max(1, Math.min(options.limit ?? 400, 1000));
   const supabase = await zendropAdminClient();
   const settings = await loadPricingSettings();
-  const shipping = await loadShippingBasis();
+  const fee = { variable: settings.payment_fee_variable, fixed: settings.payment_fee_fixed };
 
-  let fx: FxQuote | null = null;
-  let fxProblem: string | null = null;
-  try {
-    fx = await getFxRate("USD", settings.currency);
-    const ageHours = (Date.now() - new Date(`${fx.asOf}T00:00:00Z`).getTime()) / 3_600_000;
-    if (Number.isFinite(ageHours) && ageHours > settings.fx_quote_max_age_hours) {
-      fxProblem = `The reference exchange rate is dated ${fx.asOf}, older than the freshness policy`;
-      fx = null;
-    }
-  } catch (cause) {
-    fxProblem = cause instanceof Error ? cause.message : "No reference exchange rate is available";
-  }
-
-  const { data: products } = await supabase
-    .from("shopify_products")
-    .select("id, shopify_product_id, title, status, currency")
-    .eq("status", "ACTIVE")
-    .order("updated_at", { ascending: true })
+  const cursor = (await readCheckpoint(supabase, PRICE_CHECKPOINT)) ?? "";
+  const { data: variants } = await supabase
+    .from("shopify_product_variants")
+    .select(
+      "shopify_variant_id, title, price, unit_cost, unit_cost_currency, cost_source, cost_synced_at, product_id, shopify_products!inner(id, shopify_product_id, status)",
+    )
+    .in("shopify_products.status", ["active", "ACTIVE", "Active"])
+    .gt("shopify_variant_id", cursor)
+    .order("shopify_variant_id", { ascending: true })
     .limit(limit);
 
-  const fee = { variable: settings.payment_fee_variable, fixed: settings.payment_fee_fixed };
+  const rows = (variants ?? []) as any[];
   const result: AuthorityReconcileResult = {
     variants: 0,
     inSync: 0,
@@ -143,130 +197,116 @@ export async function reconcilePriceAuthority(
     message: "",
   };
 
-  for (const product of ((products ?? []) as any[])) {
-    const basis =
-      shipping.get(String(product.shopify_product_id)) ??
-      shipping.get(`uuid:${product.id}`) ??
-      UNLINKED;
-    const evidence = assessShippingEvidence(
-      {
-        amount: basis.amount,
-        currency: basis.currency,
-        destination: basis.destination,
-        service: basis.service,
-        quotedAt: basis.quotedAt,
+  for (const variant of rows) {
+    result.variants += 1;
+    const product = variant.shopify_products;
+    const observed = variant.price === null ? null : Number(variant.price);
+    const rawCost = variant.unit_cost === null ? null : Number(variant.unit_cost);
+    const unitCost = rawCost !== null && Number.isFinite(rawCost) ? rawCost : null;
+    const costCurrency = variant.unit_cost_currency ?? null;
+
+    let hold: string | null = null;
+    if (unitCost === null) hold = "No cost of goods is recorded against this variant in the store";
+    else if (unitCost <= 0) hold = "The store records a zero cost of goods, so no price can be derived";
+    else if (costCurrency && costCurrency !== settings.currency)
+      hold = `The recorded cost is in ${costCurrency}, which is not comparable with ${settings.currency}`;
+
+    const economics = hold
+      ? null
+      : computeEconomics({
+          supplierItemCost: unitCost,
+          itemCostIsSettlementCurrency: true,
+          supplierShippingCost: 0,
+          referenceFxRate: 1,
+          fxBufferPct: 0,
+          targetMargin: settings.target_margin,
+          fee,
+          roundingMode: settings.rounding_mode,
+          promoDiscount: settings.promo_discount,
+          minPromoMargin: settings.min_promo_margin,
+        });
+
+    const expected =
+      economics && economics.complete && economics.advertisedPrice !== null
+        ? economics.advertisedPrice
+        : null;
+    if (!hold && expected === null) hold = economics?.reason ?? "The price could not be derived";
+
+    const now = new Date().toISOString();
+    const drifted = expected !== null && (observed === null || Math.abs(observed - expected) >= PENCE);
+
+    const row: Record<string, unknown> = {
+      product_id: product.id,
+      shopify_product_id: String(product.shopify_product_id),
+      shopify_variant_id: String(variant.shopify_variant_id),
+      variant_title: variant.title ?? null,
+      currency: settings.currency,
+      authority_source: "nur_goods_calculated",
+      formula_version: PRICING_FORMULA_VERSION,
+      formula_inputs: {
+        unit_cost: unitCost,
+        cost_source: variant.cost_source ?? "store_inventory_unit_cost",
+        target_margin: settings.target_margin,
+        fee_variable: fee.variable,
+        fee_fixed: fee.fixed,
+        rounding_mode: settings.rounding_mode,
+        required_price: economics?.requiredPrice ?? null,
       },
-      { market: settings.shipping_market, maxAgeDays: settings.shipping_quote_max_age_days },
-    );
+      unit_cost: unitCost,
+      cost_observed_at: variant.cost_synced_at ?? null,
+      input_hash: unitCost === null ? null : inputHash(unitCost, settings),
+      landed_cost: unitCost,
+      landed_cost_verified_at: hold ? null : (variant.cost_synced_at ?? now),
+      cost_source: variant.cost_source ?? "store_inventory_unit_cost",
+      expected_price: expected,
+      observed_shopify_price: observed,
+      observed_at: now,
+      hold_reason: hold,
+    };
 
-    const { data: variants } = await supabase
-      .from("shopify_product_variants")
-      .select("shopify_variant_id, title, price, unit_cost, unit_cost_currency, cost_source")
-      .eq("product_id", product.id);
-
-    for (const variant of ((variants ?? []) as any[])) {
-      result.variants += 1;
-      const observed = variant.price === null ? null : Number(variant.price);
-      const unitCost = variant.unit_cost === null ? null : Number(variant.unit_cost);
-      const costCurrency = variant.unit_cost_currency ?? null;
-
-      let hold: string | null = null;
-      if (!basis.linked) hold = "No verified supplier linkage, so the landed cost is unproven";
-      else if (unitCost === null) hold = "No cost of goods is recorded against this variant";
-      else if (costCurrency && costCurrency !== settings.currency)
-        hold = `The recorded cost is in ${costCurrency}, which is not comparable with ${settings.currency}`;
-      else if (!evidence.usable) hold = evidence.reason;
-      else if (!fx) hold = fxProblem ?? "No usable reference exchange rate";
-
-      const economics = hold
-        ? null
-        : computeEconomics({
-            supplierItemCost: unitCost,
-            itemCostIsSettlementCurrency: true,
-            supplierShippingCost: evidence.amount,
-            referenceFxRate: fx!.rate,
-            fxBufferPct: settings.fx_buffer_pct,
-            targetMargin: settings.target_margin,
-            fee,
-            roundingMode: settings.rounding_mode,
-            promoDiscount: settings.promo_discount,
-            minPromoMargin: settings.min_promo_margin,
-          });
-
-      const expected =
-        economics && economics.complete && economics.advertisedPrice !== null
-          ? economics.advertisedPrice
-          : null;
-      if (!hold && expected === null) hold = economics?.reason ?? "The price could not be derived";
-
-      const now = new Date().toISOString();
-      const drifted =
-        expected !== null && (observed === null || Math.abs(observed - expected) >= PENCE);
-
-      const row: Record<string, unknown> = {
-        product_id: product.id,
-        shopify_product_id: String(product.shopify_product_id),
-        shopify_variant_id: String(variant.shopify_variant_id),
-        variant_title: variant.title ?? null,
-        currency: settings.currency,
-        // The supplier price never becomes the authority. When the calculation
-        // cannot be completed the row is held rather than reassigned.
-        authority_source: "nur_goods_calculated",
-        formula_version: PRICING_FORMULA_VERSION,
-        formula_inputs: {
-          unit_cost: unitCost,
-          cost_source: variant.cost_source ?? null,
-          shipping_cost: evidence.usable ? evidence.amount : null,
-          shipping_service: basis.service,
-          shipping_destination: basis.destination,
-          fx_reference_rate: fx?.rate ?? null,
-          fx_effective_rate: economics?.effectiveFxRate ?? null,
-          fx_buffer_pct: settings.fx_buffer_pct,
-          target_margin: settings.target_margin,
-          fee_variable: fee.variable,
-          fee_fixed: fee.fixed,
-          rounding_mode: settings.rounding_mode,
-          required_price: economics?.requiredPrice ?? null,
-        },
-        landed_cost: economics?.protectedLandedCogs ?? null,
-        landed_cost_verified_at: hold ? null : (basis.quotedAt ?? now),
-        cost_source: variant.cost_source ?? null,
-        shipping_source: basis.source,
-        shipping_quoted_at: basis.quotedAt,
-        expected_price: expected,
-        observed_shopify_price: observed,
-        observed_at: now,
-        hold_reason: hold,
-      };
-
-      if (hold) {
-        result.held += 1;
-        row["push_state"] = "held";
-        row["drift_detected_at"] = null;
-      } else if (drifted) {
-        result.drifted += 1;
-        row["push_state"] = "drifted";
-        row["drift_detected_at"] = now;
-        row["idempotency_key"] = idempotencyKey(String(variant.shopify_variant_id), expected!);
-        row["next_attempt_at"] = now;
-        row["push_attempts"] = 0;
-        row["last_push_error"] = null;
-      } else {
-        result.inSync += 1;
-        row["push_state"] = "in_sync";
-        row["drift_detected_at"] = null;
-        row["hold_reason"] = null;
-        row["last_push_error"] = null;
-        row["next_attempt_at"] = null;
-      }
-
-      await supabase
-        .from("product_price_authority")
-        .upsert(row as never, { onConflict: "shopify_variant_id" });
+    if (hold) {
+      result.held += 1;
+      row["push_state"] = "held";
+      row["drift_detected_at"] = null;
+    } else if (drifted) {
+      result.drifted += 1;
+      row["push_state"] = "drifted";
+      row["drift_detected_at"] = now;
+      row["idempotency_key"] = idempotencyKey(String(variant.shopify_variant_id), expected!);
+      row["next_attempt_at"] = now;
+      row["push_attempts"] = 0;
+      row["last_push_error"] = null;
+    } else {
+      result.inSync += 1;
+      row["push_state"] = "in_sync";
+      row["drift_detected_at"] = null;
+      row["hold_reason"] = null;
+      row["last_push_error"] = null;
+      row["next_attempt_at"] = null;
     }
+
+    await supabase
+      .from("product_price_authority")
+      .upsert(row as never, { onConflict: "shopify_variant_id" });
   }
 
-  result.message = `${result.variants} variant(s) measured: ${result.inSync} in sync, ${result.drifted} drifted and queued for correction, ${result.held} held for unverified cost or mapping.`;
+  // Resumable: the checkpoint advances while there is more to read and resets
+  // to the start of the catalogue once a full pass is finished.
+  const last = rows.length > 0 ? String(rows[rows.length - 1].shopify_variant_id) : null;
+  const finished = rows.length < limit;
+  await writeCheckpoint(supabase, PRICE_CHECKPOINT, finished ? null : last, {
+    seen: result.variants,
+    priced: result.inSync + result.drifted,
+    held: result.held,
+  });
+  if (finished) {
+    await supabase
+      .from("pricing_backfill_state")
+      .update({ cursor: "" } as never)
+      .eq("id", PRICE_CHECKPOINT);
+  }
+
+  result.message = `${result.variants} variant(s) measured: ${result.inSync} in sync, ${result.drifted} drifted and queued for correction, ${result.held} held for missing store cost.${finished ? " Full catalogue pass complete." : " More variants remain for the next pass."}`;
   return result;
 }
 
@@ -477,8 +517,11 @@ export async function verifyPriceParity(): Promise<PriceParityReport> {
  * plane so both behave identically.
  */
 export async function runPriceAuthorityCycle(options: { pushLimit?: number } = {}) {
+  // Cost first: the store's inventory unit cost is the only input the price is
+  // derived from, so a bounded, resumable page of it is refreshed each cycle.
+  const cost = await refreshVariantCostPage(3).catch(() => ({ seen: 0, withCost: 0, message: "Cost refresh unavailable this pass" }));
   const reconcile = await reconcilePriceAuthority({});
   const push = await pushPriceAuthority({ limit: options.pushLimit ?? 60 });
   const parity = await verifyPriceParity();
-  return { reconcile, push, parity };
+  return { cost, reconcile, push, parity };
 }

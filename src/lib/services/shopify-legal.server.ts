@@ -285,6 +285,36 @@ export async function syncLegalContent(
   }
   const finalRows = [...bySlug.values()];
 
+  /**
+   * A slug can already be held by a different store record from an earlier
+   * sync. Upserting on the store id would then collide on the slug, so any
+   * clash is resolved deterministically before writing.
+   */
+  if (finalRows.length > 0) {
+    const { data: existingRows } = await supabase
+      .from("shopify_legal_sources")
+      .select("shopify_id, slug");
+    const ownerBySlug = new Map(
+      ((existingRows ?? []) as Array<{ shopify_id: string; slug: string }>).map(
+        (row) => [row.slug, String(row.shopify_id)] as const,
+      ),
+    );
+    const taken = new Set(ownerBySlug.keys());
+    for (const row of finalRows) {
+      const owner = ownerBySlug.get(row.slug);
+      if (!owner || owner === String(row.shopify_id)) continue;
+      const suffix = String(row.shopify_id).split("/").pop() ?? "alt";
+      let candidate = `${row.slug}-${suffix}`;
+      let attempt = 2;
+      while (taken.has(candidate) && ownerBySlug.get(candidate) !== String(row.shopify_id)) {
+        candidate = `${row.slug}-${suffix}-${attempt}`;
+        attempt += 1;
+      }
+      row.slug = candidate;
+      taken.add(candidate);
+    }
+  }
+
   if (finalRows.length > 0) {
     const { error } = await supabase
       .from("shopify_legal_sources")

@@ -1772,6 +1772,39 @@ export type Database = {
         }
         Relationships: []
       }
+      pricing_backfill_state: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          cursor: string | null
+          id: string
+          updated_at: string
+          variants_held: number
+          variants_priced: number
+          variants_seen: number
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          cursor?: string | null
+          id: string
+          updated_at?: string
+          variants_held?: number
+          variants_priced?: number
+          variants_seen?: number
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          cursor?: string | null
+          id?: string
+          updated_at?: string
+          variants_held?: number
+          variants_priced?: number
+          variants_seen?: number
+        }
+        Relationships: []
+      }
       product_classification_history: {
         Row: {
           actor: string | null
@@ -2293,6 +2326,7 @@ export type Database = {
       product_price_authority: {
         Row: {
           authority_source: string
+          cost_observed_at: string | null
           cost_source: string | null
           created_at: string
           currency: string
@@ -2303,8 +2337,11 @@ export type Database = {
           hold_reason: string | null
           id: string
           idempotency_key: string | null
+          input_hash: string | null
+          inventory_item_id: string | null
           landed_cost: number | null
           landed_cost_verified_at: string | null
+          last_app_write_at: string | null
           last_push_error: string | null
           last_push_status: string | null
           last_pushed_at: string | null
@@ -2318,11 +2355,13 @@ export type Database = {
           shipping_source: string | null
           shopify_product_id: string
           shopify_variant_id: string
+          unit_cost: number | null
           updated_at: string
           variant_title: string | null
         }
         Insert: {
           authority_source?: string
+          cost_observed_at?: string | null
           cost_source?: string | null
           created_at?: string
           currency?: string
@@ -2333,8 +2372,11 @@ export type Database = {
           hold_reason?: string | null
           id?: string
           idempotency_key?: string | null
+          input_hash?: string | null
+          inventory_item_id?: string | null
           landed_cost?: number | null
           landed_cost_verified_at?: string | null
+          last_app_write_at?: string | null
           last_push_error?: string | null
           last_push_status?: string | null
           last_pushed_at?: string | null
@@ -2348,11 +2390,13 @@ export type Database = {
           shipping_source?: string | null
           shopify_product_id: string
           shopify_variant_id: string
+          unit_cost?: number | null
           updated_at?: string
           variant_title?: string | null
         }
         Update: {
           authority_source?: string
+          cost_observed_at?: string | null
           cost_source?: string | null
           created_at?: string
           currency?: string
@@ -2363,8 +2407,11 @@ export type Database = {
           hold_reason?: string | null
           id?: string
           idempotency_key?: string | null
+          input_hash?: string | null
+          inventory_item_id?: string | null
           landed_cost?: number | null
           landed_cost_verified_at?: string | null
+          last_app_write_at?: string | null
           last_push_error?: string | null
           last_push_status?: string | null
           last_pushed_at?: string | null
@@ -2378,6 +2425,7 @@ export type Database = {
           shipping_source?: string | null
           shopify_product_id?: string
           shopify_variant_id?: string
+          unit_cost?: number | null
           updated_at?: string
           variant_title?: string | null
         }

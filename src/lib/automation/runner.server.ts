@@ -400,6 +400,8 @@ async function execute(ctx: RunContext, jobKey: string): Promise<JobRunResult> {
       };
     }
 
+    // Retired by the Shopify led architecture and disabled in the schedule.
+    // Kept callable so an operator can still run a one off recovery by hand.
     case "supplier_link_recovery": {
       // Rebuilds supplier mappings from supplier reported store ids only.
       // Nothing is inferred from titles and no order is ever placed.
@@ -417,9 +419,10 @@ async function execute(ctx: RunContext, jobKey: string): Promise<JobRunResult> {
       };
     }
 
+    // Retired by the Shopify led architecture and disabled in the schedule.
+    // Catalogue time deliverability is now filtered by the supplier before a
+    // product reaches the store. It only ever removes channels when run.
     case "sellability_hold_sweep": {
-      // Any listing without proven supplier linkage and market shipping
-      // evidence is taken off every sales channel. It only ever removes.
       const { enforceSellabilityHold } = await import("@/lib/intake/sellability.server");
       const result = await enforceSellabilityHold({ apply: true, limit: 50 });
       return {
@@ -436,9 +439,11 @@ async function execute(ctx: RunContext, jobKey: string): Promise<JobRunResult> {
     }
 
     case "price_authority_sync": {
-      // NUR GOODS owns the advertised price. This recalculates it from verified
-      // landed cost, then writes it back to the store variants so the Shop
-      // channel, checkout, headless and the website all show one price.
+      // The pricing worker. It refreshes a bounded page of store cost of
+      // goods, recalculates the advertised price from it, then writes the
+      // price back to the store variants so the Online Store, the Shop channel
+      // and the headless website all show one price. Bounded and resumable, so
+      // it walks the whole catalogue over successive runs.
       const { runPriceAuthorityCycle } = await import("@/lib/pricing/authority.server");
       const cycle = await runPriceAuthorityCycle({ pushLimit: 60 });
       return {
@@ -446,6 +451,8 @@ async function execute(ctx: RunContext, jobKey: string): Promise<JobRunResult> {
         status: cycle.push.failed > 0 ? "failed" : "succeeded",
         message: `${cycle.reconcile.message} ${cycle.push.message}`,
         details: {
+          cost_variants_read: cycle.cost.seen,
+          cost_variants_with_cost: cycle.cost.withCost,
           variants: cycle.reconcile.variants,
           in_sync: cycle.reconcile.inSync,
           drifted: cycle.reconcile.drifted,
