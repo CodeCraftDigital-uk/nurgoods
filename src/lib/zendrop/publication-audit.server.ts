@@ -198,7 +198,16 @@ export async function runPublicationAudit(
       if (report.drifted) drifted += 1;
       if (report.currentChannels.some(isShopName)) shopAlready += 1;
 
-      if (!dryRun && report.drifted) {
+      // The pricing lifecycle is the only authority that may put a product in
+      // front of shoppers. Never let a channel repair publish something whose
+      // price has not been proved in the store.
+      const { isPricingVerified } = await import("../pricing/lifecycle.server");
+      const priced = await isPricingVerified(productId);
+      if (!priced) {
+        message = "Held. Pricing has not been verified for this product yet";
+      }
+
+      if (!dryRun && report.drifted && priced) {
         const result = await ensureStorePublications(productId, policy, { removeUnwanted: true });
         message = result.message;
         didChange = result.published.length > 0 || result.unpublished.length > 0;
