@@ -18,19 +18,22 @@ export const Route = createFileRoute("/llms.txt")({
         let collectionLines: string[] = [];
         let productCount: number | null = null;
         try {
-          const { listStorefrontCollections, listStorefrontProducts } = await import(
+          const { listStorefrontCategories, listStorefrontProducts } = await import(
             "@/lib/public-api/storefront.server"
           );
-          const [collections, firstPage] = await Promise.all([
-            listStorefrontCollections(),
+          // Canonical NUR categories only. Supplier collection labels are not
+          // trustworthy taxonomy and must never be presented to answer engines.
+          const [categories, firstPage] = await Promise.all([
+            listStorefrontCategories({ withProductsOnly: true }),
             listStorefrontProducts({ limit: 1, offset: 0 }),
           ]);
           productCount = firstPage.total ?? null;
-          collectionLines = collections
+          collectionLines = [...categories]
+            .sort((a, b) => b.product_count - a.product_count)
             .slice(0, 40)
             .map(
-              (collection) =>
-                `- [${collection.title}](${BRAND.siteUrl}/collections/${collection.handle})`,
+              (category) =>
+                `- [${category.name}](${BRAND.siteUrl}/category/${category.slug})`,
             );
         } catch {
           // Static guidance still ships if catalogue reads fail.
