@@ -33,7 +33,7 @@
   endif
 -%}
 {%- if custom != blank -%}
-  <img src="{{ custom | image_url: height: retina_height }}" alt="{{ shop.name | escape }}" height="{{ height }}" style="height:{{ height }}px;width:auto" class="{{ class }}">
+  <img src="{{ custom | image_url: height: retina_height }}" alt="{{ shop.name | escape }}" width="{{ custom.width | times: height | divided_by: custom.height | default: width }}" height="{{ height }}" style="height:{{ height }}px;width:auto" class="{{ class }}">
 {%- else -%}
   <img src="{{ file | asset_url }}" alt="{{ shop.name | escape }}" width="{{ width }}" height="{{ height }}" style="height:{{ height }}px;width:auto" class="{{ class }}">
 {%- endif -%}
