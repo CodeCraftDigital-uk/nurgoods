@@ -22,7 +22,7 @@ export const Route = createFileRoute("/sitemap.xml")({
         ];
 
         try {
-          const { listStorefrontCollections, listStorefrontProducts, listStorefrontFacets } =
+          const { listStorefrontProducts, listStorefrontFacets } =
             await import("@/lib/public-api/storefront.server");
           // Each source is read independently. One unavailable content area
           // must never strip the rest of the site out of the sitemap.
@@ -33,7 +33,7 @@ export const Route = createFileRoute("/sitemap.xml")({
               return fallback;
             }
           };
-          const [articles, documents, importedPolicies, collections, facets] = await Promise.all([
+          const [articles, documents, importedPolicies, facets] = await Promise.all([
             safe(() => listPublicArticles({}), [] as Awaited<ReturnType<typeof listPublicArticles>>),
             safe(
               () => listPublicLegalDocuments({}),
@@ -43,7 +43,6 @@ export const Route = createFileRoute("/sitemap.xml")({
               () => listPublicLegalSources({}),
               [] as Awaited<ReturnType<typeof listPublicLegalSources>>,
             ),
-            safe(() => listStorefrontCollections(), [] as Awaited<ReturnType<typeof listStorefrontCollections>>),
             safe(() => listStorefrontFacets(), { categories: [], product_types: [], tags: [], total: 0 } as Awaited<
                 ReturnType<typeof listStorefrontFacets>
               >),
@@ -71,13 +70,6 @@ export const Route = createFileRoute("/sitemap.xml")({
             if (!batch.hasMore) break;
           }
 
-          for (const collection of collections) {
-            entries.push({
-              loc: `${BRAND.siteUrl}/collections/${collection.handle}`,
-              lastmod: collection.updated_at ?? undefined,
-              priority: "0.6",
-            });
-          }
           for (const article of articles) {
             entries.push({
               loc: `${BRAND.siteUrl}/journal/${article.slug}`,
