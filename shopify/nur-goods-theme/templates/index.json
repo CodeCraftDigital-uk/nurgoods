@@ -12,25 +12,27 @@
         "show_stats": true,
         "panel_heading": "Recently added",
         "show_ai_banner": true,
-        "ai_text": "Ask ChatGPT or Claude about the NUR GOODS range and get answers straight from our catalogue.",
+        "ai_text": "Connect our catalogue to ChatGPT or Claude and find products through a simple conversation.",
         "ai_url": "https://nurgoods.com/ai-connectors",
-        "primary_url": "/collections/all"
+        "primary_url": "/collections/all",
+        "ai_eyebrow": "Shop NUR GOODS with AI",
+        "ai_cta": "Set up AI Connectors"
       }
     },
     "recently-added": {
       "type": "featured-products",
       "settings": {
         "heading": "Recently added",
-        "lede": "The newest additions to the NUR GOODS range.",
+        "lede": "The most recently updated listings in the store range.",
         "count": 8,
-        "link_label": "View all products"
+        "link_label": "See more"
       }
     },
     "categories": {
       "type": "category-carousel",
       "settings": {
         "heading": "Shop by category",
-        "lede": "Browse the range by the categories NUR GOODS maintains.",
+        "lede": "Every category with something in it, swipe or use the arrows to see them all.",
         "max_auto": 12
       }
     },

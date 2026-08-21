@@ -13,7 +13,7 @@
           <p class="section-lede">{{ section.settings.lede }}</p>
         {%- endif -%}
       </div>
-      <a class="link-underline" href="{{ routes.all_products_collection_url }}">Browse everything</a>
+      <a class="link-underline" href="{{ routes.all_products_collection_url }}">Browse all products</a>
     </div>
 
     <ul class="category-rail" data-rail-track style="margin-top:1.5rem">
@@ -53,7 +53,7 @@
   "name": "Shop by category",
   "settings": [
     { "type": "text", "id": "heading", "label": "Heading", "default": "Shop by category" },
-    { "type": "textarea", "id": "lede", "label": "Supporting text", "default": "Browse the range by the categories NUR GOODS maintains." },
+    { "type": "textarea", "id": "lede", "label": "Supporting text", "default": "Every category with something in it, swipe or use the arrows to see them all." },
     { "type": "range", "id": "max_auto", "label": "Maximum auto discovered categories", "min": 3, "max": 24, "step": 1, "default": 12 }
   ],
   "blocks": [
