@@ -914,31 +914,24 @@ export async function reconcileImportedCandidates(): Promise<ReconcileResult> {
     }
     if (!product) continue;
 
-    // The supplier import cannot carry a price. The catalogue pricing service
-    // sets it from the store's own cost of goods, so there is exactly one
-    // pricing rule for every listing.
+    // The supplier import cannot carry a price, and it cannot put a product on
+    // sale either. The pricing lifecycle is the only authority: it prices from
+    // the store's own cost of goods, proves the price by reading it back, and
+    // only then activates the product and publishes it to the customer
+    // channels. Anything it cannot verify stays a draft.
     let pricingNote = "Pricing was not applied";
+    let channelNote = "Sales channels were not changed";
     try {
-      const { repriceProducts } = await import("../pricing/authority.server");
-      const result = await repriceProducts({
+      const { runPricingLifecycle } = await import("../pricing/lifecycle.server");
+      const result = await runPricingLifecycle({
         shopifyProductIds: [String(product.shopify_product_id)],
       });
       pricingNote = result.message;
+      channelNote = result.outcomes[0]?.publication ?? channelNote;
     } catch (cause) {
       pricingNote = cause instanceof Error ? cause.message : "The store price could not be set";
     }
 
-
-    // The supplier push can leave the product off the headless sales channel
-    // that serves checkout, which would break "Buy now" for shoppers.
-    let channelNote = "Sales channels were not checked";
-    try {
-      const { ensureStorePublications } = await import("./store-publication.server");
-      const publication = await ensureStorePublications(String(product.shopify_product_id));
-      channelNote = publication.message;
-    } catch (cause) {
-      channelNote = cause instanceof Error ? cause.message : "Sales channels could not be set";
-    }
 
 
     await supabase
