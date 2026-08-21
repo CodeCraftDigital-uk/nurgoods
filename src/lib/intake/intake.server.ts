@@ -458,8 +458,23 @@ export async function processIntake(db: Db, limit = 6): Promise<IntakeProcessRes
         result.optimised += 1;
       }
 
-      // 5. Approval.
+      // 5. Retail price. Store product events reach this worker, so this is
+      // where the catalogue pricing service prices the variants from the
+      // store's own cost of goods, drafts included, before anything goes live.
+      // A variant with no usable cost is held here rather than guessed at, and
+      // an unchanged calculation writes nothing, so our own price write cannot
+      // trigger repeated repricing.
+      try {
+        const { repriceProducts } = await import("@/lib/pricing/authority.server");
+        await repriceProducts({ shopifyProductIds: [row.shopify_product_id] });
+      } catch {
+        // Pricing is retried by the scheduled pricing worker. It must never
+        // fail an otherwise healthy intake record.
+      }
+
+      // 6. Approval.
       await transition(db, row, "approved", "approved", "Every required intake gate passed", {
+
         processed_fingerprint: row.version_fingerprint,
       });
       result.approved += 1;

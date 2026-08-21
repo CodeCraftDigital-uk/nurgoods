@@ -435,31 +435,33 @@ async function execute(ctx: RunContext, jobKey: string): Promise<JobRunResult> {
     }
 
     case "price_authority_sync": {
-      // The pricing worker. It refreshes a bounded page of store cost of
-      // goods, recalculates the advertised price from it, then writes the
-      // price back to the store variants so the Online Store, the Shop channel
-      // and the headless website all show one price. Bounded and resumable, so
-      // it walks the whole catalogue over successive runs.
+      // The pricing worker. It reads store cost of goods for a bounded page of
+      // the catalogue, calculates the NUR GOODS retail price and writes it back
+      // to the store variants so the Online Store, the Shop channel and the
+      // headless website all show one price. Bounded and resumable, so it walks
+      // the whole catalogue, drafts included, over successive runs.
       const { runPriceAuthorityCycle } = await import("@/lib/pricing/authority.server");
-      const cycle = await runPriceAuthorityCycle({ pushLimit: 60 });
+      const cycle = await runPriceAuthorityCycle({ pushLimit: 30 });
       return {
         jobKey,
-        status: cycle.push.failed > 0 ? "failed" : "succeeded",
-        message: `${cycle.reconcile.message} ${cycle.push.message}`,
+        status: cycle.reprice.failed > 0 ? "failed" : "succeeded",
+        message: cycle.reprice.message,
         details: {
-          cost_variants_read: cycle.cost.seen,
-          cost_variants_with_cost: cycle.cost.withCost,
-          variants: cycle.reconcile.variants,
-          in_sync: cycle.reconcile.inSync,
-          drifted: cycle.reconcile.drifted,
-          held: cycle.reconcile.held,
-          pushed: cycle.push.pushed,
-          push_failed: cycle.push.failed,
+          products: cycle.reprice.products,
+          variants: cycle.reprice.variants,
+          in_sync: cycle.reprice.inSync,
+          repriced: cycle.reprice.repriced,
+          held: cycle.reprice.held,
+          push_failed: cycle.reprice.failed,
+          compare_at_cleared: cycle.reprice.compareAtCleared,
+          full_pass_complete: cycle.finishedFullPass ? 1 : 0,
           parity_mirror_mismatches: cycle.parity.mirrorMismatches,
           parity_non_charm: cycle.parity.nonCharm,
+          parity_legacy_rows: cycle.parity.legacyRows,
         },
       };
     }
+
 
     case "storefront_snapshot_refresh": {
       const { refreshStorefrontSnapshot } = await import("./snapshot.server");

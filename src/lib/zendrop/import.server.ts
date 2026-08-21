@@ -914,21 +914,20 @@ export async function reconcileImportedCandidates(): Promise<ReconcileResult> {
     }
     if (!product) continue;
 
-    // The supplier import cannot carry a price, so every variant is priced
-    // from its own cost of goods once the store product exists.
+    // The supplier import cannot carry a price. The catalogue pricing service
+    // sets it from the store's own cost of goods, so there is exactly one
+    // pricing rule for every listing.
     let pricingNote = "Pricing was not applied";
     try {
-      const { applyCalculatedPriceToStore } = await import("./store-pricing.server");
-      const result = await applyCalculatedPriceToStore({
-        shopifyProductId: String(product.shopify_product_id),
-        shippingCost: raw.shipping_cost === null ? null : Number(raw.shipping_cost),
-        settings,
-        fallbackPrice: raw.calculated_price === null ? null : Number(raw.calculated_price),
+      const { repriceProducts } = await import("../pricing/authority.server");
+      const result = await repriceProducts({
+        shopifyProductIds: [String(product.shopify_product_id)],
       });
       pricingNote = result.message;
     } catch (cause) {
       pricingNote = cause instanceof Error ? cause.message : "The store price could not be set";
     }
+
 
     // The supplier push can leave the product off the headless sales channel
     // that serves checkout, which would break "Buy now" for shoppers.

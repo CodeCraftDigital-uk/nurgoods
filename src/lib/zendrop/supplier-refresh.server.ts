@@ -403,16 +403,15 @@ export async function runSupplierProductRefresh(options?: {
         previous === null || Math.abs(item.landedCost - previous) > PRICE_NOISE_TOLERANCE;
 
       if (link.shopify_product_id && materiallyMoved) {
-        const { applyCalculatedPriceToStore } = await import("./store-pricing.server");
+        // Retail price is set by the catalogue pricing service from the store's
+        // own cost of goods. Supplier shipping is not an input to it.
+        const { repriceProducts } = await import("../pricing/authority.server");
         const pricing = dryRun
-          ? { applied: false, updated: 0, variants: [], message: "Dry run" }
-          : await applyCalculatedPriceToStore({
-              shopifyProductId: link.shopify_product_id,
-              shippingCost: shipping,
-              settings,
-            });
-        item.repricedVariants = pricing.updated;
+          ? { repriced: 0 }
+          : await repriceProducts({ shopifyProductIds: [link.shopify_product_id] });
+        item.repricedVariants = pricing.repriced;
       }
+
 
       // Oversell protection. The supplier evidences no quantity, so the store
       // itself must refuse to sell beyond what it is tracking.
