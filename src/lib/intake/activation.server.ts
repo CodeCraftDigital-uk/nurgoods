@@ -131,20 +131,6 @@ export async function activateForStorefront(
     };
   }
 
-  // Fail closed: nothing goes on sale before the pricing service has proven
-  // the price. Stock, supplier evidence and intake progress are not substitutes
-  // for a verified price on the formula currently in force.
-  const { isPricingVerified } = await import("@/lib/pricing/lifecycle.server");
-  if (!(await isPricingVerified(shopifyProductId))) {
-    return {
-      ok: false,
-      activated: false,
-      status,
-      channels: [],
-      message: "Not made live. The pricing service has not verified this product's price yet",
-    };
-  }
-
   // Fail closed: a supplier origin listing may only go live once its supplier
   // mapping and required market shipping evidence are proven.
   if (origin === "supplier") {
@@ -159,6 +145,20 @@ export async function activateForStorefront(
       };
     }
   }
+
+  // Fail closed: nothing goes on sale before the pricing service has proven
+  // the price. Stock, supplier evidence and intake progress are not substitutes
+  // for a verified price on the formula currently in force.
+  if (!(await port.checkPricingVerified(shopifyProductId))) {
+    return {
+      ok: false,
+      activated: false,
+      status,
+      channels: [],
+      message: "Not made live. The pricing service has not verified this product's price yet",
+    };
+  }
+
 
 
   if (status !== "active") {
