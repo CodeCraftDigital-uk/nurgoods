@@ -1,0 +1,19 @@
+{
+  "sections": {
+    "main": {
+      "type": "main-product",
+      "blocks": {
+        "delivery": {
+          "type": "collapsible",
+          "settings": {
+            "heading": "Delivery and returns",
+            "body": "<p>Delivery to the United Kingdom and the United States is free. Returns are handled under the published returns and refunds policy.</p>"
+          }
+        }
+      },
+      "block_order": ["delivery"],
+      "settings": {}
+    }
+  },
+  "order": ["main"]
+}

@@ -1,0 +1,67 @@
+{
+  "sections": {
+    "hero": {
+      "type": "hero",
+      "settings": {
+        "eyebrow": "Good things, brought to light.",
+        "heading": "Considered everyday goods, chosen with care",
+        "lede": "A curated everyday range with clear pricing, free delivery to the United Kingdom and the United States, and secure checkout.",
+        "primary_label": "Shop the range",
+        "secondary_label": "Read the Journal",
+        "secondary_url": "/blogs/journal",
+        "show_stats": true,
+        "panel_heading": "In the range",
+        "show_ai_banner": true,
+        "ai_text": "Ask ChatGPT or Claude about the NUR GOODS range and get answers straight from our catalogue.",
+        "ai_url": "/pages/ai-connectors"
+      }
+    },
+    "recently-added": {
+      "type": "featured-products",
+      "settings": {
+        "heading": "Recently added",
+        "lede": "The newest additions to the NUR GOODS range.",
+        "count": 8,
+        "link_label": "View all products"
+      }
+    },
+    "categories": {
+      "type": "category-carousel",
+      "settings": {
+        "heading": "Shop by category",
+        "lede": "Browse the range by the categories NUR GOODS maintains.",
+        "max_auto": 12
+      }
+    },
+    "cues": {
+      "type": "service-cues",
+      "blocks": {
+        "c1": { "type": "cue", "settings": { "heading": "Free delivery", "body": "Delivery to the United Kingdom and the United States is free. No delivery charge is added at checkout." } },
+        "c2": { "type": "cue", "settings": { "heading": "Secure checkout", "body": "Payment and order tracking are handled securely on the NUR GOODS store." } },
+        "c3": { "type": "cue", "settings": { "heading": "Real support", "body": "Questions are answered by a person. Full terms are set out in the policy pages." } }
+      },
+      "block_order": ["c1", "c2", "c3"],
+      "settings": {}
+    },
+    "journal": {
+      "type": "journal-preview",
+      "settings": {
+        "heading": "From the Journal",
+        "lede": "Practical guides and considered notes from the NUR GOODS team.",
+        "blog": "journal"
+      }
+    },
+    "faq": {
+      "type": "home-faq",
+      "blocks": {
+        "q1": { "type": "faq", "settings": { "question": "Where does NUR GOODS deliver?", "answer": "We deliver to the United Kingdom and the United States. Delivery is free to both markets." } },
+        "q2": { "type": "faq", "settings": { "question": "How do I track my order?", "answer": "Tracking is emailed to you once your order ships. You can also reply to that email for help." } },
+        "q3": { "type": "faq", "settings": { "question": "Can I return an item?", "answer": "Returns are handled under the published returns and refunds policy. Contact support and we will guide you through it." } },
+        "q4": { "type": "faq", "settings": { "question": "How do I contact support?", "answer": "Email support@nurgoods.com or use the contact form and a person will reply." } }
+      },
+      "block_order": ["q1", "q2", "q3", "q4"],
+      "settings": { "heading": "Frequently asked questions" }
+    }
+  },
+  "order": ["hero", "recently-added", "categories", "cues", "journal", "faq"]
+}

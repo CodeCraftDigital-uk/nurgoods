@@ -1,0 +1,1 @@
+{ "sections": { "main": { "type": "category-carousel", "settings": { "heading": "Categories", "lede": "Browse the range by the categories NUR GOODS maintains.", "max_auto": 24 } } }, "order": ["main"] }
