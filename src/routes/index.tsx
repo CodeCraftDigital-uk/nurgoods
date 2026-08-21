@@ -13,6 +13,7 @@ import { BRAND_ICONS, BRAND_SOCIAL_IMAGE } from "@/lib/brand-assets";
 
 import { listPublicArticles } from "@/lib/services/public-content.functions";
 import {
+  getStorefrontStatsFn,
   listStorefrontCollectionsFn,
   listStorefrontProductsFn,
 } from "@/lib/services/storefront.functions";
@@ -77,13 +78,14 @@ export const Route = createFileRoute("/")({
     // React Query instead of blocking the route transition on the server.
     if (typeof window !== "undefined") return null;
     try {
-      const [newest, browse, collections, articles] = await Promise.all([
+      const [newest, browse, collections, articles, stats] = await Promise.all([
         listStorefrontProductsFn({ data: { limit: 8, sort: "newest" } }),
         listStorefrontProductsFn({ data: { limit: 8, sort: "featured" } }),
         listStorefrontCollectionsFn({ data: { withProductsOnly: true } }),
         listPublicArticles({}),
+        getStorefrontStatsFn({}),
       ]);
-      return { newest, browse, collections, articles };
+      return { newest, browse, collections, articles, stats };
     } catch {
       return null;
     }
@@ -113,6 +115,7 @@ function Index() {
   const fetchProducts = useServerFn(listStorefrontProductsFn);
   const fetchCollections = useServerFn(listStorefrontCollectionsFn);
   const fetchArticles = useServerFn(listPublicArticles);
+  const fetchStats = useServerFn(getStorefrontStatsFn);
 
   const newest = useQuery({
     queryKey: ["home-newest"],
@@ -140,6 +143,16 @@ function Index() {
   });
 
 
+  // Catalogue size, read from the same local projection that powers the store
+  // listings, so it tracks snapshot rebuilds with no upstream call on render.
+  const stats = useQuery({
+    queryKey: ["home-storefront-stats"],
+    queryFn: () => fetchStats({}),
+    ...(initial ? { initialData: initial.stats } : {}),
+    retry: false,
+    staleTime: 5 * 60 * 1000,
+  });
+
   const newestItems = newest.data?.items ?? [];
   // Every category that currently holds at least one publicly sellable
   // listing. Empty categories are filtered out by the read model itself.
@@ -154,7 +167,12 @@ function Index() {
   // Live count of publicly sellable listings. Both queries return the exact
   // row count of the storefront snapshot, so this tracks the read model rather
   // than raw store rows and never needs a hard coded number.
-  const totalProducts = browse.data?.total ?? newest.data?.total ?? 0;
+  const totalProducts = stats.data?.products ?? browse.data?.total ?? newest.data?.total ?? 0;
+  const totalVariants = stats.data?.variants ?? 0;
+  const heroStats = [
+    { label: "Products available", value: totalProducts },
+    { label: "Variants available", value: totalVariants },
+  ].filter((stat) => stat.value > 0);
 
   return (
     <PublicShell>
@@ -246,10 +264,25 @@ function Index() {
                 Shop by category
               </a>
             </div>
-            {totalProducts > 0 ? (
-              <p className="mt-6 text-xs font-medium uppercase tracking-[0.2em] text-navy-foreground/70">
-                {totalProducts.toLocaleString("en-GB")} products available to buy right now
-              </p>
+            {heroStats.length > 0 ? (
+              <dl
+                aria-label="Catalogue availability"
+                className="mt-8 flex flex-wrap gap-3"
+              >
+                {heroStats.map((stat) => (
+                  <div
+                    key={stat.label}
+                    className="rounded-2xl border border-white/25 bg-white/10 px-4 py-3 backdrop-blur"
+                  >
+                    <dt className="text-[0.62rem] font-semibold uppercase tracking-[0.18em] text-navy-foreground/70">
+                      {stat.label}
+                    </dt>
+                    <dd className="mt-1 font-display text-2xl font-semibold leading-none text-navy-foreground">
+                      {stat.value.toLocaleString("en-GB")}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
             ) : null}
           </div>
 
