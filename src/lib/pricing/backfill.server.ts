@@ -239,20 +239,12 @@ async function liveBackfillDeps(): Promise<BackfillDeps> {
         { onConflict: "id" },
       );
     },
-    async listProducts(cursor, limit, scope) {
-      // Drafts are included on purpose: a product must be correctly priced
-      // before anyone decides whether to sell it, and pricing it does not
-      // sell it.
-      let query = supabase
-        .from("shopify_products")
-        .select("shopify_product_id")
-        .gt("shopify_product_id", cursor)
-        .order("shopify_product_id", { ascending: true })
-        .limit(limit);
-      if (scope === "draft") query = query.ilike("status", "draft");
-      const { data } = await query;
-      return ((data ?? []) as any[]).map((row) => String(row.shopify_product_id));
-    },
+    // Scope comes from the LIVE store, never from the mirror. A mirror row
+    // that still says "active" must not be able to hide a product the store is
+    // currently holding as a draft. Drafts are included on purpose: a product
+    // must be correctly priced before anyone decides whether to sell it, and
+    // pricing it does not sell it.
+    listProducts: (cursor, limit, scope) => listLiveProductIds(cursor, limit, scope),
     reprice: (ids, dryRun) => repriceProducts({ shopifyProductIds: ids, dryRun }),
   };
 }
