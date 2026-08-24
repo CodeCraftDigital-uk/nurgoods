@@ -60,7 +60,12 @@ export interface ActivationPort {
    * the formula currently in force. Fails closed.
    */
   checkPricingVerified(shopifyProductId: string): Promise<boolean>;
-
+  /**
+   * The merchant level switch. While activation is off, nothing may be put on
+   * sale by automation at all, however well evidenced it is. Absent on a test
+   * double means "allowed", so existing behaviour is unchanged.
+   */
+  checkActivationPolicy?(): Promise<boolean>;
 }
 
 /** The real store adapter. */
@@ -103,6 +108,10 @@ export const shopifyActivationPort: ActivationPort = {
   async checkPricingVerified(shopifyProductId) {
     const { isPricingVerified } = await import("../pricing/lifecycle.server");
     return isPricingVerified(shopifyProductId);
+  },
+  async checkActivationPolicy() {
+    const { activationAllowed } = await import("../pricing/gate.server");
+    return activationAllowed();
   },
 };
 
@@ -160,6 +169,19 @@ export async function activateForStorefront(
   }
 
 
+
+  // The merchant level switch is checked last and only when something would
+  // actually change, so a product that is already live is left alone.
+  if (status !== "active" && port.checkActivationPolicy && !(await port.checkActivationPolicy())) {
+    return {
+      ok: false,
+      activated: false,
+      status,
+      channels: [],
+      message:
+        "Not made live. Activation is switched off in the pricing policy, so the product was left as a draft",
+    };
+  }
 
   if (status !== "active") {
     if (origin !== "supplier") {
