@@ -23,6 +23,7 @@ import {
   getPricingLifecycleStatusFn,
   runPricingLifecycleRetriesFn,
   getPricingBackfillProgressFn,
+  getPricingHoldReportFn,
   runPricingBackfillPassFn,
   resetPricingBackfillFn,
 
@@ -49,6 +50,14 @@ const STATUS_TONE: Record<AuditStatus, "positive" | "warning" | "neutral" | "pen
 
   held_unreliable_linkage: "pending",
   excluded_by_policy: "neutral",
+};
+
+const HOLD_REASON_LABEL: Record<string, string> = {
+  held_missing_cost: "No cost of goods on the variant",
+  held_missing_shipping: "No shipping quote for a required market",
+  held_stale_shipping: "The shipping quote is too old to trust",
+  held_missing_fx: "No protected exchange rate for the quote currency",
+  held_invalid: "The calculation could not be completed",
 };
 
 function Metric({ label, value, hint }: { label: string; value: string; hint?: string }) {
@@ -172,15 +181,22 @@ function CataloguePricingPage() {
     retry: false,
   });
   const backfillPassFn = useServerFn(runPricingBackfillPassFn);
+  const [backfillScope, setBackfillScope] = useState<"draft" | "all">("draft");
   const backfillPass = useMutation({
     mutationFn: (mode: "preview" | "apply") =>
-      backfillPassFn({ data: { mode, products: 20 } }),
+      backfillPassFn({ data: { mode, scope: backfillScope, products: 20 } }),
     onSuccess: (result: any) => {
       toast.success(result.message);
       void queryClient.invalidateQueries({ queryKey: ["pricing-backfill"] });
       void queryClient.invalidateQueries({ queryKey: ["price-authority"] });
     },
     onError: (error: Error) => toast.error(error.message),
+  });
+  const holdReportFn = useServerFn(getPricingHoldReportFn);
+  const holdReport = useQuery({
+    queryKey: ["pricing-holds"],
+    queryFn: () => holdReportFn({}),
+    retry: false,
   });
   const backfillResetFn = useServerFn(resetPricingBackfillFn);
   const backfillReset = useMutation({
@@ -256,6 +272,14 @@ function CataloguePricingPage() {
             <Button
               variant="outline"
               size="sm"
+              onClick={() => setBackfillScope(backfillScope === "draft" ? "all" : "draft")}
+              disabled={backfillPass.isPending}
+            >
+              {backfillScope === "draft" ? "Drafts only" : "Whole catalogue"}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => backfillReset.mutate()}
               disabled={backfillReset.isPending || backfillPass.isPending}
             >
@@ -300,6 +324,42 @@ function CataloguePricingPage() {
             value={String(backfill.data?.totals.held ?? 0)}
             hint="Unverified landed cost"
           />
+        </div>
+
+        <div className="mt-6">
+          <p className="text-sm font-medium text-foreground">
+            Why prices are being held ({holdReport.data?.totalHeld ?? 0} variants)
+          </p>
+          {(holdReport.data?.groups ?? []).length === 0 ? (
+            <p className="mt-2 text-sm text-muted-foreground">
+              Nothing is being held. Every measured variant has verified landed cost evidence.
+            </p>
+          ) : (
+            <Table className="mt-3">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Reason</TableHead>
+                  <TableHead className="text-right">Variants</TableHead>
+                  <TableHead>Examples</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {(holdReport.data?.groups ?? []).map((group) => (
+                  <TableRow key={group.reason}>
+                    <TableCell>
+                      <StatusPill tone="pending">
+                        {HOLD_REASON_LABEL[group.reason] ?? group.reason}
+                      </StatusPill>
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">{group.variants}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {group.examples.map((example) => example.variant).join(", ")}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </div>
       </SectionCard>
 

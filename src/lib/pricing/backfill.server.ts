@@ -26,10 +26,22 @@ const CHECKPOINT_ID = "canonical-price-backfill";
 /** Upper bound on one call, so a worker or a request can never run away. */
 const MAX_PRODUCTS_PER_PASS = 40;
 
+/** Drafts only unless an operator deliberately widens the walk. */
+const DEFAULT_SCOPE: BackfillScope = "draft";
+
 export type BackfillMode = "preview" | "apply";
+
+/**
+ * Which part of the catalogue the walk covers.
+ *
+ * "draft" is the safe default for the repair: a draft cannot be bought, so a
+ * price written onto one has no customer exposure at all.
+ */
+export type BackfillScope = "draft" | "all";
 
 export interface BackfillPass {
   mode: BackfillMode;
+  scope: BackfillScope;
   formulaVersion: string;
   /** Products looked at in this pass. */
   products: number;
@@ -50,6 +62,7 @@ export interface BackfillPass {
 
 export interface BackfillProgress {
   formulaVersion: string;
+  scope: BackfillScope;
   cursor: string | null;
   running: boolean;
   totals: { seen: number; priced: number; held: number };
@@ -74,6 +87,7 @@ export async function pricingBackfillProgress(): Promise<BackfillProgress> {
   const cursor = state?.cursor ? String(state.cursor) : null;
   return {
     formulaVersion: PRICING_FORMULA_VERSION,
+    scope: DEFAULT_SCOPE,
     cursor,
     running: Boolean(cursor) && !state?.completed_at,
     totals: {
@@ -104,39 +118,66 @@ export async function resetPricingBackfill(): Promise<void> {
   );
 }
 
-/**
- * Runs one bounded page of the backfill.
- *
- * In preview mode the checkpoint still advances, so a preview walk can be run
- * end to end to size the work before anything is written. Call
- * resetPricingBackfill() between a preview walk and an apply walk.
- */
-export async function runPricingBackfillPass(options: {
-  mode?: BackfillMode;
-  products?: number;
-} = {}): Promise<BackfillPass> {
-  const mode: BackfillMode = options.mode === "apply" ? "apply" : "preview";
-  const limit = Math.max(1, Math.min(options.products ?? 20, MAX_PRODUCTS_PER_PASS));
-  const supabase = await zendropAdminClient();
+/** Everything the walk needs from the outside world, so it can be tested. */
+export interface BackfillDeps {
+  readState(): Promise<{
+    cursor?: string | null;
+    variants_seen?: number | null;
+    variants_priced?: number | null;
+    variants_held?: number | null;
+  } | null>;
+  writeState(state: {
+    cursor: string;
+    variants_seen: number;
+    variants_priced: number;
+    variants_held: number;
+    completed_at: string | null;
+  }): Promise<void>;
+  /** Product ids after the cursor, ascending, at most `limit` of them. */
+  listProducts(cursor: string, limit: number, scope: BackfillScope): Promise<string[]>;
+  reprice(ids: string[], dryRun: boolean): Promise<{
+    products: number;
+    variants: number;
+    inSync: number;
+    repriced: number;
+    held: number;
+    failed: number;
+    examples: string[];
+  }>;
+}
 
-  const state = await readState(supabase);
+export interface BackfillPassOptions {
+  mode?: BackfillMode;
+  scope?: BackfillScope;
+  products?: number;
+}
+
+/**
+ * Runs one bounded page of the backfill against injected dependencies.
+ *
+ * The checkpoint is written from the ids actually returned, so stopping the
+ * walk at any point and starting it again resumes on the next unseen product
+ * and never repeats a page. Product status and channel publication are not
+ * touched in either mode.
+ */
+export async function runBackfillPassWith(
+  deps: BackfillDeps,
+  options: BackfillPassOptions = {},
+): Promise<BackfillPass> {
+  const mode: BackfillMode = options.mode === "apply" ? "apply" : "preview";
+  const scope: BackfillScope = options.scope === "all" ? "all" : "draft";
+  const limit = Math.max(1, Math.min(options.products ?? 20, MAX_PRODUCTS_PER_PASS));
+
+  const state = await deps.readState();
   const cursor = state?.cursor ? String(state.cursor) : "";
 
-  // Drafts are included on purpose: a product must be correctly priced before
-  // anyone decides whether to sell it, and pricing it does not sell it.
-  const { data } = await supabase
-    .from("shopify_products")
-    .select("shopify_product_id")
-    .gt("shopify_product_id", cursor)
-    .order("shopify_product_id", { ascending: true })
-    .limit(limit);
-  const ids = ((data ?? []) as any[]).map((row) => String(row.shopify_product_id));
+  const ids = await deps.listProducts(cursor, limit, scope);
   const finished = ids.length < limit;
-  const nextCursor = finished ? null : (ids[ids.length - 1] ?? null);
+  const nextCursor = ids.length > 0 ? (ids[ids.length - 1] ?? null) : null;
 
   const reprice =
     ids.length > 0
-      ? await repriceProducts({ shopifyProductIds: ids, dryRun: mode === "preview" })
+      ? await deps.reprice(ids, mode === "preview")
       : {
           products: 0,
           variants: 0,
@@ -144,9 +185,7 @@ export async function runPricingBackfillPass(options: {
           repriced: 0,
           held: 0,
           failed: 0,
-          compareAtCleared: 0,
           examples: [] as string[],
-          message: "There was nothing left to price.",
         };
 
   const totals = {
@@ -155,22 +194,20 @@ export async function runPricingBackfillPass(options: {
     held: Number(state?.variants_held ?? 0) + reprice.held,
   };
 
-  await supabase.from("pricing_backfill_state").upsert(
-    {
-      id: CHECKPOINT_ID,
-      cursor: nextCursor ?? "",
-      variants_seen: totals.seen,
-      variants_priced: totals.priced,
-      variants_held: totals.held,
-      completed_at: finished ? new Date().toISOString() : null,
-      updated_at: new Date().toISOString(),
-    } as never,
-    { onConflict: "id" },
-  );
+  await deps.writeState({
+    // The cursor is kept when the walk finishes so a later pass does not
+    // silently reprice the whole catalogue again. Reset clears it.
+    cursor: (finished ? (nextCursor ?? cursor) : nextCursor) ?? "",
+    variants_seen: totals.seen,
+    variants_priced: totals.priced,
+    variants_held: totals.held,
+    completed_at: finished ? new Date().toISOString() : null,
+  });
 
   const verb = mode === "preview" ? "would be corrected" : "corrected";
   return {
     mode,
+    scope,
     formulaVersion: PRICING_FORMULA_VERSION,
     products: reprice.products,
     variants: reprice.variants,
@@ -179,16 +216,58 @@ export async function runPricingBackfillPass(options: {
     held: reprice.held,
     failed: reprice.failed,
     finishedFullPass: finished,
-    cursor: nextCursor,
+    cursor: finished ? null : nextCursor,
     totals,
     examples: reprice.examples.slice(0, 5),
     message:
-      `${mode === "preview" ? "Preview" : "Apply"}: ${reprice.variants} variant(s) across ` +
-      `${reprice.products} product(s), ${reprice.inSync} already correct, ${reprice.repriced} ${verb}, ` +
-      `${reprice.held} held for unverified landed cost, ${reprice.failed} failed. ` +
+      `${mode === "preview" ? "Preview" : "Apply"} (${scope === "draft" ? "drafts only" : "whole catalogue"}): ` +
+      `${reprice.variants} variant(s) across ${reprice.products} product(s), ${reprice.inSync} already correct, ` +
+      `${reprice.repriced} ${verb}, ${reprice.held} held for unverified landed cost, ${reprice.failed} failed. ` +
       (finished ? "The walk has reached the end of the catalogue." : "More pages remain.") +
       " No product status or channel was changed.",
   };
+}
+
+/** The real adapter: the local store mirror plus the pricing authority. */
+async function liveBackfillDeps(): Promise<BackfillDeps> {
+  const supabase = await zendropAdminClient();
+  return {
+    readState: () => readState(supabase),
+    async writeState(next) {
+      await supabase.from("pricing_backfill_state").upsert(
+        { id: CHECKPOINT_ID, ...next, updated_at: new Date().toISOString() } as never,
+        { onConflict: "id" },
+      );
+    },
+    async listProducts(cursor, limit, scope) {
+      // Drafts are included on purpose: a product must be correctly priced
+      // before anyone decides whether to sell it, and pricing it does not
+      // sell it.
+      let query = supabase
+        .from("shopify_products")
+        .select("shopify_product_id")
+        .gt("shopify_product_id", cursor)
+        .order("shopify_product_id", { ascending: true })
+        .limit(limit);
+      if (scope === "draft") query = query.ilike("status", "draft");
+      const { data } = await query;
+      return ((data ?? []) as any[]).map((row) => String(row.shopify_product_id));
+    },
+    reprice: (ids, dryRun) => repriceProducts({ shopifyProductIds: ids, dryRun }),
+  };
+}
+
+/**
+ * Runs one bounded page of the backfill.
+ *
+ * In preview mode the checkpoint still advances, so a preview walk can be run
+ * end to end to size the work before anything is written. Call
+ * resetPricingBackfill() between a preview walk and an apply walk.
+ */
+export async function runPricingBackfillPass(
+  options: BackfillPassOptions = {},
+): Promise<BackfillPass> {
+  return runBackfillPassWith(await liveBackfillDeps(), options);
 }
 
 /**
@@ -197,6 +276,7 @@ export async function runPricingBackfillPass(options: {
  */
 export async function runPricingBackfill(options: {
   mode?: BackfillMode;
+  scope?: BackfillScope;
   products?: number;
   maxPasses?: number;
 } = {}): Promise<{ passes: BackfillPass[]; finished: boolean; parity: unknown }> {
@@ -206,10 +286,53 @@ export async function runPricingBackfill(options: {
   for (let index = 0; index < maxPasses && !finished; index += 1) {
     const pass = await runPricingBackfillPass({
       ...(options.mode ? { mode: options.mode } : {}),
+      ...(options.scope ? { scope: options.scope } : {}),
       ...(options.products ? { products: options.products } : {}),
     });
     passes.push(pass);
     finished = pass.finishedFullPass;
   }
   return { passes, finished, parity: await verifyPriceParity() };
+}
+
+
+export interface HoldReasonGroup {
+  reason: string;
+  variants: number;
+  examples: Array<{ variant: string; product: string; unitCost: number | null }>;
+}
+
+/**
+ * Groups the variants the pricing service is currently holding by the reason it
+ * is holding them, so the missing evidence can be chased. Read only.
+ */
+export async function pricingHoldReport(): Promise<{
+  totalHeld: number;
+  groups: HoldReasonGroup[];
+}> {
+  const supabase = await zendropAdminClient();
+  const { data } = await supabase
+    .from("product_price_authority")
+    .select("hold_reason, shopify_variant_id, shopify_product_id, variant_title, unit_cost")
+    .not("hold_reason", "is", null)
+    .limit(2000);
+
+  const groups = new Map<string, HoldReasonGroup>();
+  for (const row of (data ?? []) as any[]) {
+    const reason = String(row.hold_reason);
+    const group =
+      groups.get(reason) ?? { reason, variants: 0, examples: [] as HoldReasonGroup["examples"] };
+    group.variants += 1;
+    if (group.examples.length < 5) {
+      group.examples.push({
+        variant: String(row.variant_title ?? row.shopify_variant_id),
+        product: String(row.shopify_product_id),
+        unitCost: row.unit_cost === null ? null : Number(row.unit_cost),
+      });
+    }
+    groups.set(reason, group);
+  }
+
+  const list = [...groups.values()].sort((a, b) => b.variants - a.variants);
+  return { totalHeld: list.reduce((sum, group) => sum + group.variants, 0), groups: list };
 }
