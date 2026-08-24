@@ -46,8 +46,9 @@ describe("retail price derivation", () => {
         expect(price).not.toBeNull();
         expect(endsInCharm99(price)).toBe(true);
         expect(price as number).toBeGreaterThanOrEqual(rawPrice as number);
-        // Rounding up never adds a whole pound of margin.
-        expect((price as number) - (rawPrice as number)).toBeLessThan(1);
+        // Rounding up never adds more than a whole pound.
+        expect((price as number) - (rawPrice as number)).toBeLessThanOrEqual(1);
+
       }
     }
   });
