@@ -269,6 +269,23 @@ async function recordLifecycle(row: {
   );
 }
 
+/**
+ * Records the pricing state of a product from outside this module, so a write
+ * made by the pricing authority lands in the lifecycle table in the same
+ * operation as the write itself. Recording state never activates or publishes.
+ */
+export async function recordPricingLifecycleState(row: {
+  shopifyProductId: string;
+  status: PricingLifecycleStatus;
+  reason: string;
+  inputHash?: string | null;
+  verifiedAt?: string | null;
+  variants?: number;
+  verifiedVariants?: number;
+}): Promise<void> {
+  await recordLifecycle(row);
+}
+
 async function currentAttempts(shopifyProductId: string): Promise<number> {
   const supabase = await zendropAdminClient();
   const { data } = await supabase
