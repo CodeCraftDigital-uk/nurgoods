@@ -336,7 +336,7 @@ export async function repriceProducts(options: {
       // read back and the price we intended must be the price it now holds,
       // ending .99, with no unverified compare-at left behind. Anything else
       // is a failed push, not a success.
-      const readbackProblems = new Map<string, string>();
+      let readbackProblems = new Map<string, string>();
       if (changes.length > 0 && !failure) {
         try {
           const confirm: any = await shopifyGraphql(credentials, PRODUCT_PRICING_QUERY, {
@@ -349,26 +349,12 @@ export async function repriceProducts(options: {
               { price: numeric(entry.price), compareAt: numeric(entry.compareAtPrice) },
             ]),
           );
-          for (const change of changes) {
-            const intended = Number(change.price);
-            const actual = stored.get(change.id);
-            if (!actual) {
-              readbackProblems.set(change.id, "The store did not return this variant after the update");
-            } else if (actual.price === null || Math.abs(actual.price - intended) >= PENCE) {
-              readbackProblems.set(
-                change.id,
-                `The store shows ${actual.price ?? "no price"} after writing ${intended.toFixed(2)}`,
-              );
-            } else if (Math.round(actual.price * 100) % 100 !== 99) {
-              readbackProblems.set(change.id, `${actual.price.toFixed(2)} does not end in .99`);
-            } else if (actual.compareAt !== null) {
-              readbackProblems.set(change.id, "An unverified compare-at price is still set");
-            }
-          }
+          readbackProblems = verifyReadbackParity(changes, stored);
         } catch (cause) {
           failure = cause instanceof Error ? cause.message : "The written price could not be read back";
         }
       }
+
 
       for (const entry of rowsToWrite) {
         const row = entry.row;
