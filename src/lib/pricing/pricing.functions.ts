@@ -224,15 +224,18 @@ export const getPricingBackfillProgressFn = createServerFn({ method: "GET" })
  */
 export const runPricingBackfillPassFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { mode?: "preview" | "apply"; products?: number } | undefined) => {
-    const mode = input?.mode === "apply" ? "apply" : "preview";
-    const products = Math.max(1, Math.min(Number(input?.products ?? 20) || 20, 40));
-    return { mode, products } as const;
-  })
+  .inputValidator(
+    (input: { mode?: "preview" | "apply"; scope?: "draft" | "all"; products?: number } | undefined) => {
+      const mode = input?.mode === "apply" ? "apply" : "preview";
+      const scope = input?.scope === "all" ? "all" : "draft";
+      const products = Math.max(1, Math.min(Number(input?.products ?? 20) || 20, 40));
+      return { mode, scope, products } as const;
+    },
+  )
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
     const { runPricingBackfillPass } = await import("./backfill.server");
-    return runPricingBackfillPass({ mode: data.mode, products: data.products });
+    return runPricingBackfillPass({ mode: data.mode, scope: data.scope, products: data.products });
   });
 
 /** Sends the backfill walk back to the start of the catalogue. */
@@ -243,4 +246,16 @@ export const resetPricingBackfillFn = createServerFn({ method: "POST" })
     const { resetPricingBackfill } = await import("./backfill.server");
     await resetPricingBackfill();
     return { ok: true } as const;
+  });
+
+/**
+ * Why variants are being held back from a verified price, grouped by reason,
+ * with a few named examples for each so the cause is actionable. Read only.
+ */
+export const getPricingHoldReportFn = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context);
+    const { pricingHoldReport } = await import("./backfill.server");
+    return pricingHoldReport();
   });

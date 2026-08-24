@@ -294,3 +294,45 @@ export async function runPricingBackfill(options: {
   }
   return { passes, finished, parity: await verifyPriceParity() };
 }
+
+
+export interface HoldReasonGroup {
+  reason: string;
+  variants: number;
+  examples: Array<{ variant: string; product: string; unitCost: number | null }>;
+}
+
+/**
+ * Groups the variants the pricing service is currently holding by the reason it
+ * is holding them, so the missing evidence can be chased. Read only.
+ */
+export async function pricingHoldReport(): Promise<{
+  totalHeld: number;
+  groups: HoldReasonGroup[];
+}> {
+  const supabase = await zendropAdminClient();
+  const { data } = await supabase
+    .from("product_price_authority")
+    .select("hold_reason, shopify_variant_id, shopify_product_id, variant_title, unit_cost")
+    .not("hold_reason", "is", null)
+    .limit(2000);
+
+  const groups = new Map<string, HoldReasonGroup>();
+  for (const row of (data ?? []) as any[]) {
+    const reason = String(row.hold_reason);
+    const group =
+      groups.get(reason) ?? { reason, variants: 0, examples: [] as HoldReasonGroup["examples"] };
+    group.variants += 1;
+    if (group.examples.length < 5) {
+      group.examples.push({
+        variant: String(row.variant_title ?? row.shopify_variant_id),
+        product: String(row.shopify_product_id),
+        unitCost: row.unit_cost === null ? null : Number(row.unit_cost),
+      });
+    }
+    groups.set(reason, group);
+  }
+
+  const list = [...groups.values()].sort((a, b) => b.variants - a.variants);
+  return { totalHeld: list.reduce((sum, group) => sum + group.variants, 0), groups: list };
+}
