@@ -28,6 +28,8 @@ import { intakeCredentials, shopifyGraphql } from "../services/shopify.server";
 import { zendropAdminClient } from "../zendrop/client.server";
 import { CANONICAL_FORMULA_VERSION } from "./canonical";
 import { loadCanonicalPricingContext, loadShippingEvidenceForProducts, priceVariant } from "./canonical.server";
+import { verifyReadbackParity } from "./readback";
+
 
 export const PRICING_FORMULA_VERSION = CANONICAL_FORMULA_VERSION;
 
