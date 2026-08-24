@@ -372,6 +372,7 @@ export async function repriceProducts(options: {
           row["last_push_error"] = String(failure ?? readbackProblem).slice(0, 500);
           row["next_attempt_at"] = nextAttemptAt(1);
         } else if (wasDrift) {
+          const previousPrice = row["observed_shopify_price"] as number | null;
 
           result.repriced += 1;
           row["push_state"] = "in_sync";
@@ -395,6 +396,21 @@ export async function repriceProducts(options: {
               cost_synced_at: now,
             } as never)
             .eq("shopify_variant_id", String(row["shopify_variant_id"]));
+          // Confirmed writes leave an audit trail: what the price was, what it
+          // became, and the landed cost the calculation had to cover.
+          await supabase.from("product_price_revisions").insert({
+            product_id: mirrorProductId,
+            shopify_product_id: shopifyProductId,
+            shopify_variant_id: String(row["shopify_variant_id"]),
+            old_price: previousPrice,
+            new_price: entry.expected,
+            unit_cost: row["unit_cost"],
+            landed_cost: row["landed_cost"],
+            cost_source: row["cost_source"],
+            source: "price_authority",
+            rounding_mode: "charm_99",
+          } as never);
+
         } else {
           await supabase
             .from("shopify_product_variants")
