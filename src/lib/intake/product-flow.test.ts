@@ -103,6 +103,18 @@ describe("store activation", () => {
     expect(result.channels).toContain("Nur Goods Headless Store");
   });
 
+  it("leaves a fully cleared draft alone while the activation switch is off", async () => {
+    const port = makePort({
+      async checkActivationPolicy() {
+        return false;
+      },
+    });
+    const result = await activateForStorefront("gid://shopify/Product/1", "supplier", port);
+    expect(result.ok).toBe(false);
+    expect(result.activated).toBe(false);
+    expect(result.message).toMatch(/switched off/i);
+  });
+
   it("never activates a store managed draft", async () => {
     const result = await activateForStorefront("gid://shopify/Product/1", "store", makePort());
     expect(result.ok).toBe(false);
