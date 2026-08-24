@@ -26,6 +26,9 @@ const CHECKPOINT_ID = "canonical-price-backfill";
 /** Upper bound on one call, so a worker or a request can never run away. */
 const MAX_PRODUCTS_PER_PASS = 40;
 
+/** Drafts only unless an operator deliberately widens the walk. */
+const DEFAULT_SCOPE: BackfillScope = "draft";
+
 export type BackfillMode = "preview" | "apply";
 
 /**
@@ -84,7 +87,7 @@ export async function pricingBackfillProgress(): Promise<BackfillProgress> {
   const cursor = state?.cursor ? String(state.cursor) : null;
   return {
     formulaVersion: PRICING_FORMULA_VERSION,
-    scope: (state?.scope as BackfillScope) ?? "draft",
+    scope: DEFAULT_SCOPE,
     cursor,
     running: Boolean(cursor) && !state?.completed_at,
     totals: {
@@ -109,7 +112,6 @@ export async function resetPricingBackfill(): Promise<void> {
       variants_priced: 0,
       variants_held: 0,
       completed_at: null,
-      scope: "draft",
       updated_at: new Date().toISOString(),
     } as never,
     { onConflict: "id" },
@@ -130,7 +132,6 @@ export interface BackfillDeps {
     variants_priced: number;
     variants_held: number;
     completed_at: string | null;
-    scope: BackfillScope;
   }): Promise<void>;
   /** Product ids after the cursor, ascending, at most `limit` of them. */
   listProducts(cursor: string, limit: number, scope: BackfillScope): Promise<string[]>;
@@ -201,7 +202,6 @@ export async function runBackfillPassWith(
     variants_priced: totals.priced,
     variants_held: totals.held,
     completed_at: finished ? new Date().toISOString() : null,
-    scope,
   });
 
   const verb = mode === "preview" ? "would be corrected" : "corrected";
