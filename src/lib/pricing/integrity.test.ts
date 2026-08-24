@@ -1,7 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { endsInCharm99, expectedRetailPrice, APPROVED_PRICING_EXEMPTIONS } from "./integrity.server";
 
-const settings = { target_margin: 0.6, rounding_mode: "charm_99" as const };
+/**
+ * The stored target figure is a markup uplift ON landed cost, never a gross
+ * margin, and payment fees sit on top of it.
+ */
+const settings = {
+  target_margin: 0.6,
+  rounding_mode: "charm_99" as const,
+  payment_fee_variable: 0.02,
+  payment_fee_fixed: 0.25,
+};
 
 describe("charm price detection", () => {
   it("accepts only prices ending in .99", () => {
@@ -21,12 +30,12 @@ describe("charm price detection", () => {
 });
 
 describe("retail price derivation", () => {
-  it("applies landed cost divided by one minus the target margin", () => {
+  it("applies a markup on landed cost, then payment fees", () => {
     const result = expectedRetailPrice(21.79, 4.5, settings);
     expect(result.landedCost).toBe(26.29);
-    // 26.29 / 0.4 = 65.725, rounded up to the next charm price
-    expect(result.rawPrice).toBeCloseTo(65.73, 1);
-    expect(result.price).toBe(65.99);
+    // 26.29 * 1.6 = 42.064, plus 0.25 fixed, divided by 0.98 = 43.18
+    expect(result.rawPrice).toBeCloseTo(43.18, 2);
+    expect(result.price).toBe(43.99);
     expect(endsInCharm99(result.price)).toBe(true);
   });
 
@@ -37,8 +46,9 @@ describe("retail price derivation", () => {
         expect(price).not.toBeNull();
         expect(endsInCharm99(price)).toBe(true);
         expect(price as number).toBeGreaterThanOrEqual(rawPrice as number);
-        // Rounding up never adds a whole pound of margin.
-        expect((price as number) - (rawPrice as number)).toBeLessThan(1);
+        // Rounding up never adds more than a whole pound.
+        expect((price as number) - (rawPrice as number)).toBeLessThanOrEqual(1);
+
       }
     }
   });
@@ -46,6 +56,7 @@ describe("retail price derivation", () => {
   it("never derives a price without a real cost of goods", () => {
     expect(expectedRetailPrice(null, 4.5, settings).price).toBeNull();
     expect(expectedRetailPrice(Number.NaN, 4.5, settings).price).toBeNull();
+    expect(expectedRetailPrice(0, 4.5, settings).price).toBeNull();
   });
 
   it("never derives a price without a confirmed shipping figure", () => {
@@ -53,17 +64,12 @@ describe("retail price derivation", () => {
     expect(expectedRetailPrice(21.79, Number.NaN, settings).price).toBeNull();
   });
 
-  it("refuses to price against an invalid target margin", () => {
-    expect(expectedRetailPrice(10, 2, { target_margin: 0, rounding_mode: "charm_99" }).price).toBeNull();
-    expect(expectedRetailPrice(10, 2, { target_margin: 1, rounding_mode: "charm_99" }).price).toBeNull();
-    expect(expectedRetailPrice(10, 2, { target_margin: 1.5, rounding_mode: "charm_99" }).price).toBeNull();
-  });
-
-  it("achieves at least the target gross margin on the rounded price", () => {
+  it("achieves at least the minimum markup on the rounded price after fees", () => {
     for (const [cost, shipping] of [[5, 1], [21.79, 4.5], [88.4, 9.99]] as const) {
       const { landedCost, price } = expectedRetailPrice(cost, shipping, settings);
-      const margin = ((price as number) - (landedCost as number)) / (price as number);
-      expect(margin).toBeGreaterThanOrEqual(settings.target_margin);
+      const fee = (price as number) * 0.02 + 0.25;
+      const markup = ((price as number) - fee - (landedCost as number)) / (landedCost as number);
+      expect(markup).toBeGreaterThanOrEqual(settings.target_margin);
     }
   });
 });

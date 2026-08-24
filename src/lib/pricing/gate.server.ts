@@ -80,6 +80,23 @@ export async function syncApprovedFormulaVersion(): Promise<string> {
   return PRICING_FORMULA_VERSION;
 }
 
+/**
+ * Whether the pricing service is currently permitted to put stock on sale.
+ *
+ * Pricing correctness and commercial activation are two different decisions.
+ * A repair, a backfill or a formula change can run across the whole catalogue
+ * with this off, correcting every price while every product stays exactly as
+ * the merchant left it. Absence of the policy row is a no.
+ */
+export async function activationAllowed(): Promise<boolean> {
+  const supabase = await zendropAdminClient();
+  const { data } = await supabase
+    .from("pricing_formula_policy")
+    .select("activation_enabled")
+    .maybeSingle();
+  return (data as any)?.activation_enabled === true;
+}
+
 function classify(row: any): VariantGateState {
   if (!row || row.formula_version !== PRICING_FORMULA_VERSION) return "pending";
   if (row.hold_reason || row.push_state === "held") return "held";

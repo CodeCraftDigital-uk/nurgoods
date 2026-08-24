@@ -15,8 +15,9 @@
  *      pagination on both levels so there is no first page blind spot.
  *   2. For each product, resolve the verified landed cost basis.
  *        landed cost = supplier cost of goods + verified market shipping
- *        target     = landed cost / (1 - target gross margin)
- *        retail     = target rounded UP to the next valid charm price
+ *        target     = landed cost * (1 + minimum markup uplift)
+ *        retail     = (target + fixed fee) / (1 - variable fee), rounded UP
+ *                     to the next valid charm price
  *   3. Correct every variant whose evidence is complete and whose live price
  *      does not match.
  *   4. Hold (unpublish from every channel and set to draft) every ACTIVE
@@ -29,10 +30,15 @@
  * priced, or it is not for sale.
  */
 import { intakeCredentials, shopifyGraphql } from "../services/shopify.server";
-import { applyRounding } from "../zendrop/pricing";
 import { zendropAdminClient } from "../zendrop/client.server";
 import { loadPricingSettings } from "../zendrop/import.server";
 import { loadShippingBasis, type ShippingBasis } from "./audit.server";
+import {
+  charmUp,
+  markupUpliftFrom,
+  priceFromProtectedLandedCost,
+  type CanonicalFee,
+} from "./canonical";
 import type { PricingSettings } from "../zendrop/types";
 
 const ACTIVE_PRODUCTS_QUERY = `
@@ -217,25 +223,33 @@ export function endsInCharm99(price: number | null | undefined): boolean {
 }
 
 /**
- * The single source of truth for the retail price of a variant. Kept tiny and
- * pure so the enforcement pass, the import path and the tests all agree.
+ * The retail price of a variant, on the same rule the pricing authority uses:
+ * a minimum uplift ON landed cost, then payment fees, then charm rounding up.
+ * The stored target figure is an uplift on cost, never a gross margin.
  */
 export function expectedRetailPrice(
   unitCost: number | null,
   shippingCost: number | null,
-  settings: Pick<PricingSettings, "target_margin" | "rounding_mode">,
+  settings: Pick<PricingSettings, "target_margin" | "rounding_mode"> &
+    Partial<Pick<PricingSettings, "payment_fee_variable" | "payment_fee_fixed">>,
 ): { landedCost: number | null; rawPrice: number | null; price: number | null } {
-  if (typeof unitCost !== "number" || !Number.isFinite(unitCost)) {
-    return { landedCost: null, rawPrice: null, price: null };
+  const empty = { landedCost: null, rawPrice: null, price: null };
+  if (typeof unitCost !== "number" || !Number.isFinite(unitCost) || unitCost <= 0) return empty;
+  // Delivery is free to the customer, so an unproven shipping cost is an
+  // unproven price. Nothing is assumed here.
+  if (typeof shippingCost !== "number" || !Number.isFinite(shippingCost) || shippingCost < 0) {
+    return empty;
   }
-  if (typeof shippingCost !== "number" || !Number.isFinite(shippingCost)) {
-    return { landedCost: null, rawPrice: null, price: null };
-  }
-  const margin = settings.target_margin;
-  if (!(margin > 0 && margin < 1)) return { landedCost: null, rawPrice: null, price: null };
+  const markupUplift = markupUpliftFrom(settings.target_margin);
+  const fee: CanonicalFee = {
+    variable:
+      typeof settings.payment_fee_variable === "number" ? settings.payment_fee_variable : 0.02,
+    fixed: typeof settings.payment_fee_fixed === "number" ? settings.payment_fee_fixed : 0.25,
+  };
   const landedCost = round2(unitCost + shippingCost);
-  const rawPrice = landedCost / (1 - margin);
-  return { landedCost, rawPrice: round2(rawPrice), price: applyRounding(rawPrice, settings.rounding_mode) };
+  const priced = priceFromProtectedLandedCost(landedCost, fee, markupUplift);
+  if (!priced) return { landedCost, rawPrice: null, price: null };
+  return { landedCost, rawPrice: round2(priced.rawPrice), price: charmUp(priced.rawPrice) };
 }
 
 /** Enumerates every active product with every variant. No pagination cap. */
@@ -381,20 +395,16 @@ export async function auditLivePricingIntegrity(): Promise<{
           reason = `Live price ${Number(variant.price ?? 0).toFixed(2)} does not match the formula price ${price.toFixed(2)}`;
         }
       } else if (!basis.linked) {
-        category = charm ? "correct" : "unverified_but_live";
-        reason = charm
-          ? "No supplier linkage record exists, but the live price already follows the approved rounding rule"
-          : "No supplier linkage record exists, so the landed cost basis cannot be confirmed";
+        // A price that merely ends in .99 proves nothing about the economics
+        // behind it. Without evidence the variant is held, never signed off.
+        category = "unverified_but_live";
+        reason = "No supplier linkage record exists, so the landed cost basis cannot be confirmed";
       } else if (basisCost === null) {
-        category = charm ? "correct" : "unverified_but_live";
-        reason = charm
-          ? `No confirmed ${settings.shipping_market} shipping quote, but the live price already follows the approved rounding rule`
-          : `No confirmed shipping cost to ${settings.shipping_market} is recorded for this listing`;
+        category = "unverified_but_live";
+        reason = `No confirmed shipping cost to ${settings.shipping_market} is recorded for this listing`;
       } else {
-        category = charm ? "correct" : "unverified_but_live";
-        reason = charm
-          ? "No cost of goods is recorded, but the live price already follows the approved rounding rule"
-          : "No cost of goods is recorded against this variant in the store";
+        category = "unverified_but_live";
+        reason = "No usable cost of goods is recorded against this variant in the store";
       }
 
       return {

@@ -27,7 +27,6 @@
  */
 import { intakeCredentials, shopifyGraphql } from "../services/shopify.server";
 import { zendropAdminClient } from "../zendrop/client.server";
-import { loadPricingSettings } from "../zendrop/import.server";
 import { PRICING_FORMULA_VERSION, repriceProducts } from "./authority.server";
 
 /** A penny. Prices equal within this are the same price. */
@@ -127,24 +126,24 @@ function nextAttemptAt(attempts: number): string {
  * Everything the price is derived from, in one fingerprint. If it has not
  * moved, there is nothing to do, which is what makes the webhook driven loop
  * settle instead of running for ever.
+ *
+ * The per variant fingerprints come from the canonical calculation, so they
+ * already cover the cost of goods, every destination shipping quote and its
+ * timestamp, the exchange rate, the fees and the markup. A shipping quote that
+ * expires therefore changes this hash and forces a fresh decision, which is
+ * what stops a stale quote quietly holding a price in place.
  */
 export function pricingInputHash(
-  costs: Array<{ variantId: string; unitCost: number | null }>,
-  settings: { target_margin: number; payment_fee_variable: number; payment_fee_fixed: number },
+  variants: Array<{ variantId: string; fingerprint: string }>,
 ): string {
-  const body = costs
+  const body = variants
     .slice()
     .sort((a, b) => a.variantId.localeCompare(b.variantId))
-    .map((entry) => `${entry.variantId}=${entry.unitCost === null ? "none" : entry.unitCost.toFixed(4)}`)
+    .map((entry) => `${entry.variantId}=${entry.fingerprint}`)
     .join(",");
-  return [
-    PRICING_FORMULA_VERSION,
-    settings.target_margin,
-    settings.payment_fee_variable,
-    settings.payment_fee_fixed,
-    body,
-  ].join("|");
+  return [PRICING_FORMULA_VERSION, body].join("|");
 }
+
 
 async function readProduct(shopifyProductId: string) {
   const credentials = await intakeCredentials();
@@ -370,7 +369,7 @@ export async function runPricingLifecycle(options: {
   force?: boolean;
 }): Promise<LifecycleRunResult> {
   const ids = Array.from(new Set(options.shopifyProductIds.filter(Boolean))).slice(0, 60);
-  const allowActivation = options.activate !== false;
+  const requestedActivation = options.activate !== false;
   const result: LifecycleRunResult = {
     evaluated: 0,
     verified: 0,
@@ -387,9 +386,17 @@ export async function runPricingLifecycle(options: {
     return result;
   }
 
-  const settings = await loadPricingSettings();
-  const { syncApprovedFormulaVersion } = await import("./gate.server");
+  const { loadCanonicalPricingContext, loadShippingEvidenceForProducts, priceVariant } =
+    await import("./canonical.server");
+  const context = await loadCanonicalPricingContext();
+  const evidenceByProduct = await loadShippingEvidenceForProducts(ids);
+  const { syncApprovedFormulaVersion, activationAllowed } = await import("./gate.server");
   await syncApprovedFormulaVersion();
+  // Activation is a separate, explicitly enabled decision. During a pricing
+  // repair the catalogue can be corrected in full while every product stays a
+  // draft, because nothing here may put stock on sale by itself.
+  const policyAllowsActivation = await activationAllowed();
+
 
   for (const shopifyProductId of ids) {
     result.evaluated += 1;
@@ -422,10 +429,26 @@ export async function runPricingLifecycle(options: {
       }
 
       outcome.variants = before.variants.length;
+      // Every variant is evaluated through the canonical calculation before
+      // anything is written, so the fingerprint and the hold decision come
+      // from exactly the same facts the price would come from.
+      const quotes = evidenceByProduct.get(shopifyProductId) ?? [];
+      const evaluated = before.variants.map((variant) => ({
+        variant,
+        priced: priceVariant({
+          context,
+          itemCost: variant.unitCost,
+          itemCostCurrency: variant.costCurrency,
+          quotes,
+        }),
+      }));
       const hash = pricingInputHash(
-        before.variants.map((variant) => ({ variantId: variant.id, unitCost: variant.unitCost })),
-        settings,
+        evaluated.map((entry) => ({
+          variantId: entry.variant.id,
+          fingerprint: entry.priced.fingerprint,
+        })),
       );
+
 
       // Loop prevention. Our own write comes back through the webhook with an
       // unchanged fingerprint and an already verified state, so there is
@@ -455,20 +478,16 @@ export async function runPricingLifecycle(options: {
         variants: before.variants.length,
       });
 
-      // A missing or zero cost of goods is never guessed around.
-      const missing = before.variants.filter(
-        (variant) => variant.unitCost === null || !(variant.unitCost > 0),
-      );
-      const wrongCurrency = before.variants.filter(
-        (variant) => variant.costCurrency && variant.costCurrency !== settings.currency,
-      );
-      if (missing.length > 0 || wrongCurrency.length > 0) {
+      // A missing cost, or shipping evidence that is missing, stale or for the
+      // wrong destination, is never guessed around. Delivery is free to the
+      // customer, so an unproven shipping cost is an unproven price.
+      const unpriceable = evaluated.filter((entry) => !entry.priced.complete);
+      if (unpriceable.length > 0) {
         const attempts = (await currentAttempts(shopifyProductId)) + 1;
         outcome.status = "held";
-        outcome.reason =
-          missing.length > 0
-            ? `${missing.length} variant(s) have no usable cost of goods in the store`
-            : `${wrongCurrency.length} variant cost(s) are not recorded in ${settings.currency}`;
+        const first = unpriceable[0]!.priced;
+        outcome.reason = `${unpriceable.length} variant(s) cannot be priced: ${first.reason ?? first.status}`;
+
         outcome.publication = await withdrawFromSale(shopifyProductId, before.status);
         if (before.status === "active") result.drafted += 1;
         await writeMetafields(shopifyProductId, { status: "held", inputHash: hash });
@@ -561,7 +580,7 @@ export async function runPricingLifecycle(options: {
       outcome.status = "verified";
       outcome.reason = `${verifiedVariants} variant(s) written to the store and read back identical on ${PRICING_FORMULA_VERSION}`;
 
-      if (allowActivation && (after?.status ?? before.status) !== "archived") {
+      if (requestedActivation && policyAllowsActivation && (after?.status ?? before.status) !== "archived") {
         const { blockedFromActivation } = await import("./activation-guard.server");
         const blocked = await blockedFromActivation(shopifyProductId);
         if (blocked) {
@@ -577,7 +596,11 @@ export async function runPricingLifecycle(options: {
           const publication = await ensureStorePublications(shopifyProductId);
           outcome.publication = publication.message;
         }
+      } else if (requestedActivation && !policyAllowsActivation) {
+        outcome.activation =
+          "Pricing is verified, but activation is switched off in the pricing policy, so the product was left exactly as it is";
       }
+
 
       await mirrorProduct(shopifyProductId);
       await recordLifecycle({
