@@ -81,7 +81,7 @@ export async function pricingBackfillProgress(): Promise<BackfillProgress> {
       priced: Number(state?.variants_priced ?? 0),
       held: Number(state?.variants_held ?? 0),
     },
-    startedAt: state?.started_at ?? null,
+    startedAt: state?.created_at ?? null,
     updatedAt: state?.updated_at ?? null,
     completedAt: state?.completed_at ?? null,
   };
@@ -97,7 +97,6 @@ export async function resetPricingBackfill(): Promise<void> {
       variants_seen: 0,
       variants_priced: 0,
       variants_held: 0,
-      started_at: new Date().toISOString(),
       completed_at: null,
       updated_at: new Date().toISOString(),
     } as never,
@@ -122,7 +121,6 @@ export async function runPricingBackfillPass(options: {
 
   const state = await readState(supabase);
   const cursor = state?.cursor ? String(state.cursor) : "";
-  const startedAt = state?.started_at ?? new Date().toISOString();
 
   // Drafts are included on purpose: a product must be correctly priced before
   // anyone decides whether to sell it, and pricing it does not sell it.
@@ -164,7 +162,6 @@ export async function runPricingBackfillPass(options: {
       variants_seen: totals.seen,
       variants_priced: totals.priced,
       variants_held: totals.held,
-      started_at: startedAt,
       completed_at: finished ? new Date().toISOString() : null,
       updated_at: new Date().toISOString(),
     } as never,
