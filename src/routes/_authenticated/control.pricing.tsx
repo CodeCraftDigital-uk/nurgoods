@@ -347,7 +347,9 @@ function CataloguePricingPage() {
                 {(holdReport.data?.groups ?? []).map((group) => (
                   <TableRow key={group.reason}>
                     <TableCell>
-                      <StatusPill tone="pending" label={HOLD_REASON_LABEL[group.reason] ?? group.reason} />
+                      <StatusPill tone="pending">
+                        {HOLD_REASON_LABEL[group.reason] ?? group.reason}
+                      </StatusPill>
                     </TableCell>
                     <TableCell className="text-right tabular-nums">{group.variants}</TableCell>
                     <TableCell className="text-xs text-muted-foreground">
