@@ -427,6 +427,9 @@ export async function repriceProducts(options: {
           .upsert(row as never, { onConflict: "shopify_variant_id" });
       }
 
+      // The status the store reported on this read is authoritative, so the
+      // mirror is corrected here too rather than being left to drift.
+      const liveStatus = String(product.status ?? "").toLowerCase();
       if (mirrorProductId && !failure) {
         const { data: variants } = await supabase
           .from("shopify_product_variants")
@@ -435,13 +438,57 @@ export async function repriceProducts(options: {
         const prices = ((variants ?? []) as any[])
           .map((entry) => Number(entry.price))
           .filter((value) => Number.isFinite(value));
-        if (prices.length > 0) {
-          await supabase
-            .from("shopify_products")
-            .update({ price_min: Math.min(...prices), price_max: Math.max(...prices) } as never)
-            .eq("id", mirrorProductId);
-        }
+        await supabase
+          .from("shopify_products")
+          .update({
+            ...(liveStatus ? { status: liveStatus } : {}),
+            ...(prices.length > 0
+              ? { price_min: Math.min(...prices), price_max: Math.max(...prices) }
+              : {}),
+            last_synced_at: new Date().toISOString(),
+          } as never)
+          .eq("id", mirrorProductId);
       }
+
+      // The pricing state of the product is recorded in the same operation as
+      // the write, so nothing downstream has to infer it from prices alone.
+      // Recording "verified" does not put anything on sale: activation is a
+      // separate, explicitly enabled decision.
+      if (!dryRun) {
+        const heldVariants = rowsToWrite.filter((entry) => entry.row["hold_reason"]).length;
+        const failedVariants = rowsToWrite.filter(
+          (entry) => entry.row["push_state"] === "failed",
+        ).length;
+        const status =
+          failure || failedVariants > 0 ? "error" : heldVariants > 0 ? "held" : "verified";
+        const { recordPricingLifecycleState } = await import("./lifecycle.server");
+        await recordPricingLifecycleState({
+          shopifyProductId,
+          status,
+          reason:
+            status === "verified"
+              ? "Every variant is priced on the canonical formula and confirmed by store readback"
+              : status === "held"
+                ? `${heldVariants} variant(s) held for unverified landed cost`
+                : String(failure ?? "The store write could not be confirmed"),
+          verifiedAt: status === "verified" ? new Date().toISOString() : null,
+          variants: rowsToWrite.length,
+          verifiedVariants: rowsToWrite.length - heldVariants - failedVariants,
+        });
+      }
+    }
+  }
+
+  // A confirmed price change has to reach the public projection in the same
+  // operation, otherwise the website keeps serving the price the store no
+  // longer holds.
+  if (!dryRun && result.repriced > 0) {
+    try {
+      const { refreshStorefrontSnapshot } = await import("../automation/snapshot.server");
+      await refreshStorefrontSnapshot(supabase, "price_authority_projection");
+    } catch {
+      // The projection is rebuilt on a schedule as well, so a failure here
+      // delays the public update rather than losing the corrected price.
     }
   }
 
