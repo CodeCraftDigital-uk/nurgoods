@@ -207,3 +207,40 @@ export const runPricingLifecycleRetriesFn = createServerFn({ method: "POST" })
 
 export type { AuditStatus };
 
+
+/** How far the resumable catalogue pricing backfill has got. Read only. */
+export const getPricingBackfillProgressFn = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context);
+    const { pricingBackfillProgress } = await import("./backfill.server");
+    return pricingBackfillProgress();
+  });
+
+/**
+ * Runs one bounded page of the catalogue pricing backfill. Preview calculates
+ * only. Apply corrects prices in the store. Neither changes product status or
+ * publishes anything to a selling channel.
+ */
+export const runPricingBackfillPassFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { mode?: "preview" | "apply"; products?: number } | undefined) => {
+    const mode = input?.mode === "apply" ? "apply" : "preview";
+    const products = Math.max(1, Math.min(Number(input?.products ?? 20) || 20, 40));
+    return { mode, products } as const;
+  })
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const { runPricingBackfillPass } = await import("./backfill.server");
+    return runPricingBackfillPass({ mode: data.mode, products: data.products });
+  });
+
+/** Sends the backfill walk back to the start of the catalogue. */
+export const resetPricingBackfillFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context);
+    const { resetPricingBackfill } = await import("./backfill.server");
+    await resetPricingBackfill();
+    return { ok: true } as const;
+  });

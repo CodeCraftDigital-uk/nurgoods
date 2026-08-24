@@ -22,6 +22,9 @@ import {
   getPriceAuthorityStatusFn,
   getPricingLifecycleStatusFn,
   runPricingLifecycleRetriesFn,
+  getPricingBackfillProgressFn,
+  runPricingBackfillPassFn,
+  resetPricingBackfillFn,
 
   getPricingAudit,
   runPriceAuthorityCycleFn,
@@ -162,6 +165,33 @@ function CataloguePricingPage() {
   });
   const lifecycleReasons: any[] = (lifecycle.data?.["recent_reasons"] as any[]) ?? [];
 
+  const backfillProgressFn = useServerFn(getPricingBackfillProgressFn);
+  const backfill = useQuery({
+    queryKey: ["pricing-backfill"],
+    queryFn: () => backfillProgressFn({}),
+    retry: false,
+  });
+  const backfillPassFn = useServerFn(runPricingBackfillPassFn);
+  const backfillPass = useMutation({
+    mutationFn: (mode: "preview" | "apply") =>
+      backfillPassFn({ data: { mode, products: 20 } }),
+    onSuccess: (result: any) => {
+      toast.success(result.message);
+      void queryClient.invalidateQueries({ queryKey: ["pricing-backfill"] });
+      void queryClient.invalidateQueries({ queryKey: ["price-authority"] });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+  const backfillResetFn = useServerFn(resetPricingBackfillFn);
+  const backfillReset = useMutation({
+    mutationFn: () => backfillResetFn({}),
+    onSuccess: () => {
+      toast.success("The backfill will start again from the beginning of the catalogue.");
+      void queryClient.invalidateQueries({ queryKey: ["pricing-backfill"] });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
 
   const run = audit.data?.run ?? null;
   const totals = run?.totals;
@@ -217,6 +247,61 @@ function CataloguePricingPage() {
           </div>
         }
       />
+
+      <SectionCard
+        title="Catalogue backfill"
+        description="Walks the whole catalogue, drafts included, recalculating every variant on the current formula. Preview calculates only. Apply corrects prices in the store. Neither changes a product's status or publishes anything to a selling channel."
+        actions={
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => backfillReset.mutate()}
+              disabled={backfillReset.isPending || backfillPass.isPending}
+            >
+              Start again
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => backfillPass.mutate("preview")}
+              disabled={backfillPass.isPending}
+            >
+              <Calculator className="mr-2 h-4 w-4" />
+              {backfillPass.isPending ? "Working" : "Preview next page"}
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => backfillPass.mutate("apply")}
+              disabled={backfillPass.isPending}
+            >
+              <ShieldCheck className="mr-2 h-4 w-4" />
+              Apply next page
+            </Button>
+          </div>
+        }
+      >
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <Metric
+            label="Walk state"
+            value={
+              backfill.data?.completedAt
+                ? "Complete"
+                : backfill.data?.running
+                  ? "In progress"
+                  : "Not started"
+            }
+            hint={backfill.data?.formulaVersion ?? ""}
+          />
+          <Metric label="Variants seen" value={String(backfill.data?.totals.seen ?? 0)} />
+          <Metric label="Variants priced" value={String(backfill.data?.totals.priced ?? 0)} />
+          <Metric
+            label="Variants held"
+            value={String(backfill.data?.totals.held ?? 0)}
+            hint="Unverified landed cost"
+          />
+        </div>
+      </SectionCard>
 
       <SectionCard
         title="Publication lifecycle"
