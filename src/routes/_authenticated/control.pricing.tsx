@@ -291,7 +291,7 @@ function CataloguePricingPage() {
                   ? "In progress"
                   : "Not started"
             }
-            hint={backfill.data?.formulaVersion ?? undefined}
+            hint={backfill.data?.formulaVersion ?? ""}
           />
           <Metric label="Variants seen" value={String(backfill.data?.totals.seen ?? 0)} />
           <Metric label="Variants priced" value={String(backfill.data?.totals.priced ?? 0)} />
