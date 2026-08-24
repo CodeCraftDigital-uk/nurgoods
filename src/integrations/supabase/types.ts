@@ -2795,6 +2795,8 @@ export type Database = {
           quoted_currency: string | null
           recovered_at: string | null
           retry_count: number
+          shipping_attempt_at: string | null
+          shipping_attempt_cycle: number
           shipping_cost: number | null
           shipping_currency: string
           shipping_destination: string | null
@@ -2841,6 +2843,8 @@ export type Database = {
           quoted_currency?: string | null
           recovered_at?: string | null
           retry_count?: number
+          shipping_attempt_at?: string | null
+          shipping_attempt_cycle?: number
           shipping_cost?: number | null
           shipping_currency?: string
           shipping_destination?: string | null
@@ -2887,6 +2891,8 @@ export type Database = {
           quoted_currency?: string | null
           recovered_at?: string | null
           retry_count?: number
+          shipping_attempt_at?: string | null
+          shipping_attempt_cycle?: number
           shipping_cost?: number | null
           shipping_currency?: string
           shipping_destination?: string | null
@@ -4262,6 +4268,8 @@ export type Database = {
           quoted_currency: string | null
           recovered_at: string | null
           retry_count: number
+          shipping_attempt_at: string | null
+          shipping_attempt_cycle: number
           shipping_cost: number | null
           shipping_currency: string
           shipping_destination: string | null
