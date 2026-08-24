@@ -28,7 +28,8 @@ const USD_TO_GBP = 0.78;
 
 function marinadeInput(overrides: Partial<CanonicalPriceInput> = {}): CanonicalPriceInput {
   return {
-    itemCost: 12.5,
+    // The real incident inputs, read from the store and the supplier record.
+    itemCost: 0.65,
     itemCostCurrency: "GBP",
     sellingCurrency: "GBP",
     requiredMarkets: ["GB", "US"],
@@ -86,10 +87,15 @@ describe("markup semantics", () => {
 describe("marinade injector incident", () => {
   it("covers supplier shipping instead of pricing from cost of goods alone", () => {
     const withShipping = computeCanonicalPrice(marinadeInput());
-    const itemCostOnly = priceFromProtectedLandedCost(12.5, FEE, MINIMUM_MARKUP_UPLIFT)!;
+    const itemCostOnly = priceFromProtectedLandedCost(0.65, FEE, MINIMUM_MARKUP_UPLIFT)!;
 
     expect(withShipping.status).toBe("priced");
     expect(withShipping.complete).toBe(true);
+    // The item cost alone produced the 1.99 that went on sale. Any calculation
+    // that still returns it is the bug, so it is pinned as rejected here.
+    expect(itemCostOnly.price).toBe(1.99);
+    expect(withShipping.price).not.toBe(1.99);
+    expect(withShipping.price).toBeGreaterThan(1.99);
     expect(withShipping.price).toBeGreaterThan(itemCostOnly.price);
   });
 
@@ -98,8 +104,12 @@ describe("marinade injector incident", () => {
     const protectedRate = USD_TO_GBP * 1.04;
     const worstShipping = 6.08 * protectedRate;
 
+    const cheapestShipping = 4.24 * protectedRate;
+
     expect(result.worstMarket).toBe("US");
-    expect(result.protectedLandedCost).toBeCloseTo(12.5 + worstShipping, 2);
+    expect(result.protectedLandedCost).toBeCloseTo(0.65 + worstShipping, 2);
+    // Explicitly not the cheaper GB quote.
+    expect(result.protectedLandedCost).toBeGreaterThan(0.65 + cheapestShipping);
     expect(result.markets.every((market) => market.usable)).toBe(true);
   });
 
