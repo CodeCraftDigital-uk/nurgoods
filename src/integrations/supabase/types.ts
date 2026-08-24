@@ -1807,18 +1807,24 @@ export type Database = {
       }
       pricing_formula_policy: {
         Row: {
+          activation_enabled: boolean
+          activation_note: string | null
           created_at: string
           formula_version: string
           id: boolean
           updated_at: string
         }
         Insert: {
+          activation_enabled?: boolean
+          activation_note?: string | null
           created_at?: string
           formula_version: string
           id?: boolean
           updated_at?: string
         }
         Update: {
+          activation_enabled?: boolean
+          activation_note?: string | null
           created_at?: string
           formula_version?: string
           id?: boolean

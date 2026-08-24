@@ -8,22 +8,29 @@
  *   cost of goods    store inventory unit cost -> NUR GOODS calculation
  *   retail price     NUR GOODS calculation     -> store variants
  *
- * The rule is a markup on cost with payment fee protection, defined once in
- * catalogue-price.ts. Supplier shipping is not part of it: deliverable stock is
- * filtered by the supplier before a product reaches the store. Order time
- * supplier and economics safety is unchanged and lives elsewhere.
+ * The rule is a markup on PROTECTED LANDED COST with payment fee protection,
+ * defined once in canonical.ts. Landed cost is the store's own cost of goods
+ * plus the supplier's destination specific shipping quote, converted at a rate
+ * deliberately worse than the reference rate, taken from the worst of the free
+ * shipping markets. Delivery is free to the customer, so supplier shipping is
+ * a cost of goods and must be inside the price. Nothing here prices from the
+ * item cost alone.
  *
- * Everything fails closed. Without a usable unit cost the variant is held and
- * nothing is written. Every write is idempotent: recalculating an unchanged
- * variant produces the same price, so our own write echoing back through the
- * store webhook settles as in sync instead of triggering another write.
+ * Everything fails closed. Without a usable cost of goods, without a fresh
+ * verified shipping quote for every free shipping market, or without a usable
+ * exchange rate, the variant is held and nothing is written. Every write is
+ * idempotent: recalculating an unchanged variant produces the same price, so
+ * our own write echoing back through the store webhook settles as in sync
+ * instead of triggering another write. Every write is also read back from the
+ * store before it is treated as done.
  */
 import { intakeCredentials, shopifyGraphql } from "../services/shopify.server";
 import { zendropAdminClient } from "../zendrop/client.server";
-import { loadPricingSettings } from "../zendrop/import.server";
-import { CATALOGUE_FORMULA_VERSION, computeCataloguePrice } from "./catalogue-price";
+import { CANONICAL_FORMULA_VERSION } from "./canonical";
+import { loadCanonicalPricingContext, loadShippingEvidenceForProducts, priceVariant } from "./canonical.server";
 
-export const PRICING_FORMULA_VERSION = CATALOGUE_FORMULA_VERSION;
+export const PRICING_FORMULA_VERSION = CANONICAL_FORMULA_VERSION;
+
 
 /** A penny. Prices equal within this are the same price. */
 const PENCE = 0.005;
@@ -102,22 +109,11 @@ function nextAttemptAt(attempts: number): string {
 }
 
 /**
- * Fingerprint of everything the price is derived from. An unchanged
- * fingerprint means a recalculation is a no-op, which is what stops our own
- * write bouncing back through the store webhook as fresh work.
+ * The pricing input fingerprint now lives in canonical.ts, because it has to
+ * cover the shipping evidence as well as the cost of goods. A quote that moves,
+ * expires or changes destination changes the fingerprint and forces a reprice.
  */
-function inputHash(
-  unitCost: number,
-  settings: { payment_fee_variable: number; payment_fee_fixed: number; target_margin: number },
-): string {
-  return [
-    unitCost.toFixed(4),
-    settings.target_margin,
-    settings.payment_fee_variable,
-    settings.payment_fee_fixed,
-    PRICING_FORMULA_VERSION,
-  ].join("|");
-}
+
 
 function numeric(value: unknown): number | null {
   if (value === null || value === undefined) return null;
@@ -154,14 +150,6 @@ async function writeCheckpoint(
   );
 }
 
-/**
- * The markup multiplier in force. The stored setting is expressed as an uplift
- * on cost, so 0.60 means a 1.60 multiplier.
- */
-function markupFrom(settings: { target_margin: number }): number {
-  const uplift = Number(settings.target_margin);
-  return Number.isFinite(uplift) && uplift > 0 ? 1 + uplift : 1.6;
-}
 
 /**
  * Reprices a bounded set of store products. Reads cost of goods straight from
@@ -195,8 +183,9 @@ export async function repriceProducts(options: {
   }
 
   const supabase = await zendropAdminClient();
-  const settings = await loadPricingSettings();
-  const markup = markupFrom(settings);
+  const context = await loadCanonicalPricingContext();
+  const evidenceByProduct = await loadShippingEvidenceForProducts(ids);
+
   const credentials = await intakeCredentials();
 
   const { data: mirrorRows } = await supabase
@@ -216,6 +205,9 @@ export async function repriceProducts(options: {
       result.products += 1;
       const shopifyProductId = String(product.id);
       const mirrorProductId = mirrorIdByShopifyId.get(shopifyProductId) ?? null;
+      // Shipping is quoted per product and per destination, so the same
+      // evidence covers every variant of the product.
+      const quotes = evidenceByProduct.get(shopifyProductId) ?? [];
       const now = new Date().toISOString();
       const changes: Array<{ id: string; price: string; compareAtPrice: null }> = [];
       const rowsToWrite: Array<{ row: Record<string, unknown>; expected: number | null }> = [];
@@ -228,41 +220,51 @@ export async function repriceProducts(options: {
         const unitCostRaw = numeric(variant?.inventoryItem?.unitCost?.amount);
         const costCurrency = variant?.inventoryItem?.unitCost?.currencyCode ?? null;
 
-        const priced = computeCataloguePrice({
-          unitCost: unitCostRaw,
-          markup,
-          feeVariable: settings.payment_fee_variable,
-          feeFixed: settings.payment_fee_fixed,
+        const priced = priceVariant({
+          context,
+          itemCost: unitCostRaw,
+          itemCostCurrency: costCurrency,
+          quotes,
         });
 
-        let hold = priced.complete ? null : priced.reason;
-        if (!hold && costCurrency && costCurrency !== settings.currency) {
-          hold = `The recorded cost is in ${costCurrency}, which is not comparable with ${settings.currency}`;
-        }
-        const expected = hold ? null : priced.price;
+        const hold = priced.complete ? null : priced.reason;
+        const expected = priced.price;
 
         const row: Record<string, unknown> = {
           product_id: mirrorProductId,
           shopify_product_id: shopifyProductId,
           shopify_variant_id: variantId,
           variant_title: variant.title ?? null,
-          currency: settings.currency,
+          currency: context.sellingCurrency,
           authority_source: "nur_goods_calculated",
           formula_version: PRICING_FORMULA_VERSION,
           formula_inputs: {
             unit_cost: unitCostRaw,
             cost_source: "store_inventory_unit_cost",
-            markup,
-            fee_variable: settings.payment_fee_variable,
-            fee_fixed: settings.payment_fee_fixed,
+            markup_uplift: priced.markupUplift,
+            fee_variable: context.fee.variable,
+            fee_fixed: context.fee.fixed,
+            fx_buffer_pct: context.fxBufferPct,
+            fx_reference_rates: context.referenceFxRates,
+            fx_as_of: context.fxAsOf,
+            fx_source: context.fxSource,
+            required_markets: context.requiredMarkets,
+            markets: priced.markets,
+            worst_market: priced.worstMarket,
+            protected_landed_cost: priced.protectedLandedCost,
             raw_price: priced.rawPrice,
             target_revenue: priced.targetRevenue,
+            expected_profit: priced.expectedProfit,
+            realised_markup: priced.realisedMarkup,
+            hold_status: priced.status,
             rounding_mode: "charm_99",
           },
           unit_cost: unitCostRaw,
           cost_observed_at: unitCostRaw === null ? null : now,
-          input_hash: unitCostRaw === null ? null : inputHash(unitCostRaw, settings),
-          landed_cost: unitCostRaw,
+          input_hash: priced.fingerprint,
+          // The landed cost recorded here is the one the price had to cover,
+          // never the bare item cost.
+          landed_cost: priced.protectedLandedCost,
           landed_cost_verified_at: hold ? null : now,
           cost_source: unitCostRaw === null ? null : "store_inventory_unit_cost",
           expected_price: expected,
@@ -270,6 +272,7 @@ export async function repriceProducts(options: {
           observed_at: now,
           hold_reason: hold,
         };
+
 
         if (hold) {
           result.held += 1;
@@ -329,17 +332,59 @@ export async function repriceProducts(options: {
         }
       }
 
+      // A mutation that returned without an error is not proof. The store is
+      // read back and the price we intended must be the price it now holds,
+      // ending .99, with no unverified compare-at left behind. Anything else
+      // is a failed push, not a success.
+      const readbackProblems = new Map<string, string>();
+      if (changes.length > 0 && !failure) {
+        try {
+          const confirm: any = await shopifyGraphql(credentials, PRODUCT_PRICING_QUERY, {
+            ids: [shopifyProductId],
+          });
+          const node = ((confirm?.nodes ?? []) as any[]).find((entry) => entry?.id);
+          const stored = new Map<string, { price: number | null; compareAt: number | null }>(
+            ((node?.variants?.nodes ?? []) as any[]).map((entry) => [
+              String(entry.id),
+              { price: numeric(entry.price), compareAt: numeric(entry.compareAtPrice) },
+            ]),
+          );
+          for (const change of changes) {
+            const intended = Number(change.price);
+            const actual = stored.get(change.id);
+            if (!actual) {
+              readbackProblems.set(change.id, "The store did not return this variant after the update");
+            } else if (actual.price === null || Math.abs(actual.price - intended) >= PENCE) {
+              readbackProblems.set(
+                change.id,
+                `The store shows ${actual.price ?? "no price"} after writing ${intended.toFixed(2)}`,
+              );
+            } else if (Math.round(actual.price * 100) % 100 !== 99) {
+              readbackProblems.set(change.id, `${actual.price.toFixed(2)} does not end in .99`);
+            } else if (actual.compareAt !== null) {
+              readbackProblems.set(change.id, "An unverified compare-at price is still set");
+            }
+          }
+        } catch (cause) {
+          failure = cause instanceof Error ? cause.message : "The written price could not be read back";
+        }
+      }
+
       for (const entry of rowsToWrite) {
         const row = entry.row;
         const wasDrift = row["push_state"] === "drifted";
-        if (wasDrift && failure) {
+        const readbackProblem = wasDrift
+          ? (readbackProblems.get(String(row["shopify_variant_id"])) ?? null)
+          : null;
+        if (wasDrift && (failure || readbackProblem)) {
           result.failed += 1;
           row["push_state"] = "failed";
           row["push_attempts"] = 1;
           row["last_push_status"] = "failed";
-          row["last_push_error"] = failure.slice(0, 500);
+          row["last_push_error"] = String(failure ?? readbackProblem).slice(0, 500);
           row["next_attempt_at"] = nextAttemptAt(1);
         } else if (wasDrift) {
+
           result.repriced += 1;
           row["push_state"] = "in_sync";
           row["observed_shopify_price"] = entry.expected;
@@ -357,7 +402,7 @@ export async function repriceProducts(options: {
               price: entry.expected,
               compare_at_price: null,
               unit_cost: row["unit_cost"],
-              unit_cost_currency: settings.currency,
+              unit_cost_currency: context.sellingCurrency,
               cost_source: row["cost_source"],
               cost_synced_at: now,
             } as never)
@@ -397,8 +442,8 @@ export async function repriceProducts(options: {
   }
 
   result.message = dryRun
-    ? `${result.variants} variant(s) measured across ${result.products} product(s): ${result.inSync} already correct, ${result.repriced} would change, ${result.held} held for missing store cost.`
-    : `${result.variants} variant(s) across ${result.products} product(s): ${result.repriced} repriced, ${result.inSync} already correct, ${result.held} held for missing store cost, ${result.failed} failed and scheduled for retry.`;
+    ? `${result.variants} variant(s) measured across ${result.products} product(s): ${result.inSync} already correct, ${result.repriced} would change, ${result.held} held for unverified landed cost.`
+    : `${result.variants} variant(s) across ${result.products} product(s): ${result.repriced} repriced, ${result.inSync} already correct, ${result.held} held for unverified landed cost, ${result.failed} failed and scheduled for retry.`;
   return result;
 }
 
