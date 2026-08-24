@@ -28,6 +28,8 @@ import { intakeCredentials, shopifyGraphql } from "../services/shopify.server";
 import { zendropAdminClient } from "../zendrop/client.server";
 import { CANONICAL_FORMULA_VERSION } from "./canonical";
 import { loadCanonicalPricingContext, loadShippingEvidenceForProducts, priceVariant } from "./canonical.server";
+import { verifyReadbackParity } from "./readback";
+
 
 export const PRICING_FORMULA_VERSION = CANONICAL_FORMULA_VERSION;
 
@@ -336,7 +338,7 @@ export async function repriceProducts(options: {
       // read back and the price we intended must be the price it now holds,
       // ending .99, with no unverified compare-at left behind. Anything else
       // is a failed push, not a success.
-      const readbackProblems = new Map<string, string>();
+      let readbackProblems = new Map<string, string>();
       if (changes.length > 0 && !failure) {
         try {
           const confirm: any = await shopifyGraphql(credentials, PRODUCT_PRICING_QUERY, {
@@ -349,26 +351,12 @@ export async function repriceProducts(options: {
               { price: numeric(entry.price), compareAt: numeric(entry.compareAtPrice) },
             ]),
           );
-          for (const change of changes) {
-            const intended = Number(change.price);
-            const actual = stored.get(change.id);
-            if (!actual) {
-              readbackProblems.set(change.id, "The store did not return this variant after the update");
-            } else if (actual.price === null || Math.abs(actual.price - intended) >= PENCE) {
-              readbackProblems.set(
-                change.id,
-                `The store shows ${actual.price ?? "no price"} after writing ${intended.toFixed(2)}`,
-              );
-            } else if (Math.round(actual.price * 100) % 100 !== 99) {
-              readbackProblems.set(change.id, `${actual.price.toFixed(2)} does not end in .99`);
-            } else if (actual.compareAt !== null) {
-              readbackProblems.set(change.id, "An unverified compare-at price is still set");
-            }
-          }
+          readbackProblems = verifyReadbackParity(changes, stored);
         } catch (cause) {
           failure = cause instanceof Error ? cause.message : "The written price could not be read back";
         }
       }
+
 
       for (const entry of rowsToWrite) {
         const row = entry.row;
@@ -384,6 +372,7 @@ export async function repriceProducts(options: {
           row["last_push_error"] = String(failure ?? readbackProblem).slice(0, 500);
           row["next_attempt_at"] = nextAttemptAt(1);
         } else if (wasDrift) {
+          const previousPrice = row["observed_shopify_price"] as number | null;
 
           result.repriced += 1;
           row["push_state"] = "in_sync";
@@ -407,6 +396,21 @@ export async function repriceProducts(options: {
               cost_synced_at: now,
             } as never)
             .eq("shopify_variant_id", String(row["shopify_variant_id"]));
+          // Confirmed writes leave an audit trail: what the price was, what it
+          // became, and the landed cost the calculation had to cover.
+          await supabase.from("product_price_revisions").insert({
+            product_id: mirrorProductId,
+            shopify_product_id: shopifyProductId,
+            shopify_variant_id: String(row["shopify_variant_id"]),
+            old_price: previousPrice,
+            new_price: entry.expected,
+            unit_cost: row["unit_cost"],
+            landed_cost: row["landed_cost"],
+            cost_source: row["cost_source"],
+            source: "price_authority",
+            rounding_mode: "charm_99",
+          } as never);
+
         } else {
           await supabase
             .from("shopify_product_variants")
