@@ -20,6 +20,7 @@
  */
 import { zendropAdminClient } from "../zendrop/client.server";
 import { PRICING_FORMULA_VERSION, repriceProducts, verifyPriceParity } from "./authority.server";
+import { listLiveProductIds, reconcileLiveCatalogue, type ReconcileReport } from "./catalogue-reconcile.server";
 
 const CHECKPOINT_ID = "canonical-price-backfill";
 
@@ -271,8 +272,19 @@ export async function runPricingBackfill(options: {
   scope?: BackfillScope;
   products?: number;
   maxPasses?: number;
-} = {}): Promise<{ passes: BackfillPass[]; finished: boolean; parity: unknown }> {
+  /** Pull the live catalogue into the mirror first. On by default. */
+  reconcile?: boolean;
+} = {}): Promise<{
+  passes: BackfillPass[];
+  finished: boolean;
+  parity: unknown;
+  reconciliation: ReconcileReport | null;
+}> {
   const maxPasses = Math.max(1, Math.min(options.maxPasses ?? 5, 50));
+  // Statuses and prices are refreshed from the store before a single pricing
+  // decision is taken, so neither the scope nor the "already correct" verdict
+  // can be built on a stale mirror.
+  const reconciliation = options.reconcile === false ? null : await reconcileLiveCatalogue();
   const passes: BackfillPass[] = [];
   let finished = false;
   for (let index = 0; index < maxPasses && !finished; index += 1) {
@@ -284,7 +296,7 @@ export async function runPricingBackfill(options: {
     passes.push(pass);
     finished = pass.finishedFullPass;
   }
-  return { passes, finished, parity: await verifyPriceParity() };
+  return { passes, finished, parity: await verifyPriceParity(), reconciliation };
 }
 
 
