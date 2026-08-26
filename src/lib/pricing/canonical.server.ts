@@ -34,6 +34,21 @@ export interface CanonicalPricingContext {
   fxProblem: string | null;
 }
 
+type ShippingEvidenceRow = {
+  shopify_product_id?: string | null;
+  supplier_product_id?: string | null;
+  market?: string | null;
+  shipping_amount?: number | null;
+  shipping_currency?: string | null;
+  shipping_service?: string | null;
+  quoted_at?: string | null;
+};
+
+type SupplierLinkRow = {
+  shopify_product_id?: string | null;
+  supplier_product_id?: string | null;
+};
+
 /**
  * Loads everything that is the same for every product in a pricing pass.
  *
@@ -96,73 +111,93 @@ export async function loadCanonicalPricingContext(): Promise<CanonicalPricingCon
  * recovered through the supplier link where it does not, so a product whose
  * eligibility was captured before the link existed is still priced correctly.
  */
+export function indexShippingEvidence(
+  shopifyProductIds: string[],
+  directRows: ShippingEvidenceRow[],
+  supplierRows: ShippingEvidenceRow[],
+  links: SupplierLinkRow[],
+): Map<string, MarketShippingQuote[]> {
+  const wanted = new Set(shopifyProductIds.map(String));
+  const productBySupplier = new Map<string, string>();
+  for (const link of links) {
+    const productId = String(link.shopify_product_id ?? "");
+    const supplierId = String(link.supplier_product_id ?? "");
+    if (wanted.has(productId) && supplierId) productBySupplier.set(supplierId, productId);
+  }
+
+  const indexed = new Map<string, Map<string, MarketShippingQuote>>();
+  const put = (productId: string, row: ShippingEvidenceRow, replace: boolean) => {
+    if (!wanted.has(productId)) return;
+    const market = String(row.market ?? "").trim().toUpperCase();
+    if (!market) return;
+    const byMarket = indexed.get(productId) ?? new Map<string, MarketShippingQuote>();
+    if (replace || !byMarket.has(market)) {
+      byMarket.set(market, {
+        market,
+        amount:
+          row.shipping_amount === null || row.shipping_amount === undefined
+            ? null
+            : Number(row.shipping_amount),
+        currency: row.shipping_currency ?? null,
+        destination: market,
+        service: row.shipping_service ?? null,
+        quotedAt: row.quoted_at ?? null,
+      });
+    }
+    indexed.set(productId, byMarket);
+  };
+
+  // Supplier-keyed rows fill gaps market by market. Direct product-keyed rows
+  // then win where both representations exist.
+  for (const row of supplierRows) {
+    const productId = productBySupplier.get(String(row.supplier_product_id ?? ""));
+    if (productId) put(productId, row, false);
+  }
+  for (const row of directRows) put(String(row.shopify_product_id ?? ""), row, true);
+
+  return new Map(
+    shopifyProductIds.map((productId) => [
+      productId,
+      [...(indexed.get(productId)?.values() ?? [])].sort((a, b) =>
+        a.market.localeCompare(b.market),
+      ),
+    ]),
+  );
+}
+
 export async function loadShippingEvidenceForProducts(
   shopifyProductIds: string[],
 ): Promise<Map<string, MarketShippingQuote[]>> {
   const ids = Array.from(new Set(shopifyProductIds.filter(Boolean)));
-  const byProduct = new Map<string, MarketShippingQuote[]>();
-  if (ids.length === 0) return byProduct;
+  if (ids.length === 0) return new Map();
 
   const supabase = await zendropAdminClient();
-
   const { data: links } = await supabase
     .from("product_supplier_links")
     .select("shopify_product_id, supplier_product_id")
     .in("shopify_product_id", ids);
-  const supplierByProduct = new Map<string, string>();
-  const productBySupplier = new Map<string, string>();
-  for (const row of (links ?? []) as any[]) {
-    const shopifyId = String(row.shopify_product_id ?? "");
-    const supplierId = row.supplier_product_id ? String(row.supplier_product_id) : "";
-    if (!shopifyId || !supplierId) continue;
-    supplierByProduct.set(shopifyId, supplierId);
-    productBySupplier.set(supplierId, shopifyId);
-  }
-
-  const push = (shopifyId: string, quote: MarketShippingQuote) => {
-    const existing = byProduct.get(shopifyId);
-    if (existing) existing.push(quote);
-    else byProduct.set(shopifyId, [quote]);
-  };
-
-  const toQuote = (row: any): MarketShippingQuote => ({
-    market: String(row.market ?? "").toUpperCase(),
-    amount:
-      row.shipping_amount === null || row.shipping_amount === undefined
-        ? null
-        : Number(row.shipping_amount),
-    currency: row.shipping_currency ?? null,
-    // The destination is the market the quote was taken for, recorded on the
-    // row itself rather than assumed from the product.
-    destination: String(row.market ?? "").toUpperCase(),
-    service: row.shipping_service ?? null,
-    quotedAt: row.quoted_at ?? null,
-  });
+  const linkRows = (links ?? []) as SupplierLinkRow[];
+  const supplierIds = Array.from(
+    new Set(linkRows.map((row) => row.supplier_product_id).filter(Boolean).map(String)),
+  );
 
   const { data: direct } = await supabase
     .from("product_market_eligibility")
-    .select("shopify_product_id, market, shipping_amount, shipping_currency, shipping_service, quoted_at")
+    .select("shopify_product_id, supplier_product_id, market, shipping_amount, shipping_currency, shipping_service, quoted_at")
     .in("shopify_product_id", ids);
-  for (const row of (direct ?? []) as any[]) {
-    push(String(row.shopify_product_id), toQuote(row));
-  }
+  const { data: viaSupplier } = supplierIds.length
+    ? await supabase
+        .from("product_market_eligibility")
+        .select("shopify_product_id, supplier_product_id, market, shipping_amount, shipping_currency, shipping_service, quoted_at")
+        .in("supplier_product_id", supplierIds)
+    : { data: [] as ShippingEvidenceRow[] };
 
-  const missing = ids.filter((id) => !byProduct.has(id) && supplierByProduct.has(id));
-  const supplierIds = missing
-    .map((id) => supplierByProduct.get(id))
-    .filter((value): value is string => Boolean(value));
-  if (supplierIds.length > 0) {
-    const { data: viaSupplier } = await supabase
-      .from("product_market_eligibility")
-      .select("supplier_product_id, market, shipping_amount, shipping_currency, shipping_service, quoted_at")
-      .in("supplier_product_id", supplierIds);
-    for (const row of (viaSupplier ?? []) as any[]) {
-      const shopifyId = productBySupplier.get(String(row.supplier_product_id));
-      if (shopifyId) push(shopifyId, toQuote(row));
-    }
-  }
-
-  return byProduct;
+  return indexShippingEvidence(
+    ids,
+    (direct ?? []) as ShippingEvidenceRow[],
+    (viaSupplier ?? []) as ShippingEvidenceRow[],
+    linkRows,
+  );
 }
 
 /** Applies the canonical calculation to one variant using a loaded context. */
