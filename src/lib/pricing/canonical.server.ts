@@ -107,9 +107,12 @@ export async function loadCanonicalPricingContext(): Promise<CanonicalPricingCon
 /**
  * Reads the recorded destination quotes for a set of store products.
  *
- * Evidence is keyed on the store product where the row carries one, and
- * recovered through the supplier link where it does not, so a product whose
- * eligibility was captured before the link existed is still priced correctly.
+ * Evidence arrives in two shapes: rows keyed on the store product, and rows
+ * keyed only on the supplier product. Both are considered for every requested
+ * product, market by market, so an incomplete or stale direct row can never
+ * hide fresher supplier evidence, and a direct row for one market can never
+ * suppress supplier evidence for another. For each market the newest complete
+ * quote wins, and direct evidence only breaks a tie.
  */
 export function indexShippingEvidence(
   shopifyProductIds: string[],
@@ -125,45 +128,69 @@ export function indexShippingEvidence(
     if (wanted.has(productId) && supplierId) productBySupplier.set(supplierId, productId);
   }
 
-  const indexed = new Map<string, Map<string, MarketShippingQuote>>();
-  const put = (productId: string, row: ShippingEvidenceRow, replace: boolean) => {
+  type Candidate = { quote: MarketShippingQuote; complete: boolean; at: number; direct: boolean };
+  const indexed = new Map<string, Map<string, Candidate>>();
+
+  const consider = (productId: string, row: ShippingEvidenceRow, direct: boolean) => {
     if (!wanted.has(productId)) return;
     const market = String(row.market ?? "").trim().toUpperCase();
     if (!market) return;
-    const byMarket = indexed.get(productId) ?? new Map<string, MarketShippingQuote>();
-    if (replace || !byMarket.has(market)) {
-      byMarket.set(market, {
+
+    const amount =
+      row.shipping_amount === null || row.shipping_amount === undefined
+        ? null
+        : Number(row.shipping_amount);
+    const complete = amount !== null && Number.isFinite(amount);
+    const parsed = row.quoted_at ? Date.parse(row.quoted_at) : Number.NaN;
+    const at = Number.isFinite(parsed) ? parsed : 0;
+
+    const candidate: Candidate = {
+      quote: {
         market,
-        amount:
-          row.shipping_amount === null || row.shipping_amount === undefined
-            ? null
-            : Number(row.shipping_amount),
+        amount: complete ? amount : null,
         currency: row.shipping_currency ?? null,
         destination: market,
         service: row.shipping_service ?? null,
         quotedAt: row.quoted_at ?? null,
-      });
-    }
+      },
+      complete,
+      at,
+      direct,
+    };
+
+    const byMarket = indexed.get(productId) ?? new Map<string, Candidate>();
+    const existing = byMarket.get(market);
+    if (!existing || beats(candidate, existing)) byMarket.set(market, candidate);
     indexed.set(productId, byMarket);
   };
 
-  // Supplier-keyed rows fill gaps market by market. Direct product-keyed rows
-  // then win where both representations exist.
+  // Deterministic: usable quote first, then freshest, then direct product
+  // evidence as the tie break.
+  const beats = (a: Candidate, b: Candidate): boolean => {
+    if (a.complete !== b.complete) return a.complete;
+    if (a.at !== b.at) return a.at > b.at;
+    if (a.direct !== b.direct) return a.direct;
+    return false;
+  };
+
   for (const row of supplierRows) {
     const productId = productBySupplier.get(String(row.supplier_product_id ?? ""));
-    if (productId) put(productId, row, false);
+    if (productId) consider(productId, row, false);
+    const directId = String(row.shopify_product_id ?? "");
+    if (directId && wanted.has(directId)) consider(directId, row, true);
   }
-  for (const row of directRows) put(String(row.shopify_product_id ?? ""), row, true);
+  for (const row of directRows) consider(String(row.shopify_product_id ?? ""), row, true);
 
   return new Map(
     shopifyProductIds.map((productId) => [
       productId,
-      [...(indexed.get(productId)?.values() ?? [])].sort((a, b) =>
-        a.market.localeCompare(b.market),
-      ),
+      [...(indexed.get(productId)?.values() ?? [])]
+        .map((candidate) => candidate.quote)
+        .sort((a, b) => a.market.localeCompare(b.market)),
     ]),
   );
 }
+
 
 export async function loadShippingEvidenceForProducts(
   shopifyProductIds: string[],
