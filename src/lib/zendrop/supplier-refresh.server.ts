@@ -124,15 +124,38 @@ function tuningFrom(rules: {
  * Holds every listing whose supplier facts have aged past the freshness
  * target, regardless of why the refresh did not happen.
  *
- * This is the backstop that makes the whole model safe: no infrastructure
- * failure, rate limit or supplier outage can leave a listing on sale against
- * facts we can no longer stand behind.
+ * This is the backstop that makes the whole model safe: no supplier outage can
+ * leave a listing on sale against facts we can no longer stand behind.
+ *
+ * It carries two hard safety rules, both learned the expensive way:
+ *
+ *   - It only runs while the job that keeps those facts fresh is actually
+ *     running. With that job paused, every listing ages past the target by
+ *     definition, and sweeping would take the whole shop off sale for a
+ *     staleness entirely of our own making.
+ *   - It refuses a pass whose blast radius is large enough to be a broken
+ *     assumption rather than a real supplier problem, unless a human
+ *     authorised that exact pass. A refusal is loud and logged, never silent.
  */
 async function sweepStaleListings(
   supabase: any,
   tuning: RefreshTuning,
   dryRun: boolean,
+  options: { confirmMassHold?: boolean } = {},
 ): Promise<number> {
+  const { shouldSweepStale, withinImpactGuard } = await import("@/lib/catalogue/repair");
+
+  const { data: freshnessJob } = await supabase
+    .from("automation_jobs")
+    .select("enabled")
+    .eq("job_key", "supplier_product_refresh")
+    .maybeSingle();
+  const gate = shouldSweepStale({
+    freshnessJobEnabled: (freshnessJob as any)?.enabled === true,
+    dryRun,
+  });
+  if (!gate.sweep) return 0;
+
   const cutoff = new Date(Date.now() - tuning.freshnessTargetHours * 3_600_000).toISOString();
   const { data } = await supabase
     .from("product_supplier_links")
@@ -144,6 +167,23 @@ async function sweepStaleListings(
     .limit(200);
 
   const rows = (data ?? []) as Array<{ id: string; shopify_product_id: string }>;
+
+  const { count: liveCount } = await supabase
+    .from("shopify_products")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "active");
+  const impact = withinImpactGuard({
+    affected: rows.length,
+    total: Number(liveCount ?? 0),
+    maxShare: 0.1,
+    maxProducts: 25,
+    confirmed: options.confirmMassHold === true,
+  });
+  if (!impact.allowed) {
+    console.warn(`[supplier-refresh] stale sweep refused. ${impact.reason}`);
+    return 0;
+  }
+
   let held = 0;
   for (const row of rows) {
     const wasHeld = await takeOffSale(row.shopify_product_id, dryRun);
@@ -182,6 +222,11 @@ export async function runSupplierProductRefresh(options?: {
    * from the same rolling position rather than starting over.
    */
   budgetMs?: number;
+  /**
+   * Explicit human authorisation for a pass that would take an unusually large
+   * number of listings off sale in one go. Absent, such a pass is refused.
+   */
+  confirmMassHold?: boolean;
 }): Promise<SupplierRefreshResult> {
   const deadlineAt = Date.now() + Math.max(10_000, options?.budgetMs ?? 90_000);
 
@@ -198,7 +243,11 @@ export async function runSupplierProductRefresh(options?: {
     .not("supplier_product_id", "is", null);
   const plan = planRefreshBatch(Number(count ?? 0), tuning);
 
-  const staleSwept = dryRun ? 0 : await sweepStaleListings(supabase, tuning, dryRun);
+  const staleSwept = dryRun
+    ? 0
+    : await sweepStaleListings(supabase, tuning, dryRun, {
+        confirmMassHold: options?.confirmMassHold === true,
+      });
 
   const batchSize = Math.max(
     1,

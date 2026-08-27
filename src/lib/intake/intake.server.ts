@@ -105,6 +105,12 @@ export interface DetectionInput {
   /** Hash of the catalogue content intake actually reasons about. */
   materialFingerprint?: string | null;
   origin?: IntakeOrigin;
+  /**
+   * The store status the product was detected in. A supplier created product
+   * that arrives already active has skipped every gate, so detection takes it
+   * back off sale before anything else happens.
+   */
+  status?: string | null;
 }
 
 export interface DetectionResult {
@@ -146,6 +152,23 @@ export async function detectProducts(db: Db, inputs: DetectionInput[]): Promise<
       hasVersion: Boolean(input.updatedAt),
     });
 
+    // Draft first. A product that reaches us already on sale without having
+    // been verified here is taken back off sale before it is queued, so no
+    // customer can see an unpriced, unscreened listing while it waits for the
+    // worker. Never allowed to fail detection.
+    let draftFirstNote: string | null = null;
+    if (String(input.status ?? "").toLowerCase() === "active") {
+      const { enforceDraftFirst } = await import("./draft-first.server");
+      const guard = await enforceDraftFirst({
+        shopifyProductId: input.shopifyProductId,
+        origin: input.origin ?? row?.origin ?? null,
+        status: input.status ?? null,
+      });
+      if (guard.held) draftFirstNote = guard.reason;
+    }
+
+
+
     if (decision.action === "create") {
       const { data: inserted } = await db
         .from("product_intake_records")
@@ -158,7 +181,9 @@ export async function detectProducts(db: Db, inputs: DetectionInput[]): Promise<
           origin: input.origin ?? "store",
           state: "detected",
           reason_code: "detected",
-          reason: `Detected from ${input.source === "webhook" ? "a store webhook" : "the scheduled sync"}`,
+          reason: `Detected from ${
+            input.source === "webhook" ? "a store webhook" : "the scheduled sync"
+          }${draftFirstNote ? `. ${draftFirstNote}` : ""}`,
           version_fingerprint: fingerprint,
           material_fingerprint: material,
         } as never)

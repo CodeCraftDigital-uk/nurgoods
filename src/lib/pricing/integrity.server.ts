@@ -494,6 +494,12 @@ async function readBackPrices(shopifyProductId: string): Promise<Map<string, num
 export async function enforceLivePricingIntegrity(options?: {
   dryRun?: boolean;
   userId?: string | null;
+  /**
+   * Explicit human authorisation for a pass that would take an unusually large
+   * share of the catalogue off sale. Without it such a pass still corrects
+   * every price it can justify, but refuses the mass hold and says so.
+   */
+  confirmMassHold?: boolean;
 }): Promise<IntegrityReport> {
   const dryRun = options?.dryRun === true;
   const supabase = await zendropAdminClient();
@@ -545,6 +551,25 @@ export async function enforceLivePricingIntegrity(options?: {
     mirrorByShopifyId.set(String(row.shopify_product_id), String(row.id));
   }
 
+  // Blast radius check before a single product is touched. A pass that wants
+  // to take a large share of the shop off sale is far more likely to be a
+  // broken assumption upstream than a real pricing emergency, so it is refused
+  // unless a human authorised this exact pass. Repricing still proceeds.
+  const { withinImpactGuard } = await import("@/lib/catalogue/repair");
+  const wouldHold = products.filter((product) =>
+    (byProduct.get(product.shopifyProductId) ?? []).some(
+      (row) => row.category === "unverified_but_live",
+    ),
+  ).length;
+  const impact = withinImpactGuard({
+    affected: wouldHold,
+    total: products.length,
+    maxShare: 0.1,
+    maxProducts: 25,
+    confirmed: options?.confirmMassHold === true,
+  });
+  const holdsAllowed = impact.allowed;
+
   for (const product of products) {
     const rows = byProduct.get(product.shopifyProductId) ?? [];
     const action: ProductAction = {
@@ -568,6 +593,12 @@ export async function enforceLivePricingIntegrity(options?: {
     if (blockers.length > 0) {
       action.action = "held";
       action.reason = `${blockers.length} variant(s) have no verified landed cost basis: ${blockers[0]?.reason ?? ""}`;
+      if (!holdsAllowed) {
+        action.action = "none";
+        action.reason = `${action.reason}. ${impact.reason}`;
+        report.actions.push(action);
+        continue;
+      }
       if (!dryRun) {
         try {
           await holdProduct(product.shopifyProductId);
