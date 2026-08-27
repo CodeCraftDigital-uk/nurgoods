@@ -57,6 +57,7 @@ export async function runIntakeDeltaSync(db: Db, lookbackHours = 26): Promise<In
       // Only material catalogue content requeues a settled product. Inventory
       // and pricing movement is recorded without reprocessing.
       materialFingerprint: materialIntakeFingerprint(product as never),
+      status: (product as any).status ?? null,
     })),
   );
 

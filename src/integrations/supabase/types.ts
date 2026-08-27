@@ -489,6 +489,191 @@ export type Database = {
           },
         ]
       }
+      catalogue_repair_items: {
+        Row: {
+          blocked: boolean
+          created_at: string
+          decision: string
+          evidence: Json
+          handle: string | null
+          id: string
+          price_parity: Json
+          processed_at: string | null
+          publications_after: Json
+          reason: string | null
+          reason_code: string | null
+          run_id: string
+          shopify_product_id: string
+          status_after: string | null
+          status_before: string | null
+          title: string | null
+          updated_at: string
+        }
+        Insert: {
+          blocked?: boolean
+          created_at?: string
+          decision?: string
+          evidence?: Json
+          handle?: string | null
+          id?: string
+          price_parity?: Json
+          processed_at?: string | null
+          publications_after?: Json
+          reason?: string | null
+          reason_code?: string | null
+          run_id: string
+          shopify_product_id: string
+          status_after?: string | null
+          status_before?: string | null
+          title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          blocked?: boolean
+          created_at?: string
+          decision?: string
+          evidence?: Json
+          handle?: string | null
+          id?: string
+          price_parity?: Json
+          processed_at?: string | null
+          publications_after?: Json
+          reason?: string | null
+          reason_code?: string | null
+          run_id?: string
+          shopify_product_id?: string
+          status_after?: string | null
+          status_before?: string | null
+          title?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "catalogue_repair_items_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "catalogue_repair_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      catalogue_repair_runs: {
+        Row: {
+          after_counts: Json
+          authorised_by: string | null
+          before_counts: Json
+          created_at: string
+          cursor: string | null
+          dry_run: boolean
+          finished_at: string | null
+          id: string
+          message: string | null
+          mode: string
+          started_at: string
+          status: string
+          totals: Json
+          updated_at: string
+        }
+        Insert: {
+          after_counts?: Json
+          authorised_by?: string | null
+          before_counts?: Json
+          created_at?: string
+          cursor?: string | null
+          dry_run?: boolean
+          finished_at?: string | null
+          id?: string
+          message?: string | null
+          mode?: string
+          started_at?: string
+          status?: string
+          totals?: Json
+          updated_at?: string
+        }
+        Update: {
+          after_counts?: Json
+          authorised_by?: string | null
+          before_counts?: Json
+          created_at?: string
+          cursor?: string | null
+          dry_run?: boolean
+          finished_at?: string | null
+          id?: string
+          message?: string | null
+          mode?: string
+          started_at?: string
+          status?: string
+          totals?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      catalogue_tombstones: {
+        Row: {
+          authorised_by: string | null
+          created_at: string
+          deleted_from_store: boolean
+          dependency_check: Json
+          handle: string | null
+          id: string
+          mirror_snapshot: Json
+          pricing_evidence: Json
+          product_id: string | null
+          publications_before: Json
+          reason: string
+          reason_code: string
+          run_id: string | null
+          shopify_product_id: string
+          status_before: string | null
+          supplier_evidence: Json
+          title: string | null
+          updated_at: string
+          variants: Json
+        }
+        Insert: {
+          authorised_by?: string | null
+          created_at?: string
+          deleted_from_store?: boolean
+          dependency_check?: Json
+          handle?: string | null
+          id?: string
+          mirror_snapshot?: Json
+          pricing_evidence?: Json
+          product_id?: string | null
+          publications_before?: Json
+          reason: string
+          reason_code: string
+          run_id?: string | null
+          shopify_product_id: string
+          status_before?: string | null
+          supplier_evidence?: Json
+          title?: string | null
+          updated_at?: string
+          variants?: Json
+        }
+        Update: {
+          authorised_by?: string | null
+          created_at?: string
+          deleted_from_store?: boolean
+          dependency_check?: Json
+          handle?: string | null
+          id?: string
+          mirror_snapshot?: Json
+          pricing_evidence?: Json
+          product_id?: string | null
+          publications_before?: Json
+          reason?: string
+          reason_code?: string
+          run_id?: string | null
+          shopify_product_id?: string
+          status_before?: string | null
+          supplier_evidence?: Json
+          title?: string | null
+          updated_at?: string
+          variants?: Json
+        }
+        Relationships: []
+      }
       commerce_order_events: {
         Row: {
           code: string | null
@@ -3585,6 +3770,7 @@ export type Database = {
       shopify_products: {
         Row: {
           available_for_sale: boolean | null
+          channels_verified_at: string | null
           compare_at_price_max: number | null
           compare_at_price_min: number | null
           created_at: string
@@ -3616,6 +3802,7 @@ export type Database = {
         }
         Insert: {
           available_for_sale?: boolean | null
+          channels_verified_at?: string | null
           compare_at_price_max?: number | null
           compare_at_price_min?: number | null
           created_at?: string
@@ -3647,6 +3834,7 @@ export type Database = {
         }
         Update: {
           available_for_sale?: boolean | null
+          channels_verified_at?: string | null
           compare_at_price_max?: number | null
           compare_at_price_min?: number | null
           created_at?: string

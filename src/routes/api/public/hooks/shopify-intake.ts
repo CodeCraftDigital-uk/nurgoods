@@ -81,6 +81,9 @@ export const Route = createFileRoute("/api/public/hooks/shopify-intake")({
                 updatedAt: typeof payload?.updated_at === "string" ? payload.updated_at : null,
                 source: "webhook",
                 materialFingerprint: null,
+                // Carried so a product that arrives already on sale without
+                // having been verified here is taken back off sale at once.
+                status: typeof payload?.status === "string" ? payload.status : null,
               },
             ]);
           })();
