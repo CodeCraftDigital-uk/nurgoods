@@ -35,7 +35,7 @@ const FACTS: { label: string; value: string }[] = [
   { label: "Model", value: "Online marketplace. We curate and resell, we do not manufacture." },
   { label: "Markets served", value: "United Kingdom and United States" },
   { label: "Shipping", value: "Free shipping in the UK and USA, included in the price shown" },
-  { label: "Support", value: BRAND.supportEmail },
+  { label: "Support", value: "Through the contact form on this site" },
   { label: "Social", value: `TikTok ${BRAND.tiktokHandle}` },
 ];
 
@@ -58,7 +58,6 @@ function AboutPage() {
             name: BRAND.name,
             url: BRAND.siteUrl,
             slogan: BRAND.tagline,
-            email: BRAND.supportEmail,
             sameAs: [BRAND.tiktokUrl],
             areaServed: [
               { "@type": "Country", name: "United Kingdom" },
@@ -105,8 +104,8 @@ function AboutPage() {
         <p className="mt-3 text-muted-foreground">
           We review products from third party suppliers, keep the ones that meet our standards for
           quality, delivery and value, and present them with clear descriptions, specifications and
-          delivery information. Products are only listed once we hold verified supplier and
-          shipping evidence for at least one of the markets we serve.
+          delivery information. Products are only listed once we hold verified supplier and shipping
+          evidence for at least one of the markets we serve.
         </p>
 
         <h2 className="mt-10 font-brand text-2xl text-foreground">How ordering works</h2>

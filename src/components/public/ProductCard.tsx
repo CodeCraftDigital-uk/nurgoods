@@ -36,8 +36,6 @@ export function ProductCard({
   const display = productPriceDisplay(product, { rangeStyle: "from" });
   const reduced = display.isReduced;
 
-
-
   return (
     <Link
       to="/shop/$handle"
@@ -85,11 +83,9 @@ export function ProductCard({
             </span>
             {display.compareAt ? (
               <span className="text-xs text-muted-foreground">
-                {display.compareAtLabel}{" "}
-                <span className="line-through">{display.compareAt}</span>
+                {display.compareAtLabel} <span className="line-through">{display.compareAt}</span>
               </span>
             ) : null}
-
           </p>
         ) : null}
         <FreeShippingBadge />

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { PublicShell } from "@/components/public/PublicShell";
@@ -37,6 +37,8 @@ function ContactPage() {
   const submitFn = useServerFn(submitContactEnquiry);
 
   const [token, setToken] = useState("");
+  const [turnstileSiteKey, setTurnstileSiteKey] = useState<string | null>(null);
+  const [turnstileToken, setTurnstileToken] = useState("");
   const [values, setValues] = useState({
     name: "",
     email: "",
@@ -56,7 +58,9 @@ function ContactPage() {
     let active = true;
     tokenFn({})
       .then((result) => {
-        if (active) setToken(result.token);
+        if (!active) return;
+        setToken(result.token);
+        setTurnstileSiteKey(result.turnstileSiteKey ?? null);
       })
       .catch(() => undefined);
     return () => {
@@ -87,7 +91,7 @@ function ContactPage() {
     setStatus("sending");
     try {
       const result = await submitFn({
-        data: { ...values, privacyAccepted, token, website, company },
+        data: { ...values, privacyAccepted, token, website, company, turnstileToken },
       });
       if (result.ok) {
         setStatus("sent");
@@ -106,6 +110,7 @@ function ContactPage() {
         setNotice(result.message);
         const fresh = await tokenFn({}).catch(() => null);
         if (fresh) setToken(fresh.token);
+        setTurnstileToken("");
       }
     } catch {
       setStatus("error");
@@ -125,12 +130,11 @@ function ContactPage() {
             "@type": "Organization",
             name: BRAND.name,
             url: BRAND.siteUrl,
-            email: BRAND.supportEmail,
             contactPoint: [
               {
                 "@type": "ContactPoint",
                 contactType: "customer support",
-                email: BRAND.supportEmail,
+                url: `${BRAND.siteUrl}/contact`,
                 availableLanguage: "English",
               },
             ],
@@ -263,7 +267,10 @@ function ContactPage() {
                 />
                 <Label htmlFor="privacy" className="text-sm font-normal text-muted-foreground">
                   I understand my details will be used to answer this enquiry, as described in the{" "}
-                  <Link to="/legal" className="text-foreground underline decoration-gold underline-offset-4">
+                  <Link
+                    to="/legal"
+                    className="text-foreground underline decoration-gold underline-offset-4"
+                  >
                     privacy policy
                   </Link>
                   .
@@ -273,12 +280,12 @@ function ContactPage() {
                 <p className="text-sm text-destructive">{errors["privacyAccepted"]}</p>
               ) : null}
 
+              {turnstileSiteKey ? (
+                <TurnstileWidget siteKey={turnstileSiteKey} onToken={setTurnstileToken} />
+              ) : null}
+
               <div className="flex flex-wrap items-center gap-4">
-                <Button
-                  type="submit"
-                  disabled={status === "sending"}
-                  className="min-h-11 min-w-40"
-                >
+                <Button type="submit" disabled={status === "sending"} className="min-h-11 min-w-40">
                   {status === "sending" ? "Sending" : "Send message"}
                 </Button>
                 <p
@@ -298,16 +305,18 @@ function ContactPage() {
 
           <aside className="order-1 space-y-6 lg:order-2">
             <div className="rounded-xl border border-border p-5">
-              <h2 className="font-display text-lg text-foreground">Email us directly</h2>
+              <h2 className="font-display text-lg text-foreground">How we reply</h2>
               <p className="mt-2 text-sm text-muted-foreground">
-                Prefer your own email client? Write to{" "}
-                <a
-                  href={`mailto:${BRAND.supportEmail}`}
+                Send the form and a person will reply to the email address you give here. Our
+                statutory business contact details are published in the{" "}
+                <Link
+                  to="/legal"
+                  hash="business-and-contact-information"
                   className="text-foreground underline decoration-gold underline-offset-4"
                 >
-                  {BRAND.supportEmail}
-                </a>
-                .
+                  business and contact information
+                </Link>{" "}
+                disclosure.
               </p>
             </div>
             <div className="rounded-xl border border-border p-5">
@@ -322,7 +331,10 @@ function ContactPage() {
               <h2 className="font-display text-lg text-foreground">Policies</h2>
               <p className="mt-2 text-sm text-muted-foreground">
                 Delivery, returns and refund terms are set out in our{" "}
-                <Link to="/legal" className="text-foreground underline decoration-gold underline-offset-4">
+                <Link
+                  to="/legal"
+                  className="text-foreground underline decoration-gold underline-offset-4"
+                >
                   policies
                 </Link>
                 .
@@ -334,6 +346,53 @@ function ContactPage() {
       </div>
     </PublicShell>
   );
+}
+
+/**
+ * Renders the Cloudflare Turnstile challenge when a site key is configured.
+ * The script is only loaded in that case, so an unconfigured deployment makes
+ * no third party request at all.
+ */
+function TurnstileWidget({
+  siteKey,
+  onToken,
+}: {
+  siteKey: string;
+  onToken: (token: string) => void;
+}) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const globalWindow = window as unknown as {
+      turnstile?: { render: (el: HTMLElement, options: Record<string, unknown>) => void };
+    };
+
+    const render = () => {
+      if (!globalWindow.turnstile || container.childElementCount > 0) return;
+      globalWindow.turnstile.render(container, {
+        sitekey: siteKey,
+        callback: (value: string) => onToken(value),
+        "expired-callback": () => onToken(""),
+        "error-callback": () => onToken(""),
+      });
+    };
+
+    if (globalWindow.turnstile) {
+      render();
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+    script.async = true;
+    script.defer = true;
+    script.addEventListener("load", render);
+    document.head.appendChild(script);
+    return () => script.removeEventListener("load", render);
+  }, [siteKey, onToken]);
+
+  return <div ref={containerRef} aria-label="Verification check" className="min-h-[70px]" />;
 }
 
 function Field({

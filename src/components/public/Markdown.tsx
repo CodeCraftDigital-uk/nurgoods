@@ -116,9 +116,7 @@ export function Markdown({ source }: { source: string }) {
           ? "font-display text-2xl text-foreground sm:text-3xl"
           : "font-display text-xl text-foreground";
       const Tag = (level === 1 ? "h2" : level === 2 ? "h2" : level === 3 ? "h3" : "h4") as
-        | "h2"
-        | "h3"
-        | "h4";
+        "h2" | "h3" | "h4";
       blocks.push(
         <Tag key={`h-${key++}`} className={`${classes} mt-4`}>
           {content}
@@ -159,5 +157,11 @@ export function Markdown({ source }: { source: string }) {
   flushParagraph();
   flushList();
 
-  return <div className="space-y-5">{blocks.map((block, i) => <Fragment key={i}>{block}</Fragment>)}</div>;
+  return (
+    <div className="space-y-5">
+      {blocks.map((block, i) => (
+        <Fragment key={i}>{block}</Fragment>
+      ))}
+    </div>
+  );
 }

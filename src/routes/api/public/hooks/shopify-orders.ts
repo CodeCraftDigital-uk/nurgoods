@@ -43,9 +43,11 @@ export const Route = createFileRoute("/api/public/hooks/shopify-orders")({
 
         const { getWebhookSigningSecret } = await import("@/lib/services/shopify.server");
         const secret = await getWebhookSigningSecret();
-        if (!secret) return Response.json({ error: "Order intake is not configured" }, { status: 503 });
+        if (!secret)
+          return Response.json({ error: "Order intake is not configured" }, { status: 503 });
 
-        const { verifyStoreSignature, normaliseOrderPayload } = await import("@/lib/commerce/webhook");
+        const { verifyStoreSignature, normaliseOrderPayload } =
+          await import("@/lib/commerce/webhook");
         if (!verifyStoreSignature(body, signature, secret)) {
           return Response.json({ error: "Invalid signature" }, { status: 401 });
         }
@@ -66,8 +68,12 @@ export const Route = createFileRoute("/api/public/hooks/shopify-orders")({
         if (!order) return Response.json({ error: "Unknown order" }, { status: 400 });
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        const { claimWebhookDelivery, completeWebhookDelivery, failWebhookDelivery, recordStoreOrder } =
-          await import("@/lib/commerce/ledger.server");
+        const {
+          claimWebhookDelivery,
+          completeWebhookDelivery,
+          failWebhookDelivery,
+          recordStoreOrder,
+        } = await import("@/lib/commerce/ledger.server");
 
         let claim;
         try {
@@ -77,7 +83,8 @@ export const Route = createFileRoute("/api/public/hooks/shopify-orders")({
             shopifyOrderId: order.shopifyOrderId,
           });
         } catch (cause) {
-          const message = cause instanceof Error ? cause.message : "The delivery could not be claimed";
+          const message =
+            cause instanceof Error ? cause.message : "The delivery could not be claimed";
           return Response.json({ ok: false, message }, { status: 503 });
         }
 
@@ -87,7 +94,10 @@ export const Route = createFileRoute("/api/public/hooks/shopify-orders")({
           }
           // Another delivery of the same event is in flight. Ask for a retry
           // rather than silently dropping this one.
-          return Response.json({ ok: false, message: "Delivery already in flight" }, { status: 409 });
+          return Response.json(
+            { ok: false, message: "Delivery already in flight" },
+            { status: 409 },
+          );
         }
 
         try {
@@ -95,8 +105,11 @@ export const Route = createFileRoute("/api/public/hooks/shopify-orders")({
           await completeWebhookDelivery(supabaseAdmin as never, claim.deliveryId);
           return Response.json({ ok: true, topic, state: result.state, reason: result.reason });
         } catch (cause) {
-          const message = cause instanceof Error ? cause.message : "The order could not be recorded";
-          await failWebhookDelivery(supabaseAdmin as never, claim.deliveryId, message).catch(() => undefined);
+          const message =
+            cause instanceof Error ? cause.message : "The order could not be recorded";
+          await failWebhookDelivery(supabaseAdmin as never, claim.deliveryId, message).catch(
+            () => undefined,
+          );
           // Retryable. The delivery stays unprocessed so the store can send it
           // again and the claim will be handed back.
           return Response.json({ ok: false, message }, { status: 503 });
@@ -105,4 +118,3 @@ export const Route = createFileRoute("/api/public/hooks/shopify-orders")({
     },
   },
 });
-

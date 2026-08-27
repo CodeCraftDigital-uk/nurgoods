@@ -13,7 +13,12 @@
       "url": {{ shop.url | json }},
       "slogan": {{ settings.brand_tagline | json }},
       "logo": {{ 'nur-goods-square-light.png' | asset_url | prepend: 'https:' | split: '?' | first | json }},
-      "email": {{ settings.support_email | json }}
+      "contactPoint": {
+        "@type": "ContactPoint",
+        "contactType": "customer support",
+        "url": {{ settings.contact_url | default: 'https://nurgoods.com/contact' | json }},
+        "availableLanguage": "English"
+      }
       {%- if settings.social_tiktok != blank -%},
       "sameAs": [{{ settings.social_tiktok | json }}]
       {%- endif -%}

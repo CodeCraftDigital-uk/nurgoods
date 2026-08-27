@@ -127,10 +127,7 @@ function CollectionDetail() {
 
       <section className="mx-auto w-full max-w-7xl px-5 pt-12 sm:px-8 sm:pt-16">
         <Breadcrumbs
-          items={[
-            { label: "Collections", href: "/collections" },
-            { label: collection.title },
-          ]}
+          items={[{ label: "Collections", href: "/collections" }, { label: collection.title }]}
         />
         <h1 className="mt-4 font-display text-4xl leading-tight text-foreground sm:text-5xl">
           {collection.title}

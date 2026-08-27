@@ -47,7 +47,7 @@ const FAQS: { question: string; answer: string }[] = [
   },
   {
     question: "How do I contact NUR GOODS?",
-    answer: `Email ${BRAND.supportEmail} or use the contact page. You can also reach us on TikTok at ${BRAND.tiktokHandle}.`,
+    answer: `Use the contact form on the contact page and a person will reply by email. You can also reach us on TikTok at ${BRAND.tiktokHandle}.`,
   },
   {
     question: "Are the reviews on the site genuine?",

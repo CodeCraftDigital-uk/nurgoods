@@ -93,7 +93,6 @@ export const Route = createFileRoute("/")({
   component: Index,
 });
 
-
 /** Service cues. Every line here is a statement of how the store actually works. */
 const SERVICE_CUES = [
   {
@@ -106,7 +105,7 @@ const SERVICE_CUES = [
   },
   {
     title: "A person answers",
-    body: `Write to ${BRAND.supportEmail} with any question before or after ordering.`,
+    body: "Use the contact form with any question before or after ordering and a person will reply.",
   },
 ] as const;
 
@@ -141,7 +140,6 @@ function Index() {
     ...(initial ? { initialData: initial.articles } : {}),
     retry: false,
   });
-
 
   // Catalogue size, read from the same local projection that powers the store
   // listings, so it tracks snapshot rebuilds with no upstream call on render.
@@ -184,7 +182,6 @@ function Index() {
             name: BRAND.name,
             url: BRAND.siteUrl,
             slogan: BRAND.tagline,
-            email: BRAND.supportEmail,
             logo: {
               "@type": "ImageObject",
               url: `${BRAND.siteUrl}${BRAND_ICONS.icon512}`,
@@ -198,7 +195,7 @@ function Index() {
               {
                 "@type": "ContactPoint",
                 contactType: "customer support",
-                email: BRAND.supportEmail,
+                url: `${BRAND.siteUrl}/contact`,
                 availableLanguage: "English",
               },
             ],
@@ -237,7 +234,6 @@ function Index() {
           <AiConnectorBanner />
         </div>
         <div className="relative mx-auto grid w-full max-w-7xl items-center gap-10 px-5 pb-14 pt-8 sm:px-8 sm:pb-20 sm:pt-10 lg:grid-cols-[1.05fr_1fr] lg:gap-14">
-
           <div className="min-w-0">
             <span className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-navy-foreground backdrop-blur">
               <span aria-hidden className="size-1.5 rounded-full bg-gold" />
@@ -265,10 +261,7 @@ function Index() {
               </a>
             </div>
             {heroStats.length > 0 ? (
-              <dl
-                aria-label="Catalogue availability"
-                className="mt-8 flex flex-wrap gap-3"
-              >
+              <dl aria-label="Catalogue availability" className="mt-8 flex flex-wrap gap-3">
                 {heroStats.map((stat) => (
                   <div
                     key={stat.label}
@@ -338,7 +331,10 @@ function Index() {
       </section>
 
       {/* New in */}
-      <section className="mx-auto mt-16 w-full max-w-7xl px-5 sm:mt-24 sm:px-8" aria-labelledby="new-in">
+      <section
+        className="mx-auto mt-16 w-full max-w-7xl px-5 sm:mt-24 sm:px-8"
+        aria-labelledby="new-in"
+      >
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <h2 id="new-in" className="font-brand text-[1.7rem] text-foreground sm:text-[2rem]">
@@ -392,7 +388,10 @@ function Index() {
       </section>
 
       {/* Categories */}
-      <section className="mx-auto mt-16 w-full max-w-7xl px-5 sm:mt-24 sm:px-8" aria-labelledby="categories">
+      <section
+        className="mx-auto mt-16 w-full max-w-7xl px-5 sm:mt-24 sm:px-8"
+        aria-labelledby="categories"
+      >
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <h2 id="categories" className="font-brand text-[1.7rem] text-foreground sm:text-[2rem]">
@@ -414,10 +413,11 @@ function Index() {
         </div>
       </section>
 
-
-
       {/* Service cues */}
-      <section className="mx-auto mt-16 w-full max-w-7xl px-5 sm:mt-24 sm:px-8" aria-labelledby="service">
+      <section
+        className="mx-auto mt-16 w-full max-w-7xl px-5 sm:mt-24 sm:px-8"
+        aria-labelledby="service"
+      >
         <h2 id="service" className="sr-only">
           How ordering works
         </h2>
@@ -432,7 +432,10 @@ function Index() {
       </section>
 
       {/* Journal */}
-      <section className="mx-auto mt-16 w-full max-w-7xl px-5 sm:mt-24 sm:px-8" aria-labelledby="journal">
+      <section
+        className="mx-auto mt-16 w-full max-w-7xl px-5 sm:mt-24 sm:px-8"
+        aria-labelledby="journal"
+      >
         <div className="flex flex-wrap items-end justify-between gap-3">
           <h2 id="journal" className="font-brand text-[1.7rem] text-foreground sm:text-[2rem]">
             From the Journal
@@ -504,7 +507,10 @@ function Index() {
       </section>
 
       {/* Support */}
-      <section className="mx-auto mt-16 w-full max-w-7xl px-5 sm:mt-24 sm:px-8" aria-labelledby="support">
+      <section
+        className="mx-auto mt-16 w-full max-w-7xl px-5 sm:mt-24 sm:px-8"
+        aria-labelledby="support"
+      >
         <div className="glass-card rounded-3xl p-8 sm:p-10">
           <h2 id="support" className="font-display text-2xl text-foreground">
             Questions before you order?
@@ -526,12 +532,12 @@ function Index() {
             >
               Customer reviews
             </Link>
-            <a
-              href={`mailto:${BRAND.supportEmail}`}
+            <Link
+              to="/contact"
               className="inline-flex min-h-11 items-center rounded-lg border border-input px-5 text-sm font-medium text-foreground transition-colors hover:bg-accent"
             >
-              {BRAND.supportEmail}
-            </a>
+              Contact us
+            </Link>
           </div>
         </div>
       </section>

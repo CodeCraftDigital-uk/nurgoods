@@ -53,7 +53,8 @@ export const Route = createFileRoute("/api/public/hooks/shopify-intake")({
         }
 
         const productId =
-          payload?.admin_graphql_api_id ?? (payload?.id ? `gid://shopify/Product/${payload.id}` : null);
+          payload?.admin_graphql_api_id ??
+          (payload?.id ? `gid://shopify/Product/${payload.id}` : null);
         if (typeof productId !== "string" || !productId.startsWith("gid://shopify/Product/")) {
           // Acknowledged so the store stops retrying an event we cannot use.
           return ack({ topic, ignored: "unknown_product" });

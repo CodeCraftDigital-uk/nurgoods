@@ -42,7 +42,8 @@ export const Route = createFileRoute("/_authenticated/control/sourcing")({
 });
 
 function stateTone(state: CandidateState) {
-  if (state === "live" || state === "imported" || state === "detected_in_store") return "positive" as const;
+  if (state === "live" || state === "imported" || state === "detected_in_store")
+    return "positive" as const;
   if (state === "held") return "warning" as const;
   if (state === "failed") return "danger" as const;
   if (state === "candidate") return "neutral" as const;
@@ -119,7 +120,8 @@ function SourcingPage() {
     mutationFn: (productId: string) => testFn({ data: { productId } }),
     onSuccess: (result) => {
       if (result.passed) toast.success("The one product test passed. Mass import is now unlocked.");
-      else toast.error(result.steps.find((s) => s.status === "failed")?.detail ?? "The test failed.");
+      else
+        toast.error(result.steps.find((s) => s.status === "failed")?.detail ?? "The test failed.");
       invalidate();
     },
     onError: (error: Error) => toast.error(error.message),
@@ -185,7 +187,10 @@ function SourcingPage() {
   const screened = screen.data?.products ?? [];
 
   const readyIds = useMemo(
-    () => candidates.filter((c) => c.state === "duplicate_checked" || c.state === "priced").map((c) => c.id),
+    () =>
+      candidates
+        .filter((c) => c.state === "duplicate_checked" || c.state === "priced")
+        .map((c) => c.id),
     [candidates],
   );
 
@@ -231,13 +236,21 @@ function SourcingPage() {
           }
           hint={catalogue.data?.message ?? "Live supplier results"}
         />
-        <Metric label="Import queue" value={String(counters?.queued ?? 0)} hint="Queued and importing" />
+        <Metric
+          label="Import queue"
+          value={String(counters?.queued ?? 0)}
+          hint="Queued and importing"
+        />
         <Metric
           label="Imported today"
           value={String(counters?.importedToday ?? 0)}
           hint={`Daily cap ${rules?.daily_import_cap ?? 0}`}
         />
-        <Metric label="Failed or held" value={String(counters?.failedOrHeld ?? 0)} hint="Needs review" />
+        <Metric
+          label="Failed or held"
+          value={String(counters?.failedOrHeld ?? 0)}
+          hint="Needs review"
+        />
         <Metric
           label="Pricing policy"
           value={formatPercent(pricing?.target_margin ?? null)}
@@ -345,9 +358,17 @@ function SourcingPage() {
           </div>
         </div>
         <p className="mt-3 text-xs text-muted-foreground">
-          Rounding is {pricing?.rounding_mode === "charm_99" ? "charm .99, rounded up so the margin floor always holds" : pricing?.rounding_mode}. Supplier suggested retail is reference only and never sets the NUR GOODS price. Supported markets are the destinations a product may be sourced and published for; a product qualifies only when the supplier has fresh destination specific shipping evidence for at least one of them. Selling prices are solved in {pricing?.currency ?? "GBP"} for the pricing market only, so a market in another currency needs a verified presentment policy before its prices can be published.
+          Rounding is{" "}
+          {pricing?.rounding_mode === "charm_99"
+            ? "charm .99, rounded up so the margin floor always holds"
+            : pricing?.rounding_mode}
+          . Supplier suggested retail is reference only and never sets the NUR GOODS price.
+          Supported markets are the destinations a product may be sourced and published for; a
+          product qualifies only when the supplier has fresh destination specific shipping evidence
+          for at least one of them. Selling prices are solved in {pricing?.currency ?? "GBP"} for
+          the pricing market only, so a market in another currency needs a verified presentment
+          policy before its prices can be published.
         </p>
-
       </SectionCard>
 
       <SectionCard
@@ -572,7 +593,9 @@ function SourcingPage() {
                     </TableCell>
                     <TableCell>
                       <StatusPill
-                        tone={row.score >= (rules?.min_suitability_score ?? 60) ? "positive" : "warning"}
+                        tone={
+                          row.score >= (rules?.min_suitability_score ?? 60) ? "positive" : "warning"
+                        }
                       >
                         {row.score}
                       </StatusPill>
@@ -701,7 +724,9 @@ function SourcingPage() {
         ) : !catalogue.data?.available ? (
           <EmptyState
             title="Catalogue unavailable"
-            description={catalogue.data?.message ?? "Run a connection test to discover supplier operations."}
+            description={
+              catalogue.data?.message ?? "Run a connection test to discover supplier operations."
+            }
           />
         ) : previewRows.length === 0 ? (
           <EmptyState title="No results" description="Try a different search term." />
@@ -761,7 +786,9 @@ function SourcingPage() {
                       </TableCell>
                       <TableCell>{formatMoney(item.cost, item.currency)}</TableCell>
                       <TableCell>{formatMoney(item.shippingCost, item.currency)}</TableCell>
-                      <TableCell>{formatMoney(preview?.landedCost ?? null, pricing?.currency)}</TableCell>
+                      <TableCell>
+                        {formatMoney(preview?.landedCost ?? null, pricing?.currency)}
+                      </TableCell>
                       <TableCell className="font-medium">
                         {preview?.complete
                           ? formatMoney(preview.price, pricing?.currency)

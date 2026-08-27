@@ -47,7 +47,6 @@ export const Route = createFileRoute("/category/$slug")({
               { name: "twitter:image", content: loaderData.items[0].image_url },
             ]
           : []),
-
       ],
       links: [{ rel: "canonical", href: url }],
     };

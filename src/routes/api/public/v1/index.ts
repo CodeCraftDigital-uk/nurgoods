@@ -36,7 +36,7 @@ export const Route = createFileRoute("/api/public/v1/")({
             tagline: BRAND.tagline,
             store_url: BRAND.storeUrl,
             site_url: BRAND.siteUrl,
-            support_email: BRAND.supportEmail,
+            contact_url: `${BRAND.siteUrl}/contact`,
           },
           access: {
             authentication: "none",

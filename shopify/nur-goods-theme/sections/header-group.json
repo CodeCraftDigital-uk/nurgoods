@@ -20,7 +20,7 @@
         "s3": {
           "type": "service",
           "settings": {
-            "text": "Support from a person at support@nurgoods.com"
+            "text": "Support from a person, through the contact form"
           }
         }
       },

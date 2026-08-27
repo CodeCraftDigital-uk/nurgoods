@@ -185,7 +185,7 @@
       {
         "name": "get_store_information",
         "title": "Get NUR GOODS store information",
-        "description": "Brand facts, support contact, social presence and the list of published NUR GOODS policies including shipping and returns where published.",
+        "description": "Brand facts, contact route, social presence and the list of published NUR GOODS policies including shipping and returns where published.",
         "annotations": {
           "readOnlyHint": true,
           "idempotentHint": true,

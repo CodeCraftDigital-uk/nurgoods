@@ -26,7 +26,6 @@ import {
   getPricingHoldReportFn,
   runPricingBackfillPassFn,
   resetPricingBackfillFn,
-
   getPricingAudit,
   runPriceAuthorityCycleFn,
   recoverSupplierLinkageFn,
@@ -208,7 +207,6 @@ function CataloguePricingPage() {
     onError: (error: Error) => toast.error(error.message),
   });
 
-
   const run = audit.data?.run ?? null;
   const totals = run?.totals;
   const items = audit.data?.items ?? [];
@@ -234,7 +232,12 @@ function CataloguePricingPage() {
         description="A dry run first. Every listing is measured against protected landed cost plus payment fees, solved back to the price that holds the target margin, then rounded up. Nothing changes in the store until an administrator applies a reviewed audit."
         actions={
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" onClick={() => syncCosts.mutate()} disabled={syncCosts.isPending}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => syncCosts.mutate()}
+              disabled={syncCosts.isPending}
+            >
               <RefreshCw className="mr-2 h-4 w-4" />
               {syncCosts.isPending ? "Reading costs" : "Refresh cost data"}
             </Button>
@@ -387,7 +390,8 @@ function CataloguePricingPage() {
           <Metric
             label="Pending"
             value={String(
-              Number(lifecycle.data?.["pending"] ?? 0) + Number(lifecycle.data?.["untracked_products"] ?? 0),
+              Number(lifecycle.data?.["pending"] ?? 0) +
+                Number(lifecycle.data?.["untracked_products"] ?? 0),
             )}
             hint="Waiting for a pricing pass"
           />
@@ -439,7 +443,11 @@ function CataloguePricingPage() {
                   <TableCell>
                     <StatusPill
                       tone={
-                        row.status === "held" ? "pending" : row.status === "error" ? "warning" : "neutral"
+                        row.status === "held"
+                          ? "pending"
+                          : row.status === "error"
+                            ? "warning"
+                            : "neutral"
                       }
                     >
                       {String(row.status)}
@@ -451,7 +459,8 @@ function CataloguePricingPage() {
                   </TableCell>
                   <TableCell className="text-xs">{String(row.attempts ?? 0)}</TableCell>
                   <TableCell className="max-w-xs text-xs text-muted-foreground">
-                    {[row.activation_result, row.publication_result].filter(Boolean).join("; ") || "Not yet published"}
+                    {[row.activation_result, row.publication_result].filter(Boolean).join("; ") ||
+                      "Not yet published"}
                   </TableCell>
                 </TableRow>
               ))}
@@ -459,7 +468,6 @@ function CataloguePricingPage() {
           </Table>
         ) : null}
       </SectionCard>
-
 
       <SectionCard
         title="Price authority"
@@ -477,10 +485,26 @@ function CataloguePricingPage() {
         }
       >
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <Metric label="In sync" value={String(authority.data?.counts?.["in_sync"] ?? 0)} hint="Store matches the NUR GOODS price" />
-          <Metric label="Drifted" value={String(authority.data?.counts?.["drifted"] ?? 0)} hint="Queued for outward correction" />
-          <Metric label="Held" value={String(authority.data?.counts?.["held"] ?? 0)} hint="Unverified landed cost or variant mapping" />
-          <Metric label="Push failures" value={String(authority.data?.counts?.["failed"] ?? 0)} hint="Retried with backoff" />
+          <Metric
+            label="In sync"
+            value={String(authority.data?.counts?.["in_sync"] ?? 0)}
+            hint="Store matches the NUR GOODS price"
+          />
+          <Metric
+            label="Drifted"
+            value={String(authority.data?.counts?.["drifted"] ?? 0)}
+            hint="Queued for outward correction"
+          />
+          <Metric
+            label="Held"
+            value={String(authority.data?.counts?.["held"] ?? 0)}
+            hint="Unverified landed cost or variant mapping"
+          />
+          <Metric
+            label="Push failures"
+            value={String(authority.data?.counts?.["failed"] ?? 0)}
+            hint="Retried with backoff"
+          />
         </div>
         {authority.data?.parity ? (
           <p className="mt-3 text-xs text-muted-foreground">{authority.data.parity.message}</p>
@@ -636,10 +660,16 @@ function CataloguePricingPage() {
                       {formatMoney(item.calculated_price, item.currency)}
                     </TableCell>
                     <TableCell>{formatMoney(item.expected_fee ?? null, item.currency)}</TableCell>
-                    <TableCell>{formatMoney(item.expected_payout ?? null, item.currency)}</TableCell>
-                    <TableCell>{formatMoney(item.expected_profit ?? null, item.currency)}</TableCell>
+                    <TableCell>
+                      {formatMoney(item.expected_payout ?? null, item.currency)}
+                    </TableCell>
+                    <TableCell>
+                      {formatMoney(item.expected_profit ?? null, item.currency)}
+                    </TableCell>
                     <TableCell>{formatPercent(item.current_margin)}</TableCell>
-                    <TableCell>{formatPercent(item.expected_margin ?? item.proposed_margin)}</TableCell>
+                    <TableCell>
+                      {formatPercent(item.expected_margin ?? item.proposed_margin)}
+                    </TableCell>
                     <TableCell>
                       <StatusPill tone={STATUS_TONE[item.status]}>
                         {AUDIT_STATUS_LABEL[item.status] ?? item.status}

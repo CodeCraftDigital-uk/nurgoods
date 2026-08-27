@@ -1,7 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { PublikoEmbed } from "@/components/public/PublikoEmbed";
-import { listPublicPlacements, type PublicPlacement } from "@/lib/services/public-content.functions";
+import {
+  listPublicPlacements,
+  type PublicPlacement,
+} from "@/lib/services/public-content.functions";
 
 /** Shared read of enabled placements. One query serves every slot on the page. */
 export function useReviewPlacement(surface: string): {

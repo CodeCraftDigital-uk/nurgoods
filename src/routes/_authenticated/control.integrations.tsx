@@ -70,13 +70,10 @@ function IntegrationsPage() {
       <StorefrontApiPanel />
       <CheckoutDomainPanel />
 
-
       <div className="grid gap-4 lg:grid-cols-2">
         {(integrations.data ?? []).map((integration) => {
           const requirements = REQUIREMENTS[integration.provider] ?? [];
-          const scoped = (settings.data ?? []).filter(
-            (s) => s.integration_id === integration.id,
-          );
+          const scoped = (settings.data ?? []).filter((s) => s.integration_id === integration.id);
           return (
             <SectionCard
               key={integration.id}
@@ -133,7 +130,6 @@ function IntegrationsPage() {
                   </p>
                 </div>
               ) : null}
-
             </SectionCard>
           );
         })}
@@ -149,8 +145,7 @@ function IntegrationsPage() {
                 <div>
                   <p className="text-sm text-foreground">{humanise(event.event_type)}</p>
                   <p className="text-xs text-muted-foreground">
-                    {event.message ?? "No message"} ·{" "}
-                    {new Date(event.created_at).toLocaleString()}
+                    {event.message ?? "No message"} · {new Date(event.created_at).toLocaleString()}
                   </p>
                 </div>
                 <StatusPill tone={statusTone(event.status)}>{humanise(event.status)}</StatusPill>

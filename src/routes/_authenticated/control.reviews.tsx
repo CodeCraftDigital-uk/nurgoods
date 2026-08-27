@@ -16,7 +16,12 @@ import {
   listReviewPlacements,
   updateReviewPlacement,
 } from "@/lib/services/operations";
-import { PUBLIKO_PLACEMENTS, embedOrigins, looksLikeEmbedCode, toPlacementKey } from "@/lib/publiko";
+import {
+  PUBLIKO_PLACEMENTS,
+  embedOrigins,
+  looksLikeEmbedCode,
+  toPlacementKey,
+} from "@/lib/publiko";
 import { PLACEMENT_SURFACE_LABEL } from "@/lib/types/platform";
 import type { PlacementSurface, ReviewPlacement } from "@/lib/types/platform";
 
@@ -179,9 +184,7 @@ function ReviewsAdminPage() {
               description={PLACEMENT_SURFACE_LABEL[placement.surface]}
               actions={
                 <div className="flex items-center gap-2">
-                  <StatusPill
-                    tone={placement.enabled && configured ? "positive" : "warning"}
-                  >
+                  <StatusPill tone={placement.enabled && configured ? "positive" : "warning"}>
                     {!configured ? "No code" : placement.enabled ? "Live" : "Off"}
                   </StatusPill>
                   <Switch
@@ -216,7 +219,8 @@ function ReviewsAdminPage() {
                 </div>
                 {configured ? (
                   <p className="text-xs text-muted-foreground">
-                    Loads from: {embedOrigins(placement.embed_snippet ?? "").join(", ") || "no external origin"}
+                    Loads from:{" "}
+                    {embedOrigins(placement.embed_snippet ?? "").join(", ") || "no external origin"}
                   </p>
                 ) : null}
                 <p className="text-xs text-muted-foreground">

@@ -228,9 +228,7 @@ function OrderGroup({
                 ) : (
                   <StatusPill tone="warning">No supplier order</StatusPill>
                 )}
-                {order.tracking_number ? (
-                  <StatusPill tone="positive">Tracking</StatusPill>
-                ) : null}
+                {order.tracking_number ? <StatusPill tone="positive">Tracking</StatusPill> : null}
                 <StatusPill tone={stateTone(order.orchestration_state)}>
                   {stateLabel(order.orchestration_state)}
                 </StatusPill>

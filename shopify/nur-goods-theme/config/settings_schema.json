@@ -5,7 +5,7 @@
     "theme_version": "1.0.0",
     "theme_author": "NUR GOODS",
     "theme_documentation_url": "https://nurgoods.com",
-    "theme_support_email": "support@nurgoods.com"
+    "theme_support_url": "https://nurgoods.com/contact"
   },
   {
     "name": "Brand",
@@ -18,7 +18,7 @@
       { "type": "image_picker", "id": "logo_dark", "label": "Horizontal logo for dark surfaces" },
       { "type": "image_picker", "id": "favicon", "label": "Favicon" },
       { "type": "text", "id": "brand_tagline", "label": "Tagline", "default": "Good things, brought to light." },
-      { "type": "text", "id": "support_email", "label": "Support email", "default": "support@nurgoods.com" },
+      { "type": "url", "id": "contact_url", "label": "Contact form URL (used when this store has no contact page)" },
       { "type": "url", "id": "social_tiktok", "label": "TikTok URL" },
       { "type": "text", "id": "social_tiktok_handle", "label": "TikTok handle", "default": "@nur.goods" },
       { "type": "image_picker", "id": "social_share_image", "label": "Default share image" }

@@ -59,8 +59,6 @@ function AuthPage() {
     }
   }
 
-
-
   async function handleGoogle() {
     const result = await lovable.auth.signInWithOAuth("google", {
       redirect_uri: window.location.origin,
@@ -112,7 +110,7 @@ function AuthPage() {
             Continue with Google
           </Button>
           <p className="text-center text-xs text-muted-foreground">
-            Access is limited to approved NUR GOODS team accounts. Contact support@nurgoods.com if
+            Access is limited to approved NUR GOODS team accounts. Ask a NUR GOODS administrator if
             you need access.
           </p>
         </CardContent>

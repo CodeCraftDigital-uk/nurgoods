@@ -19,6 +19,7 @@ const MAX_TOKEN_AGE_MS = 2 * 60 * 60 * 1000;
 const DUPLICATE_WINDOW_MS = 30 * 60 * 1000;
 const HOURLY_LIMIT = 3;
 const DAILY_LIMIT = 10;
+const MAX_LINKS = 2;
 
 function signingKey(): string {
   const key = process.env["CONTACT_FORM_SECRET"] ?? process.env["SUPABASE_SERVICE_ROLE_KEY"];
@@ -73,11 +74,7 @@ export function originAllowed(request: Request): boolean {
 export function callerAddress(request: Request): string {
   const forwarded = request.headers.get("x-forwarded-for");
   if (forwarded) return forwarded.split(",")[0]!.trim();
-  return (
-    request.headers.get("cf-connecting-ip") ??
-    request.headers.get("x-real-ip") ??
-    "unknown"
-  );
+  return request.headers.get("cf-connecting-ip") ?? request.headers.get("x-real-ip") ?? "unknown";
 }
 
 /** Reduces submitted text to safe plain text and blocks header injection. */
@@ -93,6 +90,62 @@ export function plainText(value: string, max: number): string {
 /** Email header fields must never carry line breaks. */
 export function headerSafe(value: string, max: number): string {
   return plainText(value, max).replace(/[\r\n]+/g, " ");
+}
+
+/** Cheap link counter used to reject link stuffed spam bodies. */
+export function countLinks(value: string): number {
+  const matches = value.match(/(https?:\/\/|www\.)[^\s<>"']+/gi);
+  return matches ? matches.length : 0;
+}
+
+/** Free text fields must never contain markup or scripting attempts. */
+export function looksLikeSpam(input: { subject: string; message: string; name: string }): boolean {
+  if (countLinks(`${input.subject} ${input.message}`) > MAX_LINKS) return true;
+  if (countLinks(input.name) > 0) return true;
+  if (/\[url=|\[\/url\]|<a\s|javascript:/i.test(`${input.subject} ${input.message}`)) return true;
+  // Bulk mailers repeat a single token to pad a body out.
+  const words = input.message.toLowerCase().split(/\s+/).filter(Boolean);
+  if (words.length >= 40) {
+    const counts = new Map<string, number>();
+    for (const word of words) counts.set(word, (counts.get(word) ?? 0) + 1);
+    const top = Math.max(...counts.values());
+    if (top / words.length > 0.35) return true;
+  }
+  return false;
+}
+
+/**
+ * Optional Cloudflare Turnstile support. The widget only appears, and the
+ * token is only demanded, when both keys are configured, so an unconfigured
+ * deployment keeps working with the remaining controls instead of rejecting
+ * every genuine enquiry.
+ */
+export function turnstileSiteKey(): string | null {
+  return process.env["TURNSTILE_SITE_KEY"] || null;
+}
+
+export function turnstileRequired(): boolean {
+  return Boolean(process.env["TURNSTILE_SITE_KEY"] && process.env["TURNSTILE_SECRET_KEY"]);
+}
+
+export async function verifyTurnstile(token: string, remoteIp: string): Promise<boolean> {
+  const secret = process.env["TURNSTILE_SECRET_KEY"];
+  if (!secret) return true;
+  if (!token) return false;
+  try {
+    const body = new URLSearchParams({ secret, response: token });
+    if (remoteIp && remoteIp !== "unknown") body.set("remoteip", remoteIp);
+    const response = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body,
+    });
+    if (!response.ok) return false;
+    const result = (await response.json()) as { success?: boolean };
+    return result.success === true;
+  } catch {
+    return false;
+  }
 }
 
 export interface AbuseVerdict {
@@ -180,4 +233,3 @@ export async function deliverSupportEmail(
     error: "Sender domain set but no delivery provider is connected yet.",
   };
 }
-

@@ -1,0 +1,14 @@
+{%- comment -%}
+  Resolves the public contact destination. The native Shopify contact page is
+  used when it exists on this store, otherwise customers are sent to the
+  NUR GOODS contact form. No email address is ever rendered here.
+
+  Usage: {% render 'contact-link', label: 'Contact us', class: 'btn' %}
+{%- endcomment -%}
+{%- assign contact_page = pages['contact'] -%}
+{%- if contact_page != blank and contact_page.handle != blank -%}
+  {%- assign contact_href = contact_page.url -%}
+{%- else -%}
+  {%- assign contact_href = settings.contact_url | default: 'https://nurgoods.com/contact' -%}
+{%- endif -%}
+<a href="{{ contact_href }}"{% if class %} class="{{ class }}"{% endif %}{% if style %} style="{{ style }}"{% endif %}>{{ label | default: 'Contact us' }}</a>

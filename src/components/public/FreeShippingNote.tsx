@@ -48,8 +48,7 @@ export function FreeShippingLine({ className = "" }: { className?: string }) {
 export function FreeShippingNote({ className = "" }: { className?: string }) {
   return (
     <p className={`text-xs text-muted-foreground ${className}`}>
-      {freeShippingStatement(PUBLIC_FREE_SHIPPING_MARKETS)} No delivery charge is added at
-      checkout.
+      {freeShippingStatement(PUBLIC_FREE_SHIPPING_MARKETS)} No delivery charge is added at checkout.
     </p>
   );
 }
