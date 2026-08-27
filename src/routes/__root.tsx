@@ -19,7 +19,6 @@ import { BRAND_ICONS, BRAND_SOCIAL_IMAGE } from "@/lib/brand-assets";
 /** Absolute URL for social crawlers, which reject relative image paths. */
 const SOCIAL_IMAGE_URL = `${BRAND.siteUrl}${BRAND_SOCIAL_IMAGE.path}`;
 
-
 function NotFoundComponent() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -88,15 +87,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { title: "NUR GOODS | Good things, brought to light" },
       {
         name: "description",
-        content:
-          "Considered everyday goods from NUR GOODS. Good things, brought to light.",
+        content: "Considered everyday goods from NUR GOODS. Good things, brought to light.",
       },
       { name: "author", content: "NUR GOODS" },
       { property: "og:title", content: "NUR GOODS | Good things, brought to light" },
       {
         property: "og:description",
-        content:
-          "Considered everyday goods from NUR GOODS. Good things, brought to light.",
+        content: "Considered everyday goods from NUR GOODS. Good things, brought to light.",
       },
       { property: "og:type", content: "website" },
       { property: "og:site_name", content: "NUR GOODS" },

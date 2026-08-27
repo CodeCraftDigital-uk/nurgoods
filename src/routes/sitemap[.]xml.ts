@@ -6,9 +6,8 @@ export const Route = createFileRoute("/sitemap.xml")({
   server: {
     handlers: {
       GET: async () => {
-        const { listPublicArticles, listPublicLegalDocuments, listPublicLegalSources } = await import(
-          "@/lib/services/public-content.functions"
-        );
+        const { listPublicArticles, listPublicLegalDocuments, listPublicLegalSources } =
+          await import("@/lib/services/public-content.functions");
 
         const entries: { loc: string; lastmod?: string | undefined; priority: string }[] = [
           { loc: `${BRAND.siteUrl}/`, priority: "0.9" },
@@ -34,7 +33,10 @@ export const Route = createFileRoute("/sitemap.xml")({
             }
           };
           const [articles, documents, importedPolicies, facets] = await Promise.all([
-            safe(() => listPublicArticles({}), [] as Awaited<ReturnType<typeof listPublicArticles>>),
+            safe(
+              () => listPublicArticles({}),
+              [] as Awaited<ReturnType<typeof listPublicArticles>>,
+            ),
             safe(
               () => listPublicLegalDocuments({}),
               [] as Awaited<ReturnType<typeof listPublicLegalDocuments>>,
@@ -43,9 +45,12 @@ export const Route = createFileRoute("/sitemap.xml")({
               () => listPublicLegalSources({}),
               [] as Awaited<ReturnType<typeof listPublicLegalSources>>,
             ),
-            safe(() => listStorefrontFacets(), { categories: [], product_types: [], tags: [], total: 0 } as Awaited<
-                ReturnType<typeof listStorefrontFacets>
-              >),
+            safe(() => listStorefrontFacets(), {
+              categories: [],
+              product_types: [],
+              tags: [],
+              total: 0,
+            } as Awaited<ReturnType<typeof listStorefrontFacets>>),
           ]);
           // Canonical category pages are the topical entry points into the
           // catalogue, so every category that actually holds products is listed.

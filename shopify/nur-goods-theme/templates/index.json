@@ -57,7 +57,7 @@
           "type": "cue",
           "settings": {
             "heading": "A person answers",
-            "body": "Write to support@nurgoods.com with any question before or after ordering."
+            "body": "Use the contact form with any question before or after ordering and a person will reply."
           }
         }
       },
@@ -97,14 +97,14 @@
           "type": "faq",
           "settings": {
             "question": "Can I return an item?",
-            "answer": "Returns are handled under the published returns and refunds policy. Email support@nurgoods.com and we will guide you through it."
+            "answer": "Returns are handled under the published returns and refunds policy. Use the contact form and we will guide you through it."
           }
         },
         "q4": {
           "type": "faq",
           "settings": {
             "question": "How do I contact support?",
-            "answer": "Email support@nurgoods.com or use the contact form and a person will reply."
+            "answer": "Use the contact form on the contact page and a person will reply."
           }
         }
       },

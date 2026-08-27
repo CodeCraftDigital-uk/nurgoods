@@ -111,7 +111,11 @@ function CopyField({ value }: { value: string }) {
         onClick={copy}
         className="inline-flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-brand px-5 text-sm font-semibold text-brand-foreground transition-colors hover:bg-brand/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
       >
-        {copied ? <Check aria-hidden className="size-4" /> : <Copy aria-hidden className="size-4" />}
+        {copied ? (
+          <Check aria-hidden className="size-4" />
+        ) : (
+          <Copy aria-hidden className="size-4" />
+        )}
         {copied ? "Copied" : "Copy"}
       </button>
       <span aria-live="polite" className="sr-only">
@@ -139,7 +143,6 @@ function Steps({ items }: { items: string[] }) {
 function AiConnectorsPage() {
   // Always advertise the canonical NUR GOODS endpoint, never the current host.
   const endpoint = `${BRAND.siteUrl}/mcp`;
-
 
   const chatgptSteps = [
     "Open ChatGPT on the web and go to Settings.",
@@ -180,7 +183,6 @@ function AiConnectorsPage() {
           })),
         }}
       />
-
 
       {/* Hero */}
       <section className="relative overflow-hidden border-b border-border/70">
@@ -281,9 +283,7 @@ function AiConnectorsPage() {
           </div>
 
           <article className="mt-5 rounded-2xl border border-border/70 bg-surface p-5">
-            <h3 className="font-display text-lg font-semibold text-foreground">
-              Other assistants
-            </h3>
+            <h3 className="font-display text-lg font-semibold text-foreground">Other assistants</h3>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
               Any assistant that supports remote Model Context Protocol servers can use the same
               endpoint.
@@ -420,7 +420,10 @@ function AiConnectorsPage() {
           </h2>
           <dl className="mt-4 space-y-4">
             {FAQS.map((faq) => (
-              <div key={faq.question} className="rounded-2xl border border-border/70 bg-surface p-5">
+              <div
+                key={faq.question}
+                className="rounded-2xl border border-border/70 bg-surface p-5"
+              >
                 <dt className="font-display text-base font-semibold text-foreground">
                   {faq.question}
                 </dt>

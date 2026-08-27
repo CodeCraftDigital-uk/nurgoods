@@ -112,7 +112,9 @@ function IntakePage() {
       void invalidate();
     },
     onError: (error) =>
-      toast.error(error instanceof Error ? error.message : "Event subscriptions could not be set up"),
+      toast.error(
+        error instanceof Error ? error.message : "Event subscriptions could not be set up",
+      ),
   });
 
   const counters = overview.data?.counters;
@@ -150,7 +152,9 @@ function IntakePage() {
         {webhook ? (
           <div className="space-y-3">
             <div className="flex flex-wrap items-center gap-2">
-              <StatusPill tone={webhook.missing.length === 0 && webhook.supported ? "positive" : "warning"}>
+              <StatusPill
+                tone={webhook.missing.length === 0 && webhook.supported ? "positive" : "warning"}
+              >
                 <ShieldCheck className="h-3.5 w-3.5" />
                 {webhook.supported
                   ? webhook.missing.length === 0
@@ -167,9 +171,7 @@ function IntakePage() {
             <p className="break-all text-xs text-muted-foreground">
               Callback endpoint: {webhook.callbackUrl}
             </p>
-            {webhook.error ? (
-              <p className="text-xs text-destructive">{webhook.error}</p>
-            ) : null}
+            {webhook.error ? <p className="text-xs text-destructive">{webhook.error}</p> : null}
             <Button
               size="sm"
               onClick={() => register.mutate()}

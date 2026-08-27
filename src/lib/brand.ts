@@ -7,7 +7,16 @@ export const BRAND = {
   tagline: "Good things, brought to light.",
   storeUrl: "https://NurGoods.com",
   siteUrl: "https://nurgoods.com",
+  /**
+   * Statutory business contact address. UK online selling rules require an
+   * email contact in the trader information disclosure, so this value is
+   * rendered on the legal contact information disclosure page only. Every
+   * other public surface links to the contact form instead, which keeps the
+   * address away from address harvesting bots.
+   */
   supportEmail: "support@nurgoods.com",
+  contactPath: "/contact",
+  contactUrl: "https://nurgoods.com/contact",
   tiktokHandle: "@nur.goods",
   tiktokUrl: "https://www.tiktok.com/@nur.goods",
 } as const;

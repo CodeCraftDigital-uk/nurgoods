@@ -61,7 +61,11 @@ export function BasketSheet() {
             <ul className="flex-1 divide-y divide-border/70 overflow-y-auto px-5">
               {lines.map((line) => {
                 const unit = variantPriceDisplay(
-                  { price: line.price, compare_at_price: line.compareAtPrice, currency: line.currency },
+                  {
+                    price: line.price,
+                    compare_at_price: line.compareAtPrice,
+                    currency: line.currency,
+                  },
                   line.currency,
                 );
                 const total = lineTotalDisplay(
@@ -92,7 +96,9 @@ export function BasketSheet() {
                       </Link>
                       {line.options.length > 0 ? (
                         <p className="mt-1 text-xs text-muted-foreground">
-                          {line.options.map((option) => `${option.name}: ${option.value}`).join(" / ")}
+                          {line.options
+                            .map((option) => `${option.name}: ${option.value}`)
+                            .join(" / ")}
                         </p>
                       ) : null}
                       {unit.primary ? (

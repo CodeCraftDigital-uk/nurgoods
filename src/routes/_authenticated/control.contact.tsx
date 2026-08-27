@@ -88,8 +88,7 @@ function ContactEnquiriesPage() {
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-foreground">{row.subject}</p>
                       <p className="mt-0.5 break-all text-xs text-muted-foreground">
-                        {row.name} · {row.email} ·{" "}
-                        {CATEGORY_LABEL[row.category] ?? row.category}
+                        {row.name} · {row.email} · {CATEGORY_LABEL[row.category] ?? row.category}
                         {row.order_number ? ` · Order ${row.order_number}` : ""} ·{" "}
                         {new Date(row.created_at).toLocaleString("en-GB")}
                       </p>
@@ -98,9 +97,7 @@ function ContactEnquiriesPage() {
                       <StatusPill tone={tone(row.status)}>
                         {ENQUIRY_STATUS_LABEL[row.status] ?? row.status}
                       </StatusPill>
-                      {row.handled ? (
-                        <StatusPill tone="positive">Handled</StatusPill>
-                      ) : null}
+                      {row.handled ? <StatusPill tone="positive">Handled</StatusPill> : null}
                     </div>
                   </div>
 
@@ -121,7 +118,9 @@ function ContactEnquiriesPage() {
                       {row.handled ? "Mark as open" : "Mark as handled"}
                     </Button>
                     <Button asChild variant="outline" className="min-h-9">
-                      <a href={`mailto:${row.email}?subject=Re: ${encodeURIComponent(row.subject)}`}>
+                      <a
+                        href={`mailto:${row.email}?subject=Re: ${encodeURIComponent(row.subject)}`}
+                      >
                         Reply by email
                       </a>
                     </Button>

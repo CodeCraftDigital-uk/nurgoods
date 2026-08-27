@@ -413,8 +413,7 @@ function QuestionsPanel({ recordId }: { recordId: string }) {
   });
   const [draft, setDraft] = useState("");
 
-  const invalidate = () =>
-    queryClient.invalidateQueries({ queryKey: ["seo-questions", recordId] });
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: ["seo-questions", recordId] });
 
   const add = useMutation({
     mutationFn: () => addSeoQuestion({ recordId, question: draft.trim() }),
@@ -509,7 +508,6 @@ function summarise(records: Array<{ optimisation_status: OptimisationStatus }>) 
   };
 }
 
-
 /**
  * Automated product search intelligence. This is a monitoring surface: every
  * figure here comes from work the pipeline has already validated and published.
@@ -532,7 +530,9 @@ function ProductSeoHealth() {
       {overview.isLoading ? (
         <p className="text-sm text-muted-foreground">Loading optimisation state.</p>
       ) : !data ? (
-        <p className="text-sm text-muted-foreground">Optimisation state is unavailable right now.</p>
+        <p className="text-sm text-muted-foreground">
+          Optimisation state is unavailable right now.
+        </p>
       ) : (
         <div className="space-y-5">
           <MetricGrid

@@ -11,10 +11,7 @@ import { MetricGrid, ProgressBar } from "@/components/admin/IntelligencePanels";
 import { DuplicateIntelligence } from "@/components/admin/DuplicateIntelligence";
 import { Button } from "@/components/ui/button";
 import { listCollections, listProducts } from "@/lib/services/catalogue";
-import {
-  getShopifyStatus,
-  runShopifyCatalogueSync,
-} from "@/lib/services/shopify-sync.functions";
+import { getShopifyStatus, runShopifyCatalogueSync } from "@/lib/services/shopify-sync.functions";
 import {
   getCatalogueIntelligenceFn,
   requeueProductFn,
@@ -147,17 +144,37 @@ function CataloguePage() {
         description="Automatic. High confidence results apply straight away, medium confidence uses the nearest safe parent, and low confidence falls back to a broader category and is flagged rather than guessed."
         actions={
           <div className="flex flex-wrap gap-2">
-            <Button size="sm" variant="outline" disabled={busy} onClick={() => action.mutate("backfill")}>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={busy}
+              onClick={() => action.mutate("backfill")}
+            >
               <Sparkles className="h-4 w-4" aria-hidden="true" />
               Backfill batch
             </Button>
-            <Button size="sm" variant="outline" disabled={busy} onClick={() => action.mutate("maintenance")}>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={busy}
+              onClick={() => action.mutate("maintenance")}
+            >
               Run maintenance
             </Button>
-            <Button size="sm" variant="outline" disabled={busy} onClick={() => action.mutate("audit")}>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={busy}
+              onClick={() => action.mutate("audit")}
+            >
               Run audit
             </Button>
-            <Button size="sm" variant="ghost" disabled={busy} onClick={() => action.mutate("retry_failed")}>
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={busy}
+              onClick={() => action.mutate("retry_failed")}
+            >
               Retry failed
             </Button>
           </div>
@@ -255,7 +272,10 @@ function CataloguePage() {
         ) : (
           <ul className="divide-y divide-border">
             {(data?.attention ?? []).map((row) => (
-              <li key={row.product_id} className="flex flex-wrap items-center justify-between gap-3 py-3">
+              <li
+                key={row.product_id}
+                className="flex flex-wrap items-center justify-between gap-3 py-3"
+              >
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium text-foreground">{row.title}</p>
                   <p className="text-xs text-muted-foreground">
@@ -325,9 +345,7 @@ function CataloguePage() {
             <div className="rounded-lg border border-border/70 p-4">
               <p className="text-sm text-foreground">{(products.data ?? []).length} products</p>
               <p className="mt-1 text-xs text-muted-foreground">
-                {
-                  (products.data ?? []).filter((product) => product.sync_status === "synced").length
-                }{" "}
+                {(products.data ?? []).filter((product) => product.sync_status === "synced").length}{" "}
                 currently marked synced.
               </p>
             </div>

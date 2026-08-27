@@ -22,14 +22,12 @@ const PRIMARY_NAV = [
   { label: "Contact", to: "/contact" },
 ] as const;
 
-
 /** Service facts only. Nothing here is a promise the store has not made. */
 const SERVICE_STRIP = [
   freeShippingHeadline(PUBLIC_FREE_SHIPPING_MARKETS),
   "Secure checkout on the NUR GOODS store",
-  `Support from a person at ${BRAND.supportEmail}`,
+  "Support from a person, through the contact form",
 ] as const;
-
 
 function SearchField({
   id,
@@ -150,11 +148,7 @@ export function PublicShell({ children }: { children: ReactNode }) {
                   <BrandWordmark height={28} />
                 </SheetHeader>
                 <div className="px-4">
-                  <SearchField
-                    id="menu-search"
-                    compact
-                    onSubmitted={() => setMenuOpen(false)}
-                  />
+                  <SearchField id="menu-search" compact onSubmitted={() => setMenuOpen(false)} />
                 </div>
                 <nav aria-label="Primary mobile" className="mt-2 flex flex-col px-4 pb-6">
                   {PRIMARY_NAV.map((item) => (
@@ -168,12 +162,13 @@ export function PublicShell({ children }: { children: ReactNode }) {
                       {item.label}
                     </Link>
                   ))}
-                  <a
-                    href={`mailto:${BRAND.supportEmail}`}
+                  <Link
+                    to="/contact"
+                    onClick={() => setMenuOpen(false)}
                     className="mt-6 text-sm text-muted-foreground"
                   >
-                    {BRAND.supportEmail}
-                  </a>
+                    Contact us
+                  </Link>
                 </nav>
               </SheetContent>
             </Sheet>
@@ -271,7 +266,6 @@ export function PublicShell({ children }: { children: ReactNode }) {
               </li>
               <li>
                 <a
-
                   href={BRAND.storeUrl}
                   className="inline-flex min-h-8 items-center text-muted-foreground hover:text-brand"
                 >
@@ -345,12 +339,12 @@ export function PublicShell({ children }: { children: ReactNode }) {
               </li>
 
               <li>
-                <a
-                  href={`mailto:${BRAND.supportEmail}`}
+                <Link
+                  to="/contact"
                   className="inline-flex min-h-8 items-center text-muted-foreground hover:text-brand"
                 >
-                  {BRAND.supportEmail}
-                </a>
+                  Contact us
+                </Link>
               </li>
               <li>
                 <a

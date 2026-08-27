@@ -37,7 +37,8 @@ export const Route = createFileRoute("/legal/")({
       { property: "og:title", content: "Policies and trust | NUR GOODS" },
       {
         property: "og:description",
-        content: "Read the published NUR GOODS policies covering privacy, returns, delivery and more.",
+        content:
+          "Read the published NUR GOODS policies covering privacy, returns, delivery and more.",
       },
       { property: "og:type", content: "website" },
       { property: "og:url", content: `${BRAND.siteUrl}/legal` },
@@ -73,7 +74,6 @@ function LegalIndex() {
     retry: false,
   });
 
-
   const imported = sources.data ?? [];
   const local = (documents.data ?? []).filter(
     (doc) => !imported.some((item) => item.slug === doc.slug),
@@ -97,24 +97,30 @@ function LegalIndex() {
         </h1>
         <p className="mt-4 text-base leading-relaxed text-muted-foreground">
           These policies come straight from the NUR GOODS store, so what you read here is the same
-          wording that applies at checkout. If a document you need is missing, write to{" "}
-          {BRAND.supportEmail} and we will send it to you directly.
+          wording that applies at checkout. If a document you need is missing,{" "}
+          <Link
+            to="/contact"
+            className="text-foreground underline decoration-gold underline-offset-4"
+          >
+            contact us
+          </Link>{" "}
+          and we will send it to you directly.
         </p>
 
         <div className="mt-10 space-y-3">
           {isLoading ? (
             [0, 1, 2].map((i) => (
-              <div
-                key={i}
-                className="h-20 animate-pulse glass-card rounded-2xl bg-muted/40"
-              />
+              <div key={i} className="h-20 animate-pulse glass-card rounded-2xl bg-muted/40" />
             ))
           ) : total === 0 ? (
             <div className="rounded-xl border border-dashed border-border p-10 text-center">
               <h2 className="font-display text-xl text-foreground">No policies published yet</h2>
               <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
-                Documents appear here once they have been finalised. For anything urgent, contact{" "}
-                {BRAND.supportEmail}.
+                Documents appear here once they have been finalised. For anything urgent,{" "}
+                <Link to="/contact" className="text-foreground underline underline-offset-4">
+                  contact us
+                </Link>
+                .
               </p>
             </div>
           ) : (
@@ -150,6 +156,46 @@ function LegalIndex() {
             </>
           )}
         </div>
+
+        {/*
+          Statutory trader information. UK online selling rules require an email
+          contact in the trader disclosure, so this is the one public place on
+          the site where the business email address is rendered.
+        */}
+        <section
+          id="business-and-contact-information"
+          aria-labelledby="business-and-contact-information-heading"
+          className="mt-14 glass-card rounded-2xl p-6"
+        >
+          <h2
+            id="business-and-contact-information-heading"
+            className="font-display text-xl text-foreground"
+          >
+            Business and contact information
+          </h2>
+          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+            This is the trader information disclosure required for online selling in the United
+            Kingdom.
+          </p>
+          <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-[180px_1fr]">
+            <dt className="text-muted-foreground">Trading name</dt>
+            <dd className="text-foreground">{BRAND.name}</dd>
+            <dt className="text-muted-foreground">Website</dt>
+            <dd className="text-foreground">{BRAND.siteUrl}</dd>
+            <dt className="text-muted-foreground">Statutory email contact</dt>
+            <dd className="text-foreground">{BRAND.supportEmail}</dd>
+            <dt className="text-muted-foreground">Preferred contact route</dt>
+            <dd>
+              <Link
+                to="/contact"
+                className="text-foreground underline decoration-gold underline-offset-4"
+              >
+                Contact us through the contact form
+              </Link>
+            </dd>
+          </dl>
+        </section>
+        <div className="h-16" />
       </div>
     </PublicShell>
   );

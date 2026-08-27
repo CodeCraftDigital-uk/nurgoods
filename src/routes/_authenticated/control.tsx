@@ -12,7 +12,6 @@ export const Route = createFileRoute("/_authenticated/control")({
   component: AdminLayout,
 });
 
-
 function AdminLayout() {
   return (
     <AdminShell>

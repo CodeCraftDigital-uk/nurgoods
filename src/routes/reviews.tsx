@@ -140,7 +140,12 @@ function ReviewsPage() {
             "@type": "BreadcrumbList",
             itemListElement: [
               { "@type": "ListItem", position: 1, name: "Home", item: `${BRAND.siteUrl}/` },
-              { "@type": "ListItem", position: 2, name: "Reviews", item: `${BRAND.siteUrl}/reviews` },
+              {
+                "@type": "ListItem",
+                position: 2,
+                name: "Reviews",
+                item: `${BRAND.siteUrl}/reviews`,
+              },
             ],
           },
         ]}

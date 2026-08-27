@@ -18,9 +18,8 @@ export const Route = createFileRoute("/llms.txt")({
         let collectionLines: string[] = [];
         let productCount: number | null = null;
         try {
-          const { listStorefrontCategories, listStorefrontProducts } = await import(
-            "@/lib/public-api/storefront.server"
-          );
+          const { listStorefrontCategories, listStorefrontProducts } =
+            await import("@/lib/public-api/storefront.server");
           // Canonical NUR categories only. Supplier collection labels are not
           // trustworthy taxonomy and must never be presented to answer engines.
           const [categories, firstPage] = await Promise.all([
@@ -31,10 +30,7 @@ export const Route = createFileRoute("/llms.txt")({
           collectionLines = [...categories]
             .sort((a, b) => b.product_count - a.product_count)
             .slice(0, 40)
-            .map(
-              (category) =>
-                `- [${category.name}](${BRAND.siteUrl}/category/${category.slug})`,
-            );
+            .map((category) => `- [${category.name}](${BRAND.siteUrl}/category/${category.slug})`);
         } catch {
           // Static guidance still ships if catalogue reads fail.
         }
@@ -48,7 +44,7 @@ export const Route = createFileRoute("/llms.txt")({
           "",
           `- Site: ${BRAND.siteUrl}`,
           "- Markets served: United Kingdom and United States",
-          `- Support: ${BRAND.supportEmail}`,
+          `- Support: ${BRAND.siteUrl}/contact`,
           `- TikTok: ${BRAND.tiktokUrl}`,
           productCount ? `- Listed products: approximately ${productCount}` : null,
           "- Orders and payment are handled by the secure hosted store checkout.",

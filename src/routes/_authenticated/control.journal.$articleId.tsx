@@ -184,8 +184,6 @@ function ArticleEditor() {
     onError: (error: Error) => toast.error(error.message),
   });
 
-
-
   const save = useMutation({
     mutationFn: async (state: EditorState) => {
       const publishing = state.status === "published";
@@ -203,9 +201,7 @@ function ArticleEditor() {
         status: state.status,
         stage: state.stage,
         faqs: state.faqs as unknown as never,
-        published_at: publishing
-          ? (article.data?.published_at ?? new Date().toISOString())
-          : null,
+        published_at: publishing ? (article.data?.published_at ?? new Date().toISOString()) : null,
       });
     },
     onSuccess: async () => {
@@ -351,7 +347,11 @@ function ArticleEditor() {
             <div className="grid gap-5 lg:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="title">Title</Label>
-                <Input id="title" value={form.title} onChange={(e) => set("title", e.target.value)} />
+                <Input
+                  id="title"
+                  value={form.title}
+                  onChange={(e) => set("title", e.target.value)}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="slug">Slug</Label>
@@ -419,7 +419,10 @@ function ArticleEditor() {
 
             <ul className="mt-5 divide-y divide-border">
               {(sources.data ?? []).map((source) => (
-                <li key={source.id} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center">
+                <li
+                  key={source.id}
+                  className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center"
+                >
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm text-foreground">{source.title ?? source.url}</p>
                     <a
@@ -563,7 +566,12 @@ function ArticleEditor() {
                     variant="ghost"
                     size="sm"
                     className="mt-2"
-                    onClick={() => set("faqs", form.faqs.filter((_, i) => i !== index))}
+                    onClick={() =>
+                      set(
+                        "faqs",
+                        form.faqs.filter((_, i) => i !== index),
+                      )
+                    }
                   >
                     Remove
                   </Button>
@@ -780,7 +788,6 @@ function ArticleEditor() {
               </Button>
             </div>
 
-
             <div className="mt-6 border-t border-border pt-4">
               <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
                 Recent runs
@@ -792,9 +799,7 @@ function ArticleEditor() {
                   {(runs.data ?? []).map((run) => (
                     <li key={run.id} className="flex items-start justify-between gap-3 py-3">
                       <div>
-                        <p className="text-sm text-foreground">
-                          {WORKFLOW_STAGE_LABEL[run.stage]}
-                        </p>
+                        <p className="text-sm text-foreground">{WORKFLOW_STAGE_LABEL[run.stage]}</p>
                         <p className="text-xs text-muted-foreground">
                           {run.provider ?? "No provider"} {run.model ? `· ${run.model}` : ""} ·{" "}
                           {new Date(run.created_at).toLocaleString()}
@@ -836,7 +841,6 @@ function ArticleEditor() {
               ))}
             </ol>
           </SectionCard>
-
         </TabsContent>
       </Tabs>
     </div>

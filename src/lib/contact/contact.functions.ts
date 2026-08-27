@@ -10,13 +10,20 @@ import {
   headerSafe,
   issueFormToken,
   originAllowed,
+  looksLikeSpam,
   plainText,
+  turnstileRequired,
+  turnstileSiteKey,
   verifyFormToken,
+  verifyTurnstile,
 } from "./contact.server";
 
 /** Mints the signed timing token the contact form must return with a submission. */
 export const getContactFormToken = createServerFn({ method: "GET" }).handler(async () => ({
   token: issueFormToken(),
+  // Public site key only. The secret never leaves the server.
+  turnstileSiteKey: turnstileSiteKey(),
+  turnstileRequired: turnstileRequired(),
 }));
 
 export interface ContactSubmitResult {
@@ -76,14 +83,29 @@ export const submitContactEnquiry = createServerFn({ method: "POST" })
     };
     if (clean.message.length < 20 || clean.subject.length < 3) return generic;
 
-    const ipHash = fingerprintHash(callerAddress(request));
+    if (looksLikeSpam({ name: clean.name, subject: clean.subject, message: clean.message })) {
+      // Silently accepted so a spammer learns nothing about the filter.
+      return accepted;
+    }
+
+    const caller = callerAddress(request);
+    if (turnstileRequired()) {
+      const turnstileToken = typeof raw["turnstileToken"] === "string" ? raw["turnstileToken"] : "";
+      const passed = await verifyTurnstile(turnstileToken, caller);
+      if (!passed) {
+        return { ok: false, message: "Please complete the verification check and try again." };
+      }
+    }
+
+    const ipHash = fingerprintHash(caller);
     const contentHash = fingerprintHash(`${clean.email}|${clean.subject}|${clean.message}`);
     const abuse = await checkAbuse({ ipHash, contentHash });
     if (abuse.duplicate) return accepted;
     if (!abuse.allowed) {
       return {
         ok: false,
-        message: "You have sent several messages recently. Please wait a little before sending another.",
+        message:
+          "You have sent several messages recently. Please wait a little before sending another.",
       };
     }
 

@@ -9,10 +9,7 @@ import { ProductCard, ProductCardSkeleton } from "@/components/public/ProductCar
 import { JsonLd } from "@/components/public/JsonLd";
 
 import { BRAND } from "@/lib/brand";
-import {
-  searchCatalogueFn,
-  suggestCatalogueFn,
-} from "@/lib/services/catalogue-search.functions";
+import { searchCatalogueFn, suggestCatalogueFn } from "@/lib/services/catalogue-search.functions";
 
 interface StoreSearch {
   q?: string | undefined;
@@ -41,7 +38,9 @@ const PAGE_SIZE = 48;
 export const Route = createFileRoute("/store/")({
   validateSearch: (search: Record<string, unknown>): StoreSearch => {
     const str = (key: string) =>
-      typeof search[key] === "string" && search[key] ? String(search[key]).slice(0, 255) : undefined;
+      typeof search[key] === "string" && search[key]
+        ? String(search[key]).slice(0, 255)
+        : undefined;
     const max = Number(search["max"]);
     return {
       q: str("q"),
@@ -93,7 +92,8 @@ export const Route = createFileRoute("/store/")({
       { property: "og:title", content: "Store | Browse the full NUR GOODS range" },
       {
         property: "og:description",
-        content: "Search, filter and compare the full NUR GOODS range of considered everyday goods.",
+        content:
+          "Search, filter and compare the full NUR GOODS range of considered everyday goods.",
       },
       { property: "og:type", content: "website" },
       { property: "og:url", content: `${BRAND.siteUrl}/store` },
@@ -117,7 +117,6 @@ function StoreIndex() {
   const [offset, setOffset] = useState(0);
   const [loaded, setLoaded] = useState<StoreCard[]>(initialPage?.items ?? []);
   const suggestBox = useRef<HTMLDivElement | null>(null);
-
 
   const runSearch = useServerFn(searchCatalogueFn);
   const runSuggest = useServerFn(suggestCatalogueFn);
@@ -177,7 +176,6 @@ function StoreIndex() {
     retry: false,
   });
 
-
   const pageItems = results.data?.items;
   useEffect(() => {
     if (!pageItems) return;
@@ -236,8 +234,6 @@ function StoreIndex() {
   const filtered = Boolean(
     search.q || search.category || search.collection || search.tag || search.max || search.instock,
   );
-
-
 
   const clearAll = () =>
     setSearch({
@@ -467,7 +463,6 @@ function StoreIndex() {
             </div>
           ) : null}
 
-
           {filtered ? (
             <div className="mt-5">
               <button
@@ -479,7 +474,6 @@ function StoreIndex() {
               </button>
             </div>
           ) : null}
-
         </div>
       </div>
 

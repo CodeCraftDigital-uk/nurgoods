@@ -20,14 +20,14 @@ export const Route = createFileRoute("/api/public/v1/store")({
             tagline: BRAND.tagline,
             store_url: BRAND.storeUrl,
             site_url: BRAND.siteUrl,
-            support_email: BRAND.supportEmail,
+            contact_url: `${BRAND.siteUrl}/contact`,
             social: { tiktok: { handle: BRAND.tiktokHandle, url: BRAND.tiktokUrl } },
             journal_url: canonical.journalIndex(),
             reviews_url: canonical.reviews(),
             policies,
             notes:
               policies.length === 0
-                ? "No policy documents have been published yet. Direct shipping, returns and privacy questions to the support email."
+                ? "No policy documents have been published yet. Direct shipping, returns and privacy questions through the contact form."
                 : null,
           },
         });

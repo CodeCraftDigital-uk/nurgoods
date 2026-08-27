@@ -6,13 +6,7 @@ import { brandArt } from "@/lib/brand-assets";
  * placeholder, not product imagery: a quiet surface with a small brand mark and
  * a plain line of text. Nothing here implies what the product looks like.
  */
-export function MissingProductImage({
-  className,
-  title,
-}: {
-  className?: string;
-  title?: string;
-}) {
+export function MissingProductImage({ className, title }: { className?: string; title?: string }) {
   const label = title?.trim()
     ? `Photography to follow for ${title.trim()}`
     : "Photography to follow for this product";

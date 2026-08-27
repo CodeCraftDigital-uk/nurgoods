@@ -102,7 +102,11 @@ function ProductNotFound() {
 }
 
 /** Builds a basket link on the store host so payment stays with the store. */
-function cartHref(domain: string | null, variantId: string | null, quantity: number): string | null {
+function cartHref(
+  domain: string | null,
+  variantId: string | null,
+  quantity: number,
+): string | null {
   if (!domain || !variantId) return null;
   return `https://${domain}/cart/${variantId}:${Math.max(1, Math.min(quantity, 10))}`;
 }
@@ -134,12 +138,14 @@ function ProductDetail() {
   }, [purchasable]);
 
   const defaultVariant = useMemo(
-    () => purchasable.find((variant) => variant.available_for_sale !== false) ?? purchasable[0] ?? null,
+    () =>
+      purchasable.find((variant) => variant.available_for_sale !== false) ?? purchasable[0] ?? null,
     [purchasable],
   );
   const [selection, setSelection] = useState<Record<string, string>>(() => {
     const initial: Record<string, string> = {};
-    for (const option of defaultVariant?.selected_options ?? []) initial[option.name] = option.value;
+    for (const option of defaultVariant?.selected_options ?? [])
+      initial[option.name] = option.value;
     return initial;
   });
 
@@ -163,7 +169,9 @@ function ProductDetail() {
       : null);
   const soldOut = selectedVariant ? selectedVariant.available_for_sale === false : false;
   const variantId = selectedVariant?.variant_id ?? null;
-  const buyHref = product.checkout_ready ? cartHref(product.checkout_domain, variantId, quantity) : null;
+  const buyHref = product.checkout_ready
+    ? cartHref(product.checkout_domain, variantId, quantity)
+    : null;
   const headlessReady = product.storefront_checkout && Boolean(variantId);
   const canBuy = (headlessReady || Boolean(buyHref)) && !soldOut;
   const unavailableReason = soldOut
@@ -219,7 +227,6 @@ function ProductDetail() {
       toast.error(message);
     }
   };
-
 
   // One shared pricing helper drives every price on the page, so a range can
   // never be rendered alongside a stale variant price.
@@ -278,7 +285,6 @@ function ProductDetail() {
                   },
           }
         : {}),
-
     },
   ];
   if (product.category_path.length > 0) {
@@ -358,7 +364,9 @@ function ProductDetail() {
                       aria-label={`Show image ${index + 1}`}
                       aria-current={index === activeIndex}
                       className={`block w-full overflow-hidden rounded-lg border transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${
-                        index === activeIndex ? "border-brand" : "border-border/70 hover:border-brand/50"
+                        index === activeIndex
+                          ? "border-brand"
+                          : "border-border/70 hover:border-brand/50"
                       }`}
                     >
                       <img
@@ -378,7 +386,6 @@ function ProductDetail() {
           </div>
 
           <div className="glass-panel h-fit rounded-3xl p-5 sm:p-7 lg:sticky lg:top-28">
-
             {product.category_name ? (
               <Link
                 to="/category/$slug"
@@ -416,7 +423,6 @@ function ProductDetail() {
                     ) : null}
                   </>
                 ) : null}
-
               </p>
             ) : null}
             {display.isRange ? (
@@ -554,11 +560,10 @@ function ProductDetail() {
             ) : null}
             <FreeShippingLine className="mt-4" />
             <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
-              Payment and order tracking are handled securely on the {BRAND.name}{" "}
-              store. Delivery to the United Kingdom and the United States is free and no delivery charge is added at checkout. Full terms are set out in the policy pages.
+              Payment and order tracking are handled securely on the {BRAND.name} store. Delivery to
+              the United Kingdom and the United States is free and no delivery charge is added at
+              checkout. Full terms are set out in the policy pages.
             </p>
-
-
 
             {product.collections.length > 0 ? (
               <div className="mt-8">
@@ -704,12 +709,12 @@ function ProductDetail() {
             full in the policy pages.
           </p>
           <div className="mt-5 flex flex-wrap gap-3">
-            <a
-              href={`mailto:${BRAND.supportEmail}`}
+            <Link
+              to="/contact"
               className="inline-flex min-h-11 items-center rounded-lg border border-input px-5 text-sm font-medium text-foreground hover:bg-accent"
             >
-              {BRAND.supportEmail}
-            </a>
+              Contact us
+            </Link>
             <Link
               to="/legal"
               className="inline-flex min-h-11 items-center rounded-lg border border-input px-5 text-sm font-medium text-foreground hover:bg-accent"

@@ -53,11 +53,8 @@ export const Route = createFileRoute("/legal/$slug")({
     const title =
       loaderData.kind === "imported" ? loaderData.imported.title : loaderData.local.title;
     const summary =
-      loaderData.kind === "imported"
-        ? loaderData.imported.summary
-        : loaderData.local.summary;
-    const slug =
-      loaderData.kind === "imported" ? loaderData.imported.slug : loaderData.local.slug;
+      loaderData.kind === "imported" ? loaderData.imported.summary : loaderData.local.summary;
+    const slug = loaderData.kind === "imported" ? loaderData.imported.slug : loaderData.local.slug;
     const fullTitle = `${title} | ${BRAND.name}`;
     const description = summary ?? `${title} for ${BRAND.name} customers and visitors.`;
     return {
@@ -83,7 +80,8 @@ function DocumentNotFound() {
       <div className="mx-auto w-full max-w-2xl px-5 py-24 text-center sm:px-8">
         <h1 className="font-display text-3xl text-foreground">Policy not available</h1>
         <p className="mt-3 text-sm text-muted-foreground">
-          This document has not been published yet. Contact {BRAND.supportEmail} if you need it now.
+          This document has not been published yet. Contact us through the contact form if you\n
+          need it now.
         </p>
         <Link
           to="/legal"
@@ -214,14 +212,11 @@ function LegalDocumentPage() {
 function PolicyFooter() {
   return (
     <p className="mt-12 text-sm text-muted-foreground">
-      Questions about this policy? Write to{" "}
-      <a
-        href={`mailto:${BRAND.supportEmail}`}
-        className="text-foreground underline decoration-gold underline-offset-4"
-      >
-        {BRAND.supportEmail}
-      </a>
-      .
+      Questions about this policy?{" "}
+      <Link to="/contact" className="text-foreground underline decoration-gold underline-offset-4">
+        Contact us
+      </Link>{" "}
+      and a person will reply.
     </p>
   );
 }

@@ -6,7 +6,7 @@ This repository holds the NUR GOODS commerce intelligence, content automation an
 
 - Brand: NUR GOODS
 - Site: https://NurGoods.com
-- Support: support@nurgoods.com
+- Support: https://nurgoods.com/contact
 
 ## Scope
 

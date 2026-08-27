@@ -96,7 +96,12 @@ function ChannelsPage() {
         title="Sales channels"
         description="NUR GOODS sells on three live surfaces. Verified sellable products belong on the headless channel, the Online Store and Shop, and nowhere else. Point of Sale stays off."
         actions={
-          <Button variant="outline" size="sm" onClick={() => parity.mutate()} disabled={parity.isPending}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => parity.mutate()}
+            disabled={parity.isPending}
+          >
             {parity.isPending ? "Checking parity" : "Check three surface parity"}
           </Button>
         }
@@ -150,11 +155,7 @@ function ChannelsPage() {
               placeholder="Optional single product id, gid://shopify/Product/..."
               aria-label="Single product id"
             />
-            <Button
-              variant="secondary"
-              onClick={() => audit.mutate()}
-              disabled={audit.isPending}
-            >
+            <Button variant="secondary" onClick={() => audit.mutate()} disabled={audit.isPending}>
               {audit.isPending ? "Auditing" : "Run dry run audit"}
             </Button>
           </div>
@@ -239,7 +240,9 @@ function ChannelsPage() {
             <TableBody>
               {drifted.map((item) => (
                 <TableRow key={item.shopifyProductId}>
-                  <TableCell className="font-medium">{item.title ?? item.shopifyProductId}</TableCell>
+                  <TableCell className="font-medium">
+                    {item.title ?? item.shopifyProductId}
+                  </TableCell>
                   <TableCell>{item.currentChannels.join(", ") || "None"}</TableCell>
                   <TableCell>{item.desiredChannels.join(", ")}</TableCell>
                   <TableCell className="text-muted-foreground">{item.message}</TableCell>

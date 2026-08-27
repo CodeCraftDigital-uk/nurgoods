@@ -24,7 +24,6 @@ export const Route = createFileRoute("/robots.txt")({
               "",
               `# AI orientation file: ${BRAND.siteUrl}/llms.txt`,
               "",
-
             ].join("\n");
 
         return new Response(body, {

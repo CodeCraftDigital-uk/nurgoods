@@ -51,7 +51,6 @@ function JournalIndex() {
     retry: false,
   });
 
-
   return (
     <PublicShell>
       <JsonLd
@@ -125,8 +124,11 @@ function JournalIndex() {
           <div className="rounded-xl border border-dashed border-border p-10 text-center">
             <h2 className="font-display text-xl text-foreground">Nothing published yet</h2>
             <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
-              The first articles are being prepared. Follow {BRAND.tiktokHandle} on TikTok or write
-              to {BRAND.supportEmail} in the meantime.
+              The first articles are being prepared. Follow {BRAND.tiktokHandle} on TikTok or{" "}
+              <Link to="/contact" className="text-foreground underline underline-offset-4">
+                contact us
+              </Link>{" "}
+              in the meantime.
             </p>
           </div>
         ) : (
@@ -150,39 +152,39 @@ function JournalIndex() {
                     />
                   ) : null}
                   <div className="flex flex-1 flex-col p-6">
-                  <p className="text-[0.7rem] uppercase tracking-[0.18em] text-muted-foreground">
-                    {article.published_at
-                      ? new Date(article.published_at).toLocaleDateString("en-GB", {
-                          day: "numeric",
-                          month: "long",
-                          year: "numeric",
-                        })
-                      : "Journal"}
-                    {article.reading_minutes ? ` · ${article.reading_minutes} min read` : ""}
-                  </p>
-                  <h2 className="mt-3 font-display text-xl leading-snug text-foreground">
-                    {article.title}
-                  </h2>
-                  {article.excerpt ? (
-                    <p className="mt-3 line-clamp-3 text-sm leading-relaxed text-muted-foreground">
-                      {article.excerpt}
+                    <p className="text-[0.7rem] uppercase tracking-[0.18em] text-muted-foreground">
+                      {article.published_at
+                        ? new Date(article.published_at).toLocaleDateString("en-GB", {
+                            day: "numeric",
+                            month: "long",
+                            year: "numeric",
+                          })
+                        : "Journal"}
+                      {article.reading_minutes ? ` · ${article.reading_minutes} min read` : ""}
                     </p>
-                  ) : null}
-                  {article.tags && article.tags.length > 0 ? (
-                    <ul className="mt-4 flex flex-wrap gap-1.5">
-                      {article.tags.slice(0, 3).map((tag) => (
-                        <li
-                          key={tag}
-                          className="rounded-full bg-secondary px-2.5 py-1 text-[0.68rem] text-secondary-foreground"
-                        >
-                          {tag}
-                        </li>
-                      ))}
-                    </ul>
-                  ) : null}
-                  <span className="mt-auto pt-5 text-sm font-medium text-foreground">
-                    Read article
-                  </span>
+                    <h2 className="mt-3 font-display text-xl leading-snug text-foreground">
+                      {article.title}
+                    </h2>
+                    {article.excerpt ? (
+                      <p className="mt-3 line-clamp-3 text-sm leading-relaxed text-muted-foreground">
+                        {article.excerpt}
+                      </p>
+                    ) : null}
+                    {article.tags && article.tags.length > 0 ? (
+                      <ul className="mt-4 flex flex-wrap gap-1.5">
+                        {article.tags.slice(0, 3).map((tag) => (
+                          <li
+                            key={tag}
+                            className="rounded-full bg-secondary px-2.5 py-1 text-[0.68rem] text-secondary-foreground"
+                          >
+                            {tag}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
+                    <span className="mt-auto pt-5 text-sm font-medium text-foreground">
+                      Read article
+                    </span>
                   </div>
                 </Link>
               </li>

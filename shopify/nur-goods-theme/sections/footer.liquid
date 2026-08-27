@@ -21,9 +21,7 @@
         <div {{ block.shopify_attributes }}>
           <h2>{{ block.settings.heading }}</h2>
           <ul>
-            {%- if settings.support_email != blank -%}
-              <li><a href="mailto:{{ settings.support_email }}">{{ settings.support_email }}</a></li>
-            {%- endif -%}
+            <li>{% render 'contact-link', label: 'Contact us' %}</li>
             {%- if settings.social_tiktok != blank -%}
               <li><a href="{{ settings.social_tiktok }}" rel="me noopener">TikTok {{ settings.social_tiktok_handle }}</a></li>
             {%- endif -%}

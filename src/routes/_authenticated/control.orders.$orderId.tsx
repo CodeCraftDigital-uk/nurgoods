@@ -17,7 +17,13 @@ import {
   setOrderReviewState,
   type SupplierSnapshot,
 } from "@/lib/commerce/commerce.functions";
-import { dateTime, money, realisedMargin, stateLabel, stateTone } from "@/lib/commerce/presentation";
+import {
+  dateTime,
+  money,
+  realisedMargin,
+  stateLabel,
+  stateTone,
+} from "@/lib/commerce/presentation";
 import { reconcileOrderEconomics } from "@/lib/pricing/economics";
 import { ATTENTION_STATES } from "@/lib/commerce/types";
 
@@ -166,10 +172,16 @@ function OrderDetailPage() {
 
       <div className="grid gap-4 lg:grid-cols-2">
         <SectionCard title="Store" description="What the store itself reports.">
-          <Row label="Order id" value={<span className="break-all">{order.shopify_order_id}</span>} />
+          <Row
+            label="Order id"
+            value={<span className="break-all">{order.shopify_order_id}</span>}
+          />
           <Row label="Order number" value={order.shopify_order_number ?? "Not recorded"} />
           <Row label="Payment status" value={order.shopify_financial_status ?? "Not recorded"} />
-          <Row label="Fulfilment status" value={order.shopify_fulfillment_status ?? "Not recorded"} />
+          <Row
+            label="Fulfilment status"
+            value={order.shopify_fulfillment_status ?? "Not recorded"}
+          />
           <Row label="Order total" value={money(order.order_total, order.currency)} />
           <Row
             label="Ship to"
@@ -181,7 +193,10 @@ function OrderDetailPage() {
           <Row label="Paid" value={dateTime(order.paid_at)} />
         </SectionCard>
 
-        <SectionCard title="Supplier" description="What the supplier side of this order looks like.">
+        <SectionCard
+          title="Supplier"
+          description="What the supplier side of this order looks like."
+        >
           <Row label="Supplier store" value={order.zendrop_store_id ?? "Not linked"} />
           <Row label="Supplier order" value={order.zendrop_order_id ?? "Not linked"} />
           <Row label="Supplier reference" value={order.zendrop_order_number ?? "Not recorded"} />
@@ -189,9 +204,7 @@ function OrderDetailPage() {
           <Row label="Submitted" value={dateTime(order.submitted_at)} />
           <Row
             label="Dispatch key"
-            value={
-              <span className="break-all">{order.dispatch_idempotency_key ?? "None"}</span>
-            }
+            value={<span className="break-all">{order.dispatch_idempotency_key ?? "None"}</span>}
           />
           <Row label="Retries" value={order.retry_count ?? 0} />
           {order.last_error ? (
@@ -215,7 +228,10 @@ function OrderDetailPage() {
             value={money(order.supplier_shipping_cost, order.supplier_currency)}
           />
           <Row label="Supplier fees" value={money(order.supplier_fees, order.supplier_currency)} />
-          <Row label="Supplier total" value={money(order.supplier_total, order.supplier_currency)} />
+          <Row
+            label="Supplier total"
+            value={money(order.supplier_total, order.supplier_currency)}
+          />
           <Row
             label="Card charged"
             value={money(order.supplier_payment_amount, order.supplier_payment_currency)}
@@ -233,10 +249,7 @@ function OrderDetailPage() {
             label="Customer payment taken"
             value={money(order.actual_gross_payment ?? order.order_total, order.currency)}
           />
-          <Row
-            label="Store payment fee"
-            value={money(order.actual_payment_fee, order.currency)}
-          />
+          <Row label="Store payment fee" value={money(order.actual_payment_fee, order.currency)} />
           <Row label="Payout received" value={money(order.actual_payout, order.currency)} />
           <Row
             label="Supplier charge, supplier currency"
@@ -445,7 +458,9 @@ function OrderDetailPage() {
               </div>
               <Button
                 className="mt-3 min-h-9"
-                disabled={link.isPending || dispatchLocked || !storeId.trim() || !supplierOrderId.trim()}
+                disabled={
+                  link.isPending || dispatchLocked || !storeId.trim() || !supplierOrderId.trim()
+                }
                 onClick={() => link.mutate()}
               >
                 Link supplier order
@@ -471,7 +486,10 @@ function OrderDetailPage() {
           ) : (
             <ul className="divide-y divide-border">
               {deliveries.map((delivery) => (
-                <li key={delivery.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
+                <li
+                  key={delivery.id}
+                  className="flex flex-wrap items-center justify-between gap-3 py-3"
+                >
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-foreground">
                       {delivery.topic ?? "Unknown topic"}
@@ -513,7 +531,9 @@ function OrderDetailPage() {
                   <StatusPill tone={stateTone(event.to_state ?? "")}>
                     {event.to_state ? stateLabel(event.to_state) : "No state change"}
                   </StatusPill>
-                  <span className="text-xs text-muted-foreground">{dateTime(event.created_at)}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {dateTime(event.created_at)}
+                  </span>
                   {event.code ? (
                     <span className="text-xs text-muted-foreground">· {event.code}</span>
                   ) : null}

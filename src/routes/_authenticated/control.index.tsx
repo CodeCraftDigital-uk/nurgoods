@@ -105,7 +105,6 @@ function DashboardPage() {
     );
   }
 
-
   const published = (articles.data ?? []).filter((a) => a.status === "published").length;
   const scheduled = (articles.data ?? []).filter((a) => a.status === "scheduled").length;
 
@@ -129,7 +128,11 @@ function DashboardPage() {
           hint="Read only mirror"
         />
         <Metric label="Published articles" value={String(published)} hint="Journal" />
-        <Metric label="Scheduled articles" value={String(scheduled)} hint="Queued for publication" />
+        <Metric
+          label="Scheduled articles"
+          value={String(scheduled)}
+          hint="Queued for publication"
+        />
       </div>
 
       <SectionCard
@@ -150,7 +153,11 @@ function DashboardPage() {
                 )}
                 aria-hidden="true"
               >
-                {item.complete ? <Check className="h-3.5 w-3.5" /> : <CircleAlert className="h-3.5 w-3.5" />}
+                {item.complete ? (
+                  <Check className="h-3.5 w-3.5" />
+                ) : (
+                  <CircleAlert className="h-3.5 w-3.5" />
+                )}
               </span>
               <div className="flex-1">
                 <p className="text-sm font-medium text-foreground">{item.label}</p>
