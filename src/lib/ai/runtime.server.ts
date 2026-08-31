@@ -253,7 +253,12 @@ export async function runStage(
   if (config.contextFields.includes("body")) {
     context["title"] = article.title;
     context["slug"] = article.slug;
-    context["body_markdown"] = article.body_markdown;
+    // Metadata only needs a representative sample of the body; full text is
+    // reserved for stages that rewrite or link within it.
+    context["body_markdown"] =
+      input.stage === "metadata_schema" && typeof article.body_markdown === "string"
+        ? article.body_markdown.slice(0, 2000)
+        : article.body_markdown;
   }
   if (config.contextFields.includes("meta")) {
     context["title"] = article.title;
