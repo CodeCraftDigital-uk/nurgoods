@@ -150,26 +150,43 @@ const BRAND_RULES = [
   "Return strict JSON only, with no commentary and no code fences.",
 ].join(" ");
 
-const STAGE_INSTRUCTIONS: Record<string, { key: string; instruction: string }> = {
+interface StageConfig {
+  key: string;
+  instruction: string;
+  /** Output token cap per stage. Short JSON stages get tight budgets. */
+  maxOutputTokens: number;
+  /** Which context fields this stage needs. Keeps input tokens lean. */
+  contextFields: Array<"body" | "meta" | "brief" | "sources" | "catalogue">;
+}
+
+const STAGE_INSTRUCTIONS: Record<string, StageConfig> = {
   draft: {
     key: "journal.draft",
     instruction:
       'Write or improve the article body in markdown against the brief. Return JSON {"body_markdown": string, "excerpt": string, "title": string}.',
+    maxOutputTokens: 6000,
+    contextFields: ["body", "brief", "sources"],
   },
   optimisation: {
     key: "journal.optimisation",
     instruction:
       'Improve heading hierarchy, entity clarity and concise answerable sections without keyword stuffing or added claims. Return JSON {"body_markdown": string, "faqs": [{"question": string, "answer": string}]}.',
+    maxOutputTokens: 6000,
+    contextFields: ["body"],
   },
   internal_links: {
     key: "journal.internal_links",
     instruction:
       'Suggest internal links using only the supplied product and collection handles. Return JSON {"links": [{"anchor_text": string, "target_type": "product"|"collection"|"article", "target_reference": string, "rationale": string}]}.',
+    maxOutputTokens: 1500,
+    contextFields: ["body", "catalogue"],
   },
   metadata_schema: {
     key: "journal.metadata_schema",
     instruction:
       'Produce metadata. Meta title under 60 characters, meta description under 160 characters. Return JSON {"meta_title": string, "meta_description": string, "schema_type": string}.',
+    maxOutputTokens: 600,
+    contextFields: ["meta", "body"],
   },
 };
 
@@ -197,14 +214,22 @@ export async function runStage(
     .single();
   if (articleError || !article) throw new Error("Article not found");
 
-  const { data: brief } = article.brief_id
-    ? await supabase.from("article_briefs").select("*").eq("id", article.brief_id).maybeSingle()
-    : { data: null };
+  // Load only the records this stage actually consumes so input tokens stay lean.
+  const needsBrief = config.contextFields.includes("brief");
+  const needsSources = config.contextFields.includes("sources");
+  const needsCatalogue = config.contextFields.includes("catalogue");
 
-  const { data: sources } = await supabase
-    .from("article_sources")
-    .select("url,title,publisher,verified")
-    .eq("article_id", input.articleId);
+  const { data: brief } =
+    needsBrief && article.brief_id
+      ? await supabase.from("article_briefs").select("*").eq("id", article.brief_id).maybeSingle()
+      : { data: null };
+
+  const { data: sources } = needsSources
+    ? await supabase
+        .from("article_sources")
+        .select("url,title,publisher,verified")
+        .eq("article_id", input.articleId)
+    : { data: null };
 
   const { data: promptVersion } = await supabase
     .from("prompt_versions")
@@ -215,25 +240,37 @@ export async function runStage(
     .limit(1)
     .maybeSingle();
 
-  const catalogue =
-    input.stage === "internal_links"
-      ? await supabase.from("shopify_products").select("handle,title").limit(50)
-      : { data: null };
-  const collections =
-    input.stage === "internal_links"
-      ? await supabase.from("shopify_collections").select("handle,title").limit(50)
-      : { data: null };
+  const catalogue = needsCatalogue
+    ? await supabase.from("shopify_products").select("handle,title").limit(50)
+    : { data: null };
+  const collections = needsCatalogue
+    ? await supabase.from("shopify_collections").select("handle,title").limit(50)
+    : { data: null };
 
-  const context = {
-    title: article.title,
-    slug: article.slug,
-    body_markdown: article.body_markdown,
-    excerpt: article.excerpt,
-    brief,
-    sources: sources ?? [],
-    products: catalogue.data ?? [],
-    collections: collections.data ?? [],
-  };
+  // Assemble only the fields the stage declared, so briefs, sources and
+  // catalogue lists are not resent to stages that never read them.
+  const context: Record<string, unknown> = {};
+  if (config.contextFields.includes("body")) {
+    context["title"] = article.title;
+    context["slug"] = article.slug;
+    // Metadata only needs a representative sample of the body; full text is
+    // reserved for stages that rewrite or link within it.
+    context["body_markdown"] =
+      input.stage === "metadata_schema" && typeof article.body_markdown === "string"
+        ? article.body_markdown.slice(0, 2000)
+        : article.body_markdown;
+  }
+  if (config.contextFields.includes("meta")) {
+    context["title"] = article.title;
+    context["slug"] = article.slug;
+    context["excerpt"] = article.excerpt;
+  }
+  if (needsBrief) context["brief"] = brief;
+  if (needsSources) context["sources"] = sources ?? [];
+  if (needsCatalogue) {
+    context["products"] = catalogue.data ?? [];
+    context["collections"] = collections.data ?? [];
+  }
 
   const { data: run, error: runError } = await supabase
     .from("ai_generation_runs")
@@ -257,6 +294,7 @@ export async function runStage(
       stage: input.stage,
       promptVersionKey: config.key,
       responseSchema: {},
+      maxOutputTokens: config.maxOutputTokens,
       messages: [
         { role: "system", content: `${BRAND_RULES} ${promptVersion?.template ?? ""}`.trim() },
         { role: "user", content: `${config.instruction}\n\n${JSON.stringify(context)}` },
