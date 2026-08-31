@@ -289,6 +289,7 @@ export async function runStage(
       stage: input.stage,
       promptVersionKey: config.key,
       responseSchema: {},
+      maxOutputTokens: config.maxOutputTokens,
       messages: [
         { role: "system", content: `${BRAND_RULES} ${promptVersion?.template ?? ""}`.trim() },
         { role: "user", content: `${config.instruction}\n\n${JSON.stringify(context)}` },
