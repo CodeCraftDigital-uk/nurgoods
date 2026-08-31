@@ -240,25 +240,32 @@ export async function runStage(
     .limit(1)
     .maybeSingle();
 
-  const catalogue =
-    input.stage === "internal_links"
-      ? await supabase.from("shopify_products").select("handle,title").limit(50)
-      : { data: null };
-  const collections =
-    input.stage === "internal_links"
-      ? await supabase.from("shopify_collections").select("handle,title").limit(50)
-      : { data: null };
+  const catalogue = needsCatalogue
+    ? await supabase.from("shopify_products").select("handle,title").limit(50)
+    : { data: null };
+  const collections = needsCatalogue
+    ? await supabase.from("shopify_collections").select("handle,title").limit(50)
+    : { data: null };
 
-  const context = {
-    title: article.title,
-    slug: article.slug,
-    body_markdown: article.body_markdown,
-    excerpt: article.excerpt,
-    brief,
-    sources: sources ?? [],
-    products: catalogue.data ?? [],
-    collections: collections.data ?? [],
-  };
+  // Assemble only the fields the stage declared, so briefs, sources and
+  // catalogue lists are not resent to stages that never read them.
+  const context: Record<string, unknown> = {};
+  if (config.contextFields.includes("body")) {
+    context["title"] = article.title;
+    context["slug"] = article.slug;
+    context["body_markdown"] = article.body_markdown;
+  }
+  if (config.contextFields.includes("meta")) {
+    context["title"] = article.title;
+    context["slug"] = article.slug;
+    context["excerpt"] = article.excerpt;
+  }
+  if (needsBrief) context["brief"] = brief;
+  if (needsSources) context["sources"] = sources ?? [];
+  if (needsCatalogue) {
+    context["products"] = catalogue.data ?? [];
+    context["collections"] = collections.data ?? [];
+  }
 
   const { data: run, error: runError } = await supabase
     .from("ai_generation_runs")
