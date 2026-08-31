@@ -150,26 +150,43 @@ const BRAND_RULES = [
   "Return strict JSON only, with no commentary and no code fences.",
 ].join(" ");
 
-const STAGE_INSTRUCTIONS: Record<string, { key: string; instruction: string }> = {
+interface StageConfig {
+  key: string;
+  instruction: string;
+  /** Output token cap per stage. Short JSON stages get tight budgets. */
+  maxOutputTokens: number;
+  /** Which context fields this stage needs. Keeps input tokens lean. */
+  contextFields: Array<"body" | "meta" | "brief" | "sources" | "catalogue">;
+}
+
+const STAGE_INSTRUCTIONS: Record<string, StageConfig> = {
   draft: {
     key: "journal.draft",
     instruction:
       'Write or improve the article body in markdown against the brief. Return JSON {"body_markdown": string, "excerpt": string, "title": string}.',
+    maxOutputTokens: 6000,
+    contextFields: ["body", "brief", "sources"],
   },
   optimisation: {
     key: "journal.optimisation",
     instruction:
       'Improve heading hierarchy, entity clarity and concise answerable sections without keyword stuffing or added claims. Return JSON {"body_markdown": string, "faqs": [{"question": string, "answer": string}]}.',
+    maxOutputTokens: 6000,
+    contextFields: ["body"],
   },
   internal_links: {
     key: "journal.internal_links",
     instruction:
       'Suggest internal links using only the supplied product and collection handles. Return JSON {"links": [{"anchor_text": string, "target_type": "product"|"collection"|"article", "target_reference": string, "rationale": string}]}.',
+    maxOutputTokens: 1500,
+    contextFields: ["body", "catalogue"],
   },
   metadata_schema: {
     key: "journal.metadata_schema",
     instruction:
       'Produce metadata. Meta title under 60 characters, meta description under 160 characters. Return JSON {"meta_title": string, "meta_description": string, "schema_type": string}.',
+    maxOutputTokens: 600,
+    contextFields: ["meta", "body"],
   },
 };
 
