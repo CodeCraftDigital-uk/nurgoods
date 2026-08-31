@@ -214,14 +214,22 @@ export async function runStage(
     .single();
   if (articleError || !article) throw new Error("Article not found");
 
-  const { data: brief } = article.brief_id
-    ? await supabase.from("article_briefs").select("*").eq("id", article.brief_id).maybeSingle()
-    : { data: null };
+  // Load only the records this stage actually consumes so input tokens stay lean.
+  const needsBrief = config.contextFields.includes("brief");
+  const needsSources = config.contextFields.includes("sources");
+  const needsCatalogue = config.contextFields.includes("catalogue");
 
-  const { data: sources } = await supabase
-    .from("article_sources")
-    .select("url,title,publisher,verified")
-    .eq("article_id", input.articleId);
+  const { data: brief } =
+    needsBrief && article.brief_id
+      ? await supabase.from("article_briefs").select("*").eq("id", article.brief_id).maybeSingle()
+      : { data: null };
+
+  const { data: sources } = needsSources
+    ? await supabase
+        .from("article_sources")
+        .select("url,title,publisher,verified")
+        .eq("article_id", input.articleId)
+    : { data: null };
 
   const { data: promptVersion } = await supabase
     .from("prompt_versions")
