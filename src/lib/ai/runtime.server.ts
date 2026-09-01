@@ -74,7 +74,9 @@ export function resolveAdapter(): AiProviderAdapter {
             },
           ],
           temperature: 0,
-          maxOutputTokens: Math.max(request.maxOutputTokens ?? 4000, 6000),
+          // Give the corrective pass a little headroom over the stage budget,
+          // but never a full extra generation's worth of tokens.
+          maxOutputTokens: Math.round((request.maxOutputTokens ?? 4000) * 1.25),
         });
         const retryText = (await retry.text)?.trim() ?? "";
         const retryParsed = extractJsonObject(retryText);
