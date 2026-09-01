@@ -129,7 +129,7 @@ export async function optimiseProduct(
     promptVersionKey: "catalogue.seo",
     responseSchema: {},
     temperature: 0.3,
-    maxOutputTokens: 3200,
+    maxOutputTokens: 1800,
     messages: [
       { role: "system", content: SEO_RULES },
       {
